@@ -1,0 +1,10 @@
+# Configuracion del proyecto Supabase.
+# El desarrollo local se hace contra el proyecto Supabase en la nube (sin Docker, Contexto.md ADR-04).
+project_id = "gestor-financiero"
+
+[db]
+major_version = 15
+
+[db.seed]
+enabled = true
+sql_paths = ["./seed.sql"]

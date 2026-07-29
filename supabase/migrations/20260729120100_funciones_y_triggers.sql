@@ -1,0 +1,286 @@
+-- ============================================================================
+-- Funciones y triggers — Contexto.md §6.6
+-- ============================================================================
+
+-- ─── Marca de tiempo de modificacion (RNF-08) ───────────────────────────────
+
+create or replace function actualizar_timestamp()
+returns trigger
+language plpgsql
+as $$
+begin
+  new.actualizado_en := now();
+  return new;
+end;
+$$;
+
+create trigger perfiles_actualizado     before update on perfiles     for each row execute function actualizar_timestamp();
+create trigger proyectos_actualizado    before update on proyectos    for each row execute function actualizar_timestamp();
+create trigger movimientos_actualizado  before update on movimientos  for each row execute function actualizar_timestamp();
+create trigger obligaciones_actualizado before update on obligaciones for each row execute function actualizar_timestamp();
+create trigger pasivos_actualizado      before update on pasivos      for each row execute function actualizar_timestamp();
+
+-- ─── Auditoria de creacion y modificacion (RNF-08) ──────────────────────────
+
+create or replace function registrar_auditoria()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_accion      text;
+  v_propietario uuid;
+  v_entidad_id  uuid;
+  v_cambios     jsonb;
+  v_actor       uuid;
+  v_nuevo       jsonb := case when tg_op = 'DELETE' then null else to_jsonb(new) end;
+  v_anterior    jsonb := case when tg_op = 'INSERT' then null else to_jsonb(old) end;
+begin
+  -- Se opera sobre jsonb (no sobre new.<campo>) para que la funcion sirva
+  -- a cualquier tabla auditada, tenga o no la columna 'estado'.
+  if tg_op = 'INSERT' then
+    v_accion      := 'crear';
+    v_propietario := (v_nuevo ->> 'propietario_id')::uuid;
+    v_entidad_id  := (v_nuevo ->> 'id')::uuid;
+    v_cambios     := v_nuevo;
+  elsif tg_op = 'UPDATE' then
+    v_accion := case
+                  when v_nuevo ->> 'estado' = 'anulado' and coalesce(v_anterior ->> 'estado', '') <> 'anulado'
+                    then 'anular'
+                  else 'actualizar'
+                end;
+    v_propietario := (v_nuevo ->> 'propietario_id')::uuid;
+    v_entidad_id  := (v_nuevo ->> 'id')::uuid;
+
+    -- Solo las claves que cambiaron
+    select coalesce(
+             jsonb_object_agg(k, jsonb_build_object('antes', v_anterior -> k, 'despues', v_nuevo -> k)),
+             '{}'::jsonb
+           )
+      into v_cambios
+      from jsonb_object_keys(v_nuevo) as k
+     where v_nuevo -> k is distinct from v_anterior -> k
+       and k not in ('actualizado_en', 'actualizado_por');
+
+    if v_cambios = '{}'::jsonb then
+      return new;
+    end if;
+  else
+    v_accion      := 'eliminar';
+    v_propietario := (v_anterior ->> 'propietario_id')::uuid;
+    v_entidad_id  := (v_anterior ->> 'id')::uuid;
+    v_cambios     := v_anterior;
+  end if;
+
+  v_actor := coalesce(auth.uid(), v_propietario);
+
+  insert into registro_auditoria (propietario_id, entidad, entidad_id, accion, cambios, actor_id)
+  values (v_propietario, tg_table_name, v_entidad_id, v_accion, v_cambios, v_actor);
+
+  if tg_op = 'DELETE' then
+    return old;
+  end if;
+  return new;
+end;
+$$;
+
+create trigger proyectos_auditoria    after insert or update or delete on proyectos    for each row execute function registrar_auditoria();
+create trigger movimientos_auditoria  after insert or update or delete on movimientos  for each row execute function registrar_auditoria();
+create trigger obligaciones_auditoria after insert or update or delete on obligaciones for each row execute function registrar_auditoria();
+create trigger documentos_auditoria   after insert or update or delete on documentos   for each row execute function registrar_auditoria();
+create trigger pasivos_auditoria      after insert or update or delete on pasivos      for each row execute function registrar_auditoria();
+
+-- ─── Alta de usuario: crea el perfil y sus catalogos por defecto ─────────────
+
+create or replace function crear_perfil_al_registrarse()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  insert into perfiles (id, nombre_completo, moneda, zona_horaria)
+  values (
+    new.id,
+    coalesce(nullif(trim(new.raw_user_meta_data ->> 'nombre_completo'), ''), split_part(new.email, '@', 1)),
+    coalesce(nullif(new.raw_user_meta_data ->> 'moneda', ''), 'COP'),
+    coalesce(nullif(new.raw_user_meta_data ->> 'zona_horaria', ''), 'America/Bogota')
+  )
+  on conflict (id) do nothing;
+
+  -- Metodos de pago iniciales (RF-33). Las categorias del sistema son compartidas
+  -- (propietario_id null), por lo que no requieren sembrado por usuario.
+  insert into metodos_pago (propietario_id, nombre, tipo)
+  values
+    (new.id, 'Efectivo',           'efectivo'),
+    (new.id, 'Transferencia',      'transferencia'),
+    (new.id, 'Tarjeta de credito', 'tarjeta_credito'),
+    (new.id, 'Debito automatico',  'debito_automatico')
+  on conflict (propietario_id, nombre) do nothing;
+
+  return new;
+end;
+$$;
+
+create trigger usuarios_crear_perfil
+  after insert on auth.users
+  for each row execute function crear_perfil_al_registrarse();
+
+-- ─── Coherencia: el movimiento hereda propietario y moneda del proyecto ─────
+
+create or replace function validar_movimiento()
+returns trigger
+language plpgsql
+as $$
+declare
+  v_proyecto  proyectos;
+  v_categoria categorias;
+begin
+  select * into v_proyecto from proyectos where id = new.proyecto_id;
+  if v_proyecto.id is null then
+    raise exception 'PROYECTO_NO_ENCONTRADO';
+  end if;
+
+  -- Invariante §5.7.1: el movimiento pertenece al mismo propietario del proyecto.
+  if v_proyecto.propietario_id <> new.propietario_id then
+    raise exception 'PROYECTO_DE_OTRO_PROPIETARIO';
+  end if;
+
+  -- Invariante §5.7.5: la moneda del movimiento es la del proyecto.
+  if new.moneda <> v_proyecto.moneda then
+    raise exception 'MONEDA_INCOMPATIBLE';
+  end if;
+
+  -- Invariante §5.7.7: un proyecto finalizado o archivado no acepta movimientos nuevos.
+  if tg_op = 'INSERT' and v_proyecto.estado in ('finalizado','archivado') then
+    raise exception 'PROYECTO_CERRADO';
+  end if;
+
+  select * into v_categoria from categorias where id = new.categoria_id;
+  if v_categoria.id is null then
+    raise exception 'CATEGORIA_NO_ENCONTRADA';
+  end if;
+
+  -- Invariante §5.7.3: la categoria debe ser compatible con el tipo de movimiento.
+  if new.tipo = 'ingreso' and v_categoria.naturaleza not in ('ingreso','financiacion') then
+    raise exception 'CATEGORIA_INCOMPATIBLE';
+  end if;
+  if new.tipo = 'egreso' and v_categoria.naturaleza = 'ingreso' then
+    raise exception 'CATEGORIA_INCOMPATIBLE';
+  end if;
+
+  return new;
+end;
+$$;
+
+create trigger movimientos_validar
+  before insert or update of proyecto_id, categoria_id, tipo, moneda, propietario_id on movimientos
+  for each row execute function validar_movimiento();
+
+-- ─── §5.6 Calculo de la siguiente fecha de una recurrencia ──────────────────
+
+create or replace function meses_por_frecuencia(p_frecuencia frecuencia, p_intervalo int)
+returns int
+language sql
+immutable
+as $$
+  select case p_frecuencia
+    when 'mensual'       then 1
+    when 'bimestral'     then 2
+    when 'trimestral'    then 3
+    when 'semestral'     then 6
+    when 'anual'         then 12
+    when 'personalizada' then coalesce(p_intervalo, 1)
+    else 0
+  end;
+$$;
+
+-- Si el dia no existe en el mes destino (31 -> febrero) se usa el ultimo dia del mes.
+create or replace function siguiente_vencimiento(p_base date, p_meses int)
+returns date
+language sql
+immutable
+as $$
+  select case
+    when p_meses <= 0 then null
+    else least(
+      (date_trunc('month', p_base) + (p_meses || ' months')::interval + (extract(day from p_base)::int - 1 || ' days')::interval)::date,
+      (date_trunc('month', p_base) + (p_meses + 1 || ' months')::interval - interval '1 day')::date
+    )
+  end;
+$$;
+
+-- ─── §10.1 Generacion idempotente de ocurrencias ────────────────────────────
+
+create or replace function generar_ocurrencias(p_horizonte_meses int default 12)
+returns int
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_obligacion  obligaciones;
+  v_fecha       date;
+  v_meses       int;
+  v_limite      date;
+  v_insertadas  int := 0;
+begin
+  v_limite := (current_date + (p_horizonte_meses || ' months')::interval)::date;
+
+  for v_obligacion in select * from obligaciones where activa loop
+    v_meses := meses_por_frecuencia(v_obligacion.frecuencia, v_obligacion.intervalo_meses);
+    v_fecha := v_obligacion.fecha_vencimiento;
+
+    loop
+      exit when v_fecha is null or v_fecha > v_limite;
+
+      insert into ocurrencias_obligacion
+        (obligacion_id, propietario_id, fecha_vencimiento, valor_estimado)
+      values
+        (v_obligacion.id, v_obligacion.propietario_id, v_fecha, v_obligacion.valor_estimado)
+      on conflict (obligacion_id, fecha_vencimiento) do nothing;
+
+      if found then
+        v_insertadas := v_insertadas + 1;
+      end if;
+
+      exit when v_meses = 0;   -- frecuencia unica
+      v_fecha := siguiente_vencimiento(v_fecha, v_meses);
+    end loop;
+  end loop;
+
+  return v_insertadas;
+end;
+$$;
+
+-- ─── §10.1 Marcado de vencidos ──────────────────────────────────────────────
+
+create or replace function marcar_vencidos()
+returns int
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_total int := 0;
+  v_n     int;
+begin
+  update movimientos
+     set estado = 'vencido'
+   where estado = 'pendiente'
+     and fecha_vencimiento is not null
+     and fecha_vencimiento < current_date;
+  get diagnostics v_n = row_count;
+  v_total := v_total + v_n;
+
+  update ocurrencias_obligacion
+     set estado = 'vencida'
+   where estado = 'pendiente'
+     and fecha_vencimiento < current_date;
+  get diagnostics v_n = row_count;
+  v_total := v_total + v_n;
+
+  return v_total;
+end;
+$$;

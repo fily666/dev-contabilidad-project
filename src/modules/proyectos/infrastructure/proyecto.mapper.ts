@@ -1,0 +1,52 @@
+import type { Tablas } from "@/shared/infrastructure/supabase/database.types";
+import { Proyecto, type DatosProyecto } from "../domain/proyecto.entity";
+import { leerConfiguracion, TipoProyecto } from "../domain/tipo-proyecto.entity";
+import type { ValorAtributo } from "../domain/tipo-proyecto.entity";
+
+type FilaProyecto = Tablas<"proyectos">;
+type FilaTipoProyecto = Tablas<"tipos_proyecto">;
+
+export function aProyecto(fila: FilaProyecto): Proyecto {
+  const datos: DatosProyecto = {
+    id: fila.id,
+    propietarioId: fila.propietario_id,
+    tipoProyectoId: fila.tipo_proyecto_id,
+    nombre: fila.nombre,
+    descripcion: fila.descripcion,
+    fechaInicio: fila.fecha_inicio,
+    fechaFin: fila.fecha_fin,
+    estado: fila.estado,
+    moneda: fila.moneda,
+    atributos: (fila.atributos ?? {}) as Record<string, ValorAtributo>,
+  };
+  return Proyecto.desdePersistencia(datos);
+}
+
+export function aFilaProyecto(proyecto: Proyecto, actorId: string) {
+  const d = proyecto.aDatos();
+  return {
+    id: d.id,
+    propietario_id: d.propietarioId,
+    tipo_proyecto_id: d.tipoProyectoId,
+    nombre: d.nombre,
+    descripcion: d.descripcion,
+    fecha_inicio: d.fechaInicio,
+    fecha_fin: d.fechaFin,
+    estado: d.estado,
+    moneda: d.moneda,
+    atributos: d.atributos,
+    creado_por: actorId,
+  };
+}
+
+export function aTipoProyecto(fila: FilaTipoProyecto): TipoProyecto {
+  return new TipoProyecto(
+    fila.id,
+    fila.codigo,
+    fila.nombre,
+    fila.icono,
+    leerConfiguracion(fila.configuracion),
+    fila.propietario_id === null,
+    fila.activo,
+  );
+}
