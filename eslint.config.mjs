@@ -86,18 +86,20 @@ const eslintConfig = [
     },
   },
   {
-    // Solo las tareas cron pueden usar el cliente administrativo (service_role).
+    // Las paginas y rutas no instancian adaptadores: piden el contenedor (§7.5).
+    // El cliente de datos usa service_role, y quien lo importe queda obligado a
+    // ser codigo de servidor por el `import "server-only"` que lleva dentro; esta
+    // regla evita ademas que se cuele por la puerta de atras (§9).
     files: ["src/app/**"],
-    ignores: ["src/app/api/cron/**"],
     rules: {
       "no-restricted-imports": [
         "error",
         {
           paths: [
             {
-              name: "@/shared/infrastructure/supabase/admin",
+              name: "@/shared/infrastructure/supabase/cliente-servidor",
               message:
-                "El cliente service_role solo puede usarse en /api/cron (Contexto.md §9).",
+                "Las paginas y rutas obtienen el acceso a datos del contenedor de @/di/container (Contexto.md §7.5, §9).",
             },
           ],
         },

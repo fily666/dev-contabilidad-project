@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Banknote, FolderKanban, Landmark, Plus, Receipt, Scale } from "lucide-react";
 
-import { contenedorAutenticado } from "@/di/container";
+import { contenedorPrivado } from "@/di/container";
 import { EnlaceBoton } from "@/shared/ui/enlace-boton";
 import { EstadoVacio } from "@/shared/ui/estado-vacio";
 import { TarjetaIndicador } from "@/shared/ui/tarjeta-indicador";
@@ -16,21 +16,19 @@ export const metadata: Metadata = { title: "Dashboard" };
  * llegan en la Fase 3 y 4 según el roadmap de Contexto.md §14.
  */
 export default async function PaginaDashboard() {
-  const { contenedor, sesion } = await contenedorAutenticado();
+  const { contenedor, ajustes } = await contenedorPrivado();
 
   const [proyectos, ultimos, metodosPago] = await Promise.all([
     contenedor.proyectos.listar.ejecutar({
-      propietarioId: sesion.usuarioId,
       filtro: { estados: ["activo", "pausado", "finalizado"] },
     }),
     contenedor.movimientos.listar.ejecutar({
-      propietarioId: sesion.usuarioId,
       paginacion: { pagina: 1, porPagina: 8 },
     }),
-    contenedor.metodosPago.listar(sesion.usuarioId),
+    contenedor.metodosPago.listar(),
   ]);
 
-  const moneda = proyectos[0]?.moneda ?? sesion.perfil.moneda;
+  const moneda = proyectos[0]?.moneda ?? ajustes.moneda;
   const hoy = contenedor.reloj.hoy();
 
   const totales = proyectos.reduce(
@@ -43,13 +41,11 @@ export default async function PaginaDashboard() {
     { invertido: 0, ingresos: 0, egresos: 0, balance: 0 },
   );
 
-  const nombre = sesion.perfil.nombreCompleto.split(" ")[0] ?? "";
-
   return (
     <div className="space-y-8">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Hola, {nombre}</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">Resumen</h1>
           <p className="text-sm text-muted-foreground">
             Estado consolidado de {proyectos.length}{" "}
             {proyectos.length === 1 ? "proyecto" : "proyectos"}.

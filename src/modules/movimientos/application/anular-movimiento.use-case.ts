@@ -9,15 +9,11 @@ import type { MovimientoRepository } from "../domain/movimiento.repository";
 export class AnularMovimiento {
   constructor(private readonly movimientos: MovimientoRepository) {}
 
-  async ejecutar(entrada: {
-    id: string;
-    propietarioId: string;
-    motivo: string;
-  }): Promise<Movimiento> {
-    const movimiento = await this.movimientos.buscarPorId(entrada.id, entrada.propietarioId);
+  async ejecutar(entrada: { id: string; motivo: string }): Promise<Movimiento> {
+    const movimiento = await this.movimientos.buscarPorId(entrada.id);
     if (!movimiento) throw new NoEncontrado("movimiento", entrada.id);
 
     movimiento.anular(entrada.motivo);
-    return this.movimientos.actualizar(movimiento, entrada.propietarioId);
+    return this.movimientos.actualizar(movimiento);
   }
 }

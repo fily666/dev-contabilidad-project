@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { FolderKanban, Plus } from "lucide-react";
 
-import { contenedorAutenticado } from "@/di/container";
+import { contenedorPrivado } from "@/di/container";
 import { EnlaceBoton } from "@/shared/ui/enlace-boton";
 import { EstadoVacio } from "@/shared/ui/estado-vacio";
 import { TarjetaProyecto } from "@/modules/proyectos/presentation/components/tarjeta-proyecto";
@@ -17,14 +17,13 @@ type Props = { searchParams: Promise<{ estado?: string }> };
 /** RF-10, RF-77. */
 export default async function PaginaProyectos({ searchParams }: Props) {
   const { estado } = await searchParams;
-  const { contenedor, sesion } = await contenedorAutenticado();
+  const { contenedor } = await contenedorPrivado();
 
   const estadoFiltro = ESTADOS_PROYECTO.includes(estado as EstadoProyecto)
     ? (estado as EstadoProyecto)
     : undefined;
 
   const proyectos = await contenedor.proyectos.listar.ejecutar({
-    propietarioId: sesion.usuarioId,
     filtro: {
       // Por defecto se ocultan los archivados.
       estados: estadoFiltro ? [estadoFiltro] : ["activo", "pausado", "finalizado"],

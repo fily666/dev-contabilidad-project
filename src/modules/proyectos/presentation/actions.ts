@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { contenedorAutenticado } from "@/di/container";
+import { contenedorPrivado } from "@/di/container";
 import { ejecutarAccion } from "@/shared/presentation/ejecutar-accion";
 import type { Resultado } from "@/shared/domain/resultado";
 import {
@@ -19,10 +19,9 @@ function revalidar(proyectoId?: string) {
 
 /** RF-10, RF-11, RF-12, RF-14. */
 export async function crearProyectoAction(datos: unknown): Promise<Resultado<{ id: string }>> {
-  const { contenedor, sesion } = await contenedorAutenticado();
+  const { contenedor } = await contenedorPrivado();
   return ejecutarAccion(esquemaCrearProyecto, datos, async (entrada) => {
     const proyecto = await contenedor.proyectos.crear.ejecutar({
-      propietarioId: sesion.usuarioId,
       ...entrada,
     });
     revalidar(proyecto.id);
@@ -32,10 +31,9 @@ export async function crearProyectoAction(datos: unknown): Promise<Resultado<{ i
 
 /** RF-10, RF-12, RF-14. */
 export async function actualizarProyectoAction(datos: unknown): Promise<Resultado<{ id: string }>> {
-  const { contenedor, sesion } = await contenedorAutenticado();
+  const { contenedor } = await contenedorPrivado();
   return ejecutarAccion(esquemaActualizarProyecto, datos, async (entrada) => {
     const proyecto = await contenedor.proyectos.actualizar.ejecutar({
-      propietarioId: sesion.usuarioId,
       ...entrada,
     });
     revalidar(proyecto.id);
@@ -47,10 +45,9 @@ export async function actualizarProyectoAction(datos: unknown): Promise<Resultad
 export async function cambiarEstadoProyectoAction(
   datos: unknown,
 ): Promise<Resultado<{ id: string }>> {
-  const { contenedor, sesion } = await contenedorAutenticado();
+  const { contenedor } = await contenedorPrivado();
   return ejecutarAccion(esquemaCambiarEstadoProyecto, datos, async (entrada) => {
     const proyecto = await contenedor.proyectos.cambiarEstado.ejecutar({
-      propietarioId: sesion.usuarioId,
       ...entrada,
     });
     revalidar(proyecto.id);
@@ -60,11 +57,10 @@ export async function cambiarEstadoProyectoAction(
 
 /** RF-18. */
 export async function eliminarProyectoAction(datos: unknown): Promise<Resultado<null>> {
-  const { contenedor, sesion } = await contenedorAutenticado();
+  const { contenedor } = await contenedorPrivado();
   return ejecutarAccion(esquemaEliminarProyecto, datos, async (entrada) => {
     await contenedor.proyectos.eliminar.ejecutar({
       id: entrada.id,
-      propietarioId: sesion.usuarioId,
     });
     revalidar();
     return null;

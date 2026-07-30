@@ -1,15 +1,19 @@
 import { randomUUID } from "node:crypto";
 
-import { NoAutorizado } from "@/shared/domain/errores";
 import { RelojDelSistema } from "@/shared/infrastructure/reloj-del-sistema";
 import { crearClienteServidor } from "@/shared/infrastructure/supabase/cliente-servidor";
-import { urlAplicacion } from "@/shared/infrastructure/supabase/entorno";
 
 import {
-  SupabaseAutenticacionService,
-  SupabasePerfilRepository,
-} from "@/modules/auth/infrastructure/supabase-autenticacion.service";
-import type { Sesion } from "@/modules/auth/domain/sesion";
+  ActualizarAjustes,
+  CerrarSesion,
+  IniciarSesion,
+  VerificarSesion,
+} from "@/modules/acceso/application/casos-de-uso";
+import { AJUSTES_POR_OMISION, type Ajustes } from "@/modules/acceso/domain/sesion";
+import { crearAlmacenSesion } from "@/modules/acceso/infrastructure/almacen-sesion-cookies";
+import { controlDeIntentos } from "@/modules/acceso/infrastructure/control-intentos-compartido";
+import { credencialDelEntorno } from "@/modules/acceso/infrastructure/credencial-entorno";
+import { SupabaseAjustesRepository } from "@/modules/acceso/infrastructure/supabase-ajustes.repository";
 
 import { SupabaseCategoriaRepository } from "@/modules/categorias/infrastructure/supabase-categoria.repository";
 import {
@@ -45,14 +49,12 @@ import { ListarMovimientos } from "@/modules/movimientos/application/listar-movi
  * Es el unico punto donde se conocen simultaneamente los casos de uso y los
  * adaptadores. Ni las paginas ni las Server Actions instancian repositorios.
  */
-export async function crearContenedor(zonaHoraria = "America/Bogota") {
-  const supabase = await crearClienteServidor();
+export function crearContenedor(zonaHoraria = AJUSTES_POR_OMISION.zonaHoraria) {
+  const supabase = crearClienteServidor();
   const reloj = new RelojDelSistema(zonaHoraria);
   const nuevoId = () => randomUUID();
 
-  const perfiles = new SupabasePerfilRepository(supabase);
-  const autenticacion = new SupabaseAutenticacionService(supabase, urlAplicacion());
-
+  const ajustes = new SupabaseAjustesRepository(supabase);
   const proyectos = new SupabaseProyectoRepository(supabase);
   const tiposProyecto = new SupabaseTipoProyectoRepository(supabase);
   const categorias = new SupabaseCategoriaRepository(supabase);
@@ -63,8 +65,10 @@ export async function crearContenedor(zonaHoraria = "America/Bogota") {
     supabase,
     reloj,
 
-    autenticacion,
-    perfiles,
+    ajustes: {
+      obtener: () => ajustes.obtener(),
+      actualizar: new ActualizarAjustes(ajustes),
+    },
     // Repositorios expuestos para lecturas simples de catalogos.
     metodosPago,
 
@@ -99,26 +103,47 @@ export async function crearContenedor(zonaHoraria = "America/Bogota") {
   };
 }
 
-export type Contenedor = Awaited<ReturnType<typeof crearContenedor>>;
+export type Contenedor = ReturnType<typeof crearContenedor>;
 
 /**
- * Contenedor con la sesion ya resuelta. Toda operacion privada parte de aqui:
- * la autorizacion se verifica en la aplicacion ademas de RLS (§9).
+ * Casos de uso del acceso. Se separan del contenedor principal porque son los
+ * unicos que se usan SIN sesion: son la puerta, no lo que hay detras (§9).
  */
-export async function contenedorAutenticado(): Promise<{
+export async function contenedorDeAcceso() {
+  const credencial = credencialDelEntorno();
+  const almacen = await crearAlmacenSesion();
+  const reloj = new RelojDelSistema();
+
+  return {
+    iniciar: new IniciarSesion(credencial, almacen, controlDeIntentos(), reloj),
+    cerrar: new CerrarSesion(almacen),
+    verificar: new VerificarSesion(credencial, almacen, reloj),
+  };
+}
+
+/**
+ * Contenedor de toda operacion privada: exige sesion vigente y ajusta el reloj a
+ * la zona horaria configurada para que las fechas de negocio sean correctas
+ * (§8.5).
+ *
+ * La sesion se comprueba aqui ADEMAS del middleware, y no es redundante: el
+ * middleware protege navegaciones, esto protege Server Actions, que se invocan
+ * por POST y no siempre pasan por el matcher (§9).
+ */
+export async function contenedorPrivado(): Promise<{
   contenedor: Contenedor;
-  sesion: Sesion;
+  ajustes: Ajustes;
 }> {
-  const base = await crearContenedor();
-  const sesion = await base.autenticacion.sesionActual();
-  if (!sesion) throw new NoAutorizado("Tu sesión expiró. Inicia sesión de nuevo.");
+  const acceso = await contenedorDeAcceso();
+  await acceso.verificar.exigirSesion();
 
-  // Se reconstruye el contenedor con la zona horaria del perfil para que las
-  // fechas de negocio sean correctas (§8.5).
+  const base = crearContenedor();
+  const ajustes = await base.ajustes.obtener();
+
   const contenedor =
-    sesion.perfil.zonaHoraria === "America/Bogota"
+    ajustes.zonaHoraria === AJUSTES_POR_OMISION.zonaHoraria
       ? base
-      : await crearContenedor(sesion.perfil.zonaHoraria);
+      : crearContenedor(ajustes.zonaHoraria);
 
-  return { contenedor, sesion };
+  return { contenedor, ajustes };
 }

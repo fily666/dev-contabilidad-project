@@ -7,7 +7,6 @@ import type { MovimientoRepository } from "../domain/movimiento.repository";
 
 export type EntradaActualizarMovimiento = {
   id: string;
-  propietarioId: string;
   categoriaId: string;
   metodoPagoId?: string | null;
   tipo: TipoMovimiento;
@@ -29,10 +28,10 @@ export class ActualizarMovimiento {
   ) {}
 
   async ejecutar(entrada: EntradaActualizarMovimiento): Promise<Movimiento> {
-    const movimiento = await this.movimientos.buscarPorId(entrada.id, entrada.propietarioId);
+    const movimiento = await this.movimientos.buscarPorId(entrada.id);
     if (!movimiento) throw new NoEncontrado("movimiento", entrada.id);
 
-    const categoria = await this.categorias.buscarPorId(entrada.categoriaId, entrada.propietarioId);
+    const categoria = await this.categorias.buscarPorId(entrada.categoriaId);
     if (!categoria) throw new NoEncontrado("categoria", entrada.categoriaId);
 
     if (!categoria.admiteTipo(entrada.tipo)) {
@@ -58,6 +57,6 @@ export class ActualizarMovimiento {
       abonoInteres: entrada.abonoInteres,
     });
 
-    return this.movimientos.actualizar(movimiento, entrada.propietarioId);
+    return this.movimientos.actualizar(movimiento);
   }
 }

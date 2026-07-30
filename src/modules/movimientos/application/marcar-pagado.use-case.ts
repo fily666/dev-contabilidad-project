@@ -14,14 +14,13 @@ export class MarcarMovimientoPagado {
 
   async ejecutar(entrada: {
     id: string;
-    propietarioId: string;
     fechaPago?: FechaIso;
     metodoPagoId: string;
   }): Promise<Movimiento> {
-    const movimiento = await this.movimientos.buscarPorId(entrada.id, entrada.propietarioId);
+    const movimiento = await this.movimientos.buscarPorId(entrada.id);
     if (!movimiento) throw new NoEncontrado("movimiento", entrada.id);
 
-    const metodo = await this.metodosPago.buscarPorId(entrada.metodoPagoId, entrada.propietarioId);
+    const metodo = await this.metodosPago.buscarPorId(entrada.metodoPagoId);
     if (!metodo) throw new NoEncontrado("metodo de pago", entrada.metodoPagoId);
 
     movimiento.marcarPagado({
@@ -29,6 +28,6 @@ export class MarcarMovimientoPagado {
       metodoPagoId: metodo.id,
     });
 
-    return this.movimientos.actualizar(movimiento, entrada.propietarioId);
+    return this.movimientos.actualizar(movimiento);
   }
 }

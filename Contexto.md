@@ -16,7 +16,7 @@
 6. [Modelo de datos](#6-modelo-de-datos)
 7. [Arquitectura](#7-arquitectura)
 8. [Convenciones de desarrollo](#8-convenciones-de-desarrollo)
-9. [Seguridad y autenticación](#9-seguridad-y-autenticación)
+9. [Seguridad y acceso](#9-seguridad-y-acceso)
 10. [Notificaciones y tareas programadas](#10-notificaciones-y-tareas-programadas)
 11. [Reportes y exportación](#11-reportes-y-exportación)
 12. [Requerimientos no funcionales](#12-requerimientos-no-funcionales)
@@ -34,6 +34,8 @@
 
 Aplicación web para la **administración financiera de proyectos personales de mediano y largo plazo**. Cada proyecto es una unidad financiera independiente sobre la que se conoce, en cualquier momento: cuánto se ha invertido, cuánto genera, qué obligaciones están pendientes y cuál es su rentabilidad.
 
+**El sistema es monousuario por diseño** ([ADR-14](#16-decisiones-técnicas-adr)): no hay cuentas, ni registro, ni perfiles de usuario. Es una instalación de una sola persona, que entra con un token de acceso configurado en el entorno. Toda la información de la base pertenece a ese único dueño.
+
 ### 1.2 Dentro del alcance
 
 - Registro de inversión inicial, gastos recurrentes e ingresos por proyecto.
@@ -47,12 +49,12 @@ Aplicación web para la **administración financiera de proyectos personales de 
 - Control de gastos diarios / finanzas personales del día a día.
 - Contabilidad fiscal formal (NIIF, declaración de renta, libros oficiales).
 - Conciliación bancaria automática o integración con bancos (Open Banking).
-- Multiusuario colaborativo sobre un mismo proyecto (ver [§17](#17-supuestos-y-pendientes-por-definir)).
+- **Cuentas de usuario, registro, recuperación de contraseña y multiusuario.** El sistema es de un solo dueño ([ADR-14](#16-decisiones-técnicas-adr)).
 - Multimoneda con conversión automática (v1 es monocurrency COP).
 
 ### 1.4 Criterio de éxito
 
-Un usuario puede cargar el histórico completo de un inmueble y una motocicleta, y responder sin cálculos manuales:
+El dueño puede cargar el histórico completo de un inmueble y una motocicleta, y responder sin cálculos manuales:
 _¿cuánto he puesto?_, _¿cuánto me ha devuelto?_, _¿qué debo pagar este mes?_, _¿me está rindiendo?_
 
 ---
@@ -74,6 +76,9 @@ _¿cuánto he puesto?_, _¿cuánto me ha devuelto?_, _¿qué debo pagar este mes
 | **Pasivo** | Deuda vigente del proyecto (crédito hipotecario, crédito de vehículo) con saldo, tasa y plazo. |
 | **Valoración** | Valor comercial estimado del activo en una fecha, para calcular patrimonio y plusvalía. |
 | **Estado del movimiento** | `pendiente` (comprometido, no pagado), `pagado` (con salida/entrada real de dinero), `vencido` (pendiente con fecha de vencimiento superada), `anulado`. |
+| **Token de acceso** | Cadena secreta configurada en `TOKEN_ACCESO` que abre la aplicación. No identifica a nadie: es la llave de la casa, no un carné. Sustituye por completo a las cuentas de usuario ([ADR-14](#16-decisiones-técnicas-adr)). |
+| **Ajustes** | Fila única con las preferencias de la instalación (moneda y zona horaria de negocio). Ocupa el lugar del antiguo perfil de usuario, pero no describe a una persona: configura el sistema. |
+| **Fila del sistema** | Registro del catálogo sembrado por `seed.sql` (`es_sistema = true`). No se puede modificar ni eliminar; solo ocultar. Lo garantiza un trigger, no una convención ([§6.6](#66-triggers)). |
 
 **Regla de oro de las cifras:** los indicadores de caja usan solo movimientos en estado `pagado`. Los movimientos `pendiente` / `vencido` alimentan proyecciones, alertas y calendario, nunca el flujo de caja ejecutado.
 
@@ -132,16 +137,24 @@ Estos dos escenarios son la prueba de aceptación funcional del sistema. Deben p
 
 Cada requerimiento tiene ID estable (`RF-xx`), módulo y criterios de aceptación verificables. La columna **Fase** remite a [§14](#14-roadmap-por-fases).
 
-### 4.1 Módulo: Autenticación y perfil
+### 4.1 Módulo: Acceso y ajustes
 
 | ID | Requerimiento | Fase |
 |---|---|---|
-| RF-01 | Registro e inicio de sesión con correo electrónico y contraseña (Supabase Auth). | 1 |
-| RF-02 | Recuperación de contraseña por correo. | 1 |
-| RF-03 | Perfil editable: nombre, moneda base, zona horaria, preferencias de notificación. | 1 |
-| RF-04 | Cierre de sesión y protección de todas las rutas privadas. | 1 |
+| RF-01 | Ingreso con el token configurado en `TOKEN_ACCESO`. Una sola pantalla, un solo campo. Sin registro ni cuentas. | 1 |
+| RF-02 | Freno a la fuerza bruta: tras 5 intentos fallidos desde el mismo origen, el acceso queda bloqueado 5 minutos. | 1 |
+| RF-03 | Ajustes editables de la instalación: moneda y zona horaria de negocio. | 1 |
+| RF-04 | Salir y protección de todas las rutas privadas. | 1 |
 
-**Criterios de aceptación (RF-01/04):** un usuario no autenticado que solicita `/dashboard` es redirigido a `/login`; un usuario autenticado nunca ve datos de otro usuario, verificado también a nivel de base de datos con RLS.
+**Criterios de aceptación (RF-01/04):**
+
+- Quien no tiene sesión y solicita `/dashboard` es redirigido a `/acceso?siguiente=/dashboard`, y tras ingresar aterriza en la ruta que pedía.
+- La sesión vive en una cookie `httpOnly` firmada con HMAC-SHA256; alterar un solo carácter de la cookie la invalida.
+- **Cambiar `TOKEN_ACCESO` cierra las sesiones ya abiertas**, no solo impide nuevas entradas: la clave de firma se deriva del token vigente ([§9](#9-seguridad-y-acceso)).
+- El bloqueo por intentos rechaza también el token correcto mientras está activo, para no delatar el acierto con un mensaje distinto.
+- La comprobación de sesión ocurre en el middleware (navegaciones) **y** en `contenedorPrivado()` (Server Actions): son dos superficies distintas y ninguna cubre a la otra.
+
+**RF-02 con honestidad sobre su alcance:** el contador vive en memoria del proceso. En Vercel cada instancia lleva su propia cuenta, así que el freno estorba a un script simple y no a un atacante que reparta los intentos entre instancias. Lo que de verdad protege es la entropía del token; el freno es una molestia añadida, no la barrera.
 
 ### 4.2 Módulo: Proyectos
 
@@ -267,7 +280,7 @@ Cada requerimiento tiene ID estable (`RF-xx`), módulo y criterios de aceptació
 | RF-100 | Administrar tipos de proyecto propios, categorías y métodos de pago. | 3 |
 | RF-101 | Preferencias: moneda, formato de fecha, tema claro/oscuro/sistema, horizonte de proyección. | 1 |
 | RF-102 | Canales de notificación y días de anticipación por defecto. | 4 |
-| RF-103 | Exportación completa de los datos del usuario en JSON. | 5 |
+| RF-103 | Exportación completa de los datos en JSON. | 5 |
 
 ---
 
@@ -348,7 +361,7 @@ Semáforo calculado:
 
 ### 5.7 Invariantes del dominio
 
-1. Todo movimiento pertenece a exactamente un proyecto y a un usuario propietario.
+1. Todo movimiento pertenece a exactamente un proyecto. (No hay propietario: el sistema es monousuario, [ADR-14](#16-decisiones-técnicas-adr).)
 2. `valor > 0` siempre; el signo lo determina el tipo, nunca el número.
 3. La categoría de un movimiento debe ser compatible con su tipo (categoría `ingreso` no admite movimiento de egreso).
 4. Un movimiento `pagado` requiere `fecha_pago` y `metodo_pago`.
@@ -366,8 +379,7 @@ PostgreSQL en Supabase. Nombres en `snake_case` singular para tablas de catálog
 ### 6.1 Diagrama de relaciones
 
 ```
-auth.users 1─1 perfiles
-perfiles 1─N proyectos
+ajustes                       (fila única: preferencias de la instalación)
 tipos_proyecto 1─N proyectos
 proyectos 1─N movimientos ─N─1 categorias ─N─1 tipos_proyecto (opcional)
 proyectos 1─N obligaciones 1─N ocurrencias_obligacion 0─1 movimientos
@@ -376,9 +388,11 @@ proyectos 1─N pasivos
 proyectos 1─N valoraciones
 proyectos 1─N presupuestos ─N─1 categorias
 movimientos ─N─1 metodos_pago
-perfiles 1─N notificaciones
+ocurrencias_obligacion 1─N notificaciones
 * 1─N registro_auditoria
 ```
+
+No hay `auth.users` ni `perfiles`, y ninguna tabla tiene `propietario_id`: **el proyecto es la raíz del grafo**. Eso simplifica cada consulta (una condición menos), cada índice y cada invariante, y elimina la clase entera de errores «se me olvidó filtrar por propietario».
 
 ### 6.2 Tipos enumerados
 
@@ -397,147 +411,165 @@ create type estado_notificacion  as enum ('programada','enviada','fallida','canc
 
 ### 6.3 Esquema
 
+El DDL ejecutable vive en `supabase/migrations/20260730120000_esquema_inicial.sql`; lo que sigue es el mismo esquema con las anotaciones de diseño. Si difieren, la migración manda: `npm run db:verify-types` contrasta además los tipos de TypeScript contra la base real.
+
+**Ninguna tabla tiene `propietario_id`, `creado_por` ni `actualizado_por`.** El sistema es monousuario ([ADR-14](#16-decisiones-técnicas-adr)): no hay a quién atribuir las filas ni de quién aislarlas.
+
 ```sql
--- Perfil del usuario (extiende auth.users)
-create table perfiles (
-  id              uuid primary key references auth.users(id) on delete cascade,
-  nombre_completo text not null,
-  moneda          char(3) not null default 'COP',
-  zona_horaria    text    not null default 'America/Bogota',
-  tema            text    not null default 'system' check (tema in ('light','dark','system')),
-  preferencias    jsonb   not null default '{}'::jsonb,
-  creado_en       timestamptz not null default now(),
-  actualizado_en  timestamptz not null default now()
+-- Preferencias de la instalación. Sustituye a la antigua tabla de perfiles: no
+-- describe a una persona, configura el sistema. El check sobre la clave primaria
+-- booleana es lo que garantiza que exista a lo sumo UNA fila.
+create table ajustes (
+  id             boolean primary key default true check (id),
+  moneda         char(3) not null default 'COP',
+  zona_horaria   text    not null default 'America/Bogota',
+  preferencias   jsonb   not null default '{}'::jsonb,
+  creado_en      timestamptz not null default now(),
+  actualizado_en timestamptz not null default now()
 );
 
--- Catálogo extensible de tipos de proyecto (sistema + personalizados)
+-- Catálogo extensible de tipos de proyecto (sistema + propios)
 create table tipos_proyecto (
-  id             uuid primary key default gen_random_uuid(),
-  propietario_id uuid references perfiles(id) on delete cascade,   -- null = tipo del sistema
-  codigo         text not null,                                    -- inmueble, vehiculo, negocio, inversion, otro
-  nombre         text not null,
-  icono          text,
+  id            uuid primary key default gen_random_uuid(),
+  codigo        text not null unique,          -- inmueble, vehiculo, negocio, inversion, otro
+  nombre        text not null,
+  icono         text,
   -- Define atributos propios e indicadores visibles sin migraciones:
   -- { "atributos": [{ "clave":"placa","etiqueta":"Placa","tipo":"text","requerido":true }],
   --   "indicadores": ["total_invertido","tco","costo_mensual"] }
-  configuracion  jsonb not null default '{}'::jsonb,
-  activo         boolean not null default true,
-  creado_en      timestamptz not null default now(),
-  unique nulls not distinct (propietario_id, codigo)
+  configuracion jsonb not null default '{}'::jsonb,
+  -- Antes esta distinción era "propietario_id is null"; ahora es explícita y la
+  -- protege un trigger (§6.6).
+  es_sistema    boolean not null default false,
+  activo        boolean not null default true,
+  creado_en     timestamptz not null default now()
 );
 
 create table proyectos (
-  id                uuid primary key default gen_random_uuid(),
-  propietario_id    uuid not null references perfiles(id) on delete cascade,
-  tipo_proyecto_id  uuid not null references tipos_proyecto(id),
-  nombre            text not null,
-  descripcion       text,
-  fecha_inicio      date not null,
-  fecha_fin         date,
-  estado            estado_proyecto not null default 'activo',
-  moneda            char(3) not null default 'COP',
-  atributos         jsonb not null default '{}'::jsonb,   -- validado contra tipos_proyecto.configuracion
-  creado_en         timestamptz not null default now(),
-  creado_por        uuid not null references perfiles(id),
-  actualizado_en    timestamptz not null default now(),
-  actualizado_por   uuid references perfiles(id),
+  id               uuid primary key default gen_random_uuid(),
+  tipo_proyecto_id uuid not null references tipos_proyecto(id),
+  nombre           text not null check (length(trim(nombre)) between 1 and 120),
+  descripcion      text,
+  fecha_inicio     date not null,
+  fecha_fin        date,
+  estado           estado_proyecto not null default 'activo',
+  moneda           char(3) not null default 'COP',
+  atributos        jsonb not null default '{}'::jsonb,   -- validados contra tipos_proyecto.configuracion
+  creado_en        timestamptz not null default now(),
+  actualizado_en   timestamptz not null default now(),
   constraint fechas_coherentes check (fecha_fin is null or fecha_fin >= fecha_inicio)
 );
-create index on proyectos (propietario_id, estado);
+
+create index proyectos_estado_idx on proyectos (estado);
+create index proyectos_tipo_idx on proyectos (tipo_proyecto_id);
 
 create table categorias (
   id               uuid primary key default gen_random_uuid(),
-  propietario_id   uuid references perfiles(id) on delete cascade,  -- null = categoría del sistema
-  tipo_proyecto_id uuid references tipos_proyecto(id),              -- null = aplica a todos
-  padre_id         uuid references categorias(id) on delete cascade,-- null = categoría raíz
-  nombre           text not null,
+  tipo_proyecto_id uuid references tipos_proyecto(id),               -- null = aplica a todos
+  padre_id         uuid references categorias(id) on delete cascade, -- null = categoría raíz
+  nombre           text not null check (length(trim(nombre)) between 1 and 80),
   naturaleza       naturaleza_categoria not null,
   es_sistema       boolean not null default false,
   activa           boolean not null default true,
   orden            int not null default 0,
   creado_en        timestamptz not null default now()
 );
-create index on categorias (propietario_id, tipo_proyecto_id, naturaleza);
+
+create index categorias_busqueda_idx on categorias (tipo_proyecto_id, naturaleza);
+create index categorias_padre_idx on categorias (padre_id);
+
+-- Un solo índice para todo el catálogo. `nulls not distinct` hace que las raíces
+-- (padre_id null) y las transversales (tipo_proyecto_id null) también colisionen,
+-- que es lo que permite sembrar de forma idempotente (§6.8).
+create unique index categorias_unicas_idx
+  on categorias (tipo_proyecto_id, padre_id, nombre) nulls not distinct;
 
 create table metodos_pago (
-  id             uuid primary key default gen_random_uuid(),
-  propietario_id uuid not null references perfiles(id) on delete cascade,
-  nombre         text not null,
-  tipo           text not null default 'otro',   -- efectivo, transferencia, tarjeta_credito, debito_automatico, otro
-  ultimos_digitos text,
-  activo         boolean not null default true,
-  unique (propietario_id, nombre)
+  id              uuid primary key default gen_random_uuid(),
+  nombre          text not null check (length(trim(nombre)) between 1 and 60),
+  tipo            text not null default 'otro'
+    check (tipo in ('efectivo','transferencia','tarjeta_credito','tarjeta_debito','debito_automatico','otro')),
+  ultimos_digitos text check (ultimos_digitos ~ '^[0-9]{2,4}$'),
+  activo          boolean not null default true,
+  creado_en       timestamptz not null default now(),
+  constraint metodos_pago_nombre_unico unique (nombre)
 );
 
+-- Tabla central: el único registro que mueve las cifras.
 create table movimientos (
   id                uuid primary key default gen_random_uuid(),
-  propietario_id    uuid not null references perfiles(id) on delete cascade,
   proyecto_id       uuid not null references proyectos(id) on delete restrict,
   categoria_id      uuid not null references categorias(id),
   metodo_pago_id    uuid references metodos_pago(id),
   tipo              tipo_movimiento not null,
-  naturaleza        naturaleza_categoria not null,   -- copiada de la categoría, sobreescribible (RF-21)
+  naturaleza        naturaleza_categoria not null,   -- se propone desde la categoría, es sobreescribible (RF-21)
   fecha             date not null,                   -- fecha del hecho económico
-  fecha_vencimiento date,
-  fecha_pago        date,
+  fecha_vencimiento date,                            -- para pendientes
+  fecha_pago        date,                            -- obligatoria si estado = pagado
   valor             numeric(18,2) not null check (valor > 0),
   moneda            char(3) not null default 'COP',
-  abono_capital     numeric(18,2) check (abono_capital >= 0),   -- cuotas de crédito (RF-29)
-  abono_interes     numeric(18,2) check (abono_interes  >= 0),
-  descripcion       text not null,
+  abono_capital     numeric(18,2) check (abono_capital >= 0),   -- desglose de cuota de crédito (RF-29)
+  abono_interes     numeric(18,2) check (abono_interes >= 0),
+  descripcion       text not null check (length(trim(descripcion)) between 1 and 200),
   observaciones     text,
   estado            estado_movimiento not null default 'pendiente',
   motivo_anulacion  text,
   ocurrencia_id     uuid,                            -- FK diferida a ocurrencias_obligacion
   metadatos         jsonb not null default '{}'::jsonb,
   creado_en         timestamptz not null default now(),
-  creado_por        uuid not null references perfiles(id),
   actualizado_en    timestamptz not null default now(),
-  actualizado_por   uuid references perfiles(id),
   constraint pagado_requiere_fecha check (estado <> 'pagado' or fecha_pago is not null),
   constraint anulado_requiere_motivo check (estado <> 'anulado' or motivo_anulacion is not null),
   constraint desglose_credito check (
     (abono_capital is null and abono_interes is null)
-    or (abono_capital + abono_interes = valor)
+    or (abono_capital is not null and abono_interes is not null and abono_capital + abono_interes = valor)
+  ),
+  -- Invariante §5.7.3 en la base, no solo en el dominio
+  constraint naturaleza_coherente check (
+    (tipo = 'ingreso' and naturaleza in ('ingreso','financiacion'))
+    or (tipo = 'egreso' and naturaleza in ('capex','opex','financiacion'))
   )
 );
-create index on movimientos (proyecto_id, fecha desc);
-create index on movimientos (propietario_id, estado, fecha_vencimiento);
-create index on movimientos (categoria_id);
+
+create index movimientos_proyecto_fecha_idx on movimientos (proyecto_id, fecha desc);
+create index movimientos_vencimiento_idx on movimientos (estado, fecha_vencimiento);
+create index movimientos_categoria_idx on movimientos (categoria_id);
+create index movimientos_fecha_idx on movimientos (fecha desc);
+create index movimientos_descripcion_idx on movimientos using gin (to_tsvector('spanish', descripcion));
 
 create table obligaciones (
-  id                   uuid primary key default gen_random_uuid(),
-  propietario_id       uuid not null references perfiles(id) on delete cascade,
-  proyecto_id          uuid not null references proyectos(id) on delete cascade,
-  categoria_id         uuid not null references categorias(id),
-  concepto             text not null,
-  valor_estimado       numeric(18,2) not null check (valor_estimado >= 0),
-  fecha_vencimiento    date not null,          -- primer vencimiento
-  frecuencia           frecuencia not null,
-  intervalo_meses      int check (intervalo_meses > 0),   -- requerido si frecuencia = personalizada
-  dias_aviso           int[] not null default '{5,1}',
+  id                    uuid primary key default gen_random_uuid(),
+  proyecto_id           uuid not null references proyectos(id) on delete cascade,
+  categoria_id          uuid not null references categorias(id),
+  concepto              text not null check (length(trim(concepto)) between 1 and 150),
+  valor_estimado        numeric(18,2) not null check (valor_estimado >= 0),
+  fecha_vencimiento     date not null,   -- primera ocurrencia
+  frecuencia            frecuencia not null,
+  intervalo_meses       int check (intervalo_meses > 0),
+  dias_aviso            int[] not null default '{5,1}',
   crear_movimiento_auto boolean not null default false,
-  activa               boolean not null default true,
-  creado_en            timestamptz not null default now(),
-  creado_por           uuid not null references perfiles(id),
-  actualizado_en       timestamptz not null default now(),
-  actualizado_por      uuid references perfiles(id),
+  activa                boolean not null default true,
+  creado_en             timestamptz not null default now(),
+  actualizado_en        timestamptz not null default now(),
   constraint intervalo_personalizado check (frecuencia <> 'personalizada' or intervalo_meses is not null)
 );
-create index on obligaciones (propietario_id, activa);
+
+create index obligaciones_activas_idx on obligaciones (activa);
+create index obligaciones_proyecto_idx on obligaciones (proyecto_id);
 
 create table ocurrencias_obligacion (
   id                uuid primary key default gen_random_uuid(),
   obligacion_id     uuid not null references obligaciones(id) on delete cascade,
-  propietario_id    uuid not null references perfiles(id) on delete cascade,
   fecha_vencimiento date not null,
-  valor_estimado    numeric(18,2) not null,
+  valor_estimado    numeric(18,2) not null check (valor_estimado >= 0),
   estado            estado_ocurrencia not null default 'pendiente',
   movimiento_id     uuid references movimientos(id) on delete set null,
   creado_en         timestamptz not null default now(),
-  unique (obligacion_id, fecha_vencimiento)
+  -- Idempotencia de la tarea diaria (§5.6, §10.1)
+  constraint ocurrencia_unica unique (obligacion_id, fecha_vencimiento)
 );
-create index on ocurrencias_obligacion (propietario_id, estado, fecha_vencimiento);
+
+create index ocurrencias_agenda_idx on ocurrencias_obligacion (estado, fecha_vencimiento);
 
 alter table movimientos
   add constraint movimientos_ocurrencia_fk
@@ -545,54 +577,52 @@ alter table movimientos
 
 create table documentos (
   id             uuid primary key default gen_random_uuid(),
-  propietario_id uuid not null references perfiles(id) on delete cascade,
   proyecto_id    uuid not null references proyectos(id) on delete cascade,
   movimiento_id  uuid references movimientos(id) on delete cascade,
   nombre_archivo text not null,
-  ruta_storage   text not null unique,   -- {propietario_id}/{proyecto_id}/{uuid}-{slug}
+  ruta_storage   text not null unique,   -- {proyecto_id}/{uuid}-{slug}  (§6.7)
   tipo_documento tipo_documento not null default 'otro',
   mime_type      text not null,
   tamano_bytes   bigint not null check (tamano_bytes > 0 and tamano_bytes <= 10485760),
-  cargado_por    uuid not null references perfiles(id),
   cargado_en     timestamptz not null default now(),
-  eliminado_en   timestamptz
+  eliminado_en   timestamptz             -- borrado lógico
 );
-create index on documentos (proyecto_id) where eliminado_en is null;
-create index on documentos (movimiento_id) where eliminado_en is null;
+
+create index documentos_proyecto_idx on documentos (proyecto_id) where eliminado_en is null;
+create index documentos_movimiento_idx on documentos (movimiento_id) where eliminado_en is null;
 
 create table pasivos (
-  id                uuid primary key default gen_random_uuid(),
-  propietario_id    uuid not null references perfiles(id) on delete cascade,
-  proyecto_id       uuid not null references proyectos(id) on delete cascade,
-  nombre            text not null,
-  tipo              tipo_pasivo not null,
-  monto_original    numeric(18,2) not null check (monto_original > 0),
-  saldo_actual      numeric(18,2) not null check (saldo_actual >= 0),
-  tasa_interes_ea   numeric(6,4),
-  plazo_meses       int check (plazo_meses > 0),
-  valor_cuota       numeric(18,2),
-  fecha_desembolso  date not null,
-  activo            boolean not null default true,
-  creado_en         timestamptz not null default now(),
-  actualizado_en    timestamptz not null default now()
+  id               uuid primary key default gen_random_uuid(),
+  proyecto_id      uuid not null references proyectos(id) on delete cascade,
+  nombre           text not null,
+  tipo             tipo_pasivo not null,
+  monto_original   numeric(18,2) not null check (monto_original > 0),
+  saldo_actual     numeric(18,2) not null check (saldo_actual >= 0),
+  tasa_interes_ea  numeric(6,4) check (tasa_interes_ea >= 0),
+  plazo_meses      int check (plazo_meses > 0),
+  valor_cuota      numeric(18,2) check (valor_cuota > 0),
+  fecha_desembolso date not null,
+  activo           boolean not null default true,
+  creado_en        timestamptz not null default now(),
+  actualizado_en   timestamptz not null default now()
 );
 
+create index pasivos_proyecto_idx on pasivos (proyecto_id) where activo;
+
 create table valoraciones (
-  id             uuid primary key default gen_random_uuid(),
-  propietario_id uuid not null references perfiles(id) on delete cascade,
-  proyecto_id    uuid not null references proyectos(id) on delete cascade,
-  fecha          date not null,
-  valor          numeric(18,2) not null check (valor >= 0),
-  fuente         text,   -- avalúo, estimación propia, portal inmobiliario, guía de valores
-  notas          text,
-  creado_en      timestamptz not null default now(),
-  unique (proyecto_id, fecha)
+  id          uuid primary key default gen_random_uuid(),
+  proyecto_id uuid not null references proyectos(id) on delete cascade,
+  fecha       date not null,
+  valor       numeric(18,2) not null check (valor >= 0),
+  fuente      text,
+  notas       text,
+  creado_en   timestamptz not null default now(),
+  constraint valoracion_unica unique (proyecto_id, fecha)
 );
 
 create table presupuestos (
   id             uuid primary key default gen_random_uuid(),
-  propietario_id uuid not null references perfiles(id) on delete cascade,
-  proyecto_id    uuid references proyectos(id) on delete cascade,  -- null = presupuesto global
+  proyecto_id    uuid references proyectos(id) on delete cascade,   -- null = presupuesto global
   categoria_id   uuid not null references categorias(id),
   periodo_inicio date not null,
   periodo_fin    date not null,
@@ -600,12 +630,12 @@ create table presupuestos (
   notas          text,
   creado_en      timestamptz not null default now(),
   constraint periodo_valido check (periodo_fin >= periodo_inicio),
-  unique nulls not distinct (propietario_id, proyecto_id, categoria_id, periodo_inicio, periodo_fin)
+  constraint presupuesto_unico unique nulls not distinct
+    (proyecto_id, categoria_id, periodo_inicio, periodo_fin)
 );
 
 create table notificaciones (
   id              uuid primary key default gen_random_uuid(),
-  propietario_id  uuid not null references perfiles(id) on delete cascade,
   ocurrencia_id   uuid references ocurrencias_obligacion(id) on delete cascade,
   canal           canal_notificacion not null,
   asunto          text not null,
@@ -614,23 +644,28 @@ create table notificaciones (
   enviada_en      timestamptz,
   estado          estado_notificacion not null default 'programada',
   error           text,
-  intentos        int not null default 0
+  intentos        int not null default 0 check (intentos >= 0)
 );
-create index on notificaciones (estado, programada_para);
-create unique index on notificaciones (ocurrencia_id, canal, programada_para)
-  where ocurrencia_id is not null;   -- idempotencia del job
 
+create index notificaciones_cola_idx on notificaciones (estado, programada_para);
+-- Idempotencia del job de notificaciones (§10.1)
+create unique index notificaciones_unicas_idx
+  on notificaciones (ocurrencia_id, canal, programada_para)
+  where ocurrencia_id is not null;
+
+-- Rastro de cambios. Sin actor: hay un solo operador, así que la pregunta que
+-- responde es "qué cambió y cuándo", no "quién lo cambió".
 create table registro_auditoria (
-  id             bigserial primary key,
-  propietario_id uuid not null references perfiles(id) on delete cascade,
-  entidad        text not null,
-  entidad_id     uuid not null,
-  accion         text not null,   -- crear, actualizar, anular, eliminar
-  cambios        jsonb,
-  actor_id       uuid not null references perfiles(id),
-  ocurrido_en    timestamptz not null default now()
+  id          bigserial primary key,
+  entidad     text not null,
+  entidad_id  uuid not null,
+  accion      text not null check (accion in ('crear','actualizar','anular','eliminar')),
+  cambios     jsonb,
+  ocurrido_en timestamptz not null default now()
 );
-create index on registro_auditoria (entidad, entidad_id, ocurrido_en desc);
+
+create index auditoria_entidad_idx on registro_auditoria (entidad, entidad_id, ocurrido_en desc);
+create index auditoria_reciente_idx on registro_auditoria (ocurrido_en desc);
 ```
 
 ### 6.4 Vistas de agregación
@@ -638,10 +673,10 @@ create index on registro_auditoria (entidad, entidad_id, ocurrido_en desc);
 Los cálculos de [§5.1](#51-agregados-base-por-proyecto) se exponen como vistas para evitar duplicar SQL en la aplicación:
 
 ```sql
-create view v_resumen_proyecto as
+create view v_resumen_proyecto
+with (security_invoker = on) as
 select
   p.id as proyecto_id,
-  p.propietario_id,
   coalesce(sum(m.valor) filter (where m.tipo='egreso'  and m.naturaleza='capex'), 0)        as total_invertido,
   coalesce(sum(m.valor) filter (where m.tipo='egreso'  and m.naturaleza='opex'), 0)         as total_gastos_operativos,
   coalesce(sum(m.valor) filter (where m.tipo='egreso'  and m.naturaleza='financiacion'), 0) as total_financiacion,
@@ -652,11 +687,11 @@ select
 from proyectos p
 left join movimientos m
   on m.proyecto_id = p.id and m.estado = 'pagado'
-group by p.id, p.propietario_id;
+group by p.id;
 
-create view v_flujo_caja_mensual as
+create view v_flujo_caja_mensual
+with (security_invoker = on) as
 select
-  m.propietario_id,
   m.proyecto_id,
   date_trunc('month', m.fecha)::date as mes,
   coalesce(sum(m.valor) filter (where m.tipo='ingreso'), 0) as ingresos,
@@ -665,52 +700,65 @@ select
     - coalesce(sum(m.valor) filter (where m.tipo='egreso'), 0) as flujo_neto
 from movimientos m
 where m.estado = 'pagado'
-group by 1, 2, 3;
+group by 1, 2;
 ```
 
-Las vistas se crean con `security_invoker = on` para que hereden las políticas RLS del usuario que consulta.
+Las siete vistas se crean con `security_invoker = on`. Aunque ya no haya usuarios que aislar, la opción garantiza que una vista nunca conceda más acceso que quien la consulta, de modo que agregar una política en el futuro no abra un hueco por la puerta de atrás.
 
-### 6.5 Seguridad a nivel de fila (RLS)
+Los porcentuales **no** se calculan aquí: van en el dominio, porque necesitan devolver `null` cuando el divisor es cero ([§5.3](#53-rentabilidad)) y SQL no distinguiría ese caso de un cero legítimo.
 
-RLS habilitado en **todas** las tablas. Patrón único:
+### 6.5 Blindaje de acceso a la base
+
+No hay usuarios que aislar entre sí, así que las políticas por propietario no tienen nada que hacer cumplir. Se sustituyen por algo más simple y más estricto:
+
+1. **RLS habilitado en las catorce tablas y CERO políticas.** Cualquier rol sin `BYPASSRLS` no ve ni escribe una sola fila, pase lo que pase.
+2. **Los roles públicos de Supabase (`anon`, `authenticated`) se quedan sin ningún permiso.** La API REST del proyecto no expone nada a quien traiga una clave publicable.
+3. **Solo `service_role` conserva acceso.** La aplicación se conecta con esa clave desde el servidor y jamás la envía al navegador ([§9](#9-seguridad-y-acceso)).
 
 ```sql
-alter table <tabla> enable row level security;
+alter table <tabla> enable row level security;   -- y ninguna política
 
-create policy "propietario_lectura"  on <tabla> for select using (propietario_id = auth.uid());
-create policy "propietario_insercion" on <tabla> for insert with check (propietario_id = auth.uid());
-create policy "propietario_actualizacion" on <tabla> for update using (propietario_id = auth.uid()) with check (propietario_id = auth.uid());
-create policy "propietario_eliminacion" on <tabla> for delete using (propietario_id = auth.uid());
+revoke all   on all tables in schema public from anon, authenticated;
+revoke usage on schema public                 from anon, authenticated;
+revoke execute on all routines in schema public from public;
+
+-- Para que los objetos futuros nazcan igual de cerrados
+alter default privileges revoke execute on functions from public;   -- OJO: sin "in schema"
+alter default privileges in schema public revoke all on tables from anon, authenticated;
 ```
 
-Casos particulares:
+Dos detalles que se rompen en silencio y por eso están cubiertos por pruebas:
 
-- `perfiles`: la política usa `id = auth.uid()`.
-- `tipos_proyecto` y `categorias`: lectura de `propietario_id = auth.uid() or propietario_id is null` (registros del sistema); escritura solo sobre los propios.
-- `registro_auditoria`: solo lectura para el propietario; la escritura ocurre por triggers con `security definer`.
+- **`alter default privileges ... in schema public revoke execute on functions from public` no hace nada.** El `EXECUTE` a `PUBLIC` sobre funciones es un valor por omisión *global* de PostgreSQL; solo la variante sin `in schema` lo revoca. La acotada se ejecuta sin error y deja la puerta abierta.
+- **`anon` sigue teniendo `USAGE` sobre el esquema** aunque se le revoque, porque PostgreSQL también se lo concede al pseudo-rol `PUBLIC`, del que todo rol hereda. No se revoca de `PUBLIC` porque rompería el panel de Supabase, y no hace falta: `USAGE` sobre el esquema no concede nada sobre los objetos que contiene.
+
+Lo que hay que vigilar tras cada migración es que no aparezcan permisos nuevos: `npm run db:inspect` lo comprueba y falla si los encuentra.
 
 ### 6.6 Triggers
 
 - `actualizar_timestamp()`: mantiene `actualizado_en` en cada `update`.
-- `registrar_auditoria()`: inserta en `registro_auditoria` en `insert/update/delete` de `proyectos`, `movimientos`, `obligaciones`, `documentos`, `pasivos`.
-- `crear_perfil_al_registrarse()`: inserta en `perfiles` al crearse un usuario en `auth.users`, y siembra las categorías y métodos de pago por defecto.
-- `sincronizar_estado_vencido()`: no es trigger — se resuelve en la consulta y en la tarea diaria (ver [§10](#10-notificaciones-y-tareas-programadas)).
+- `registrar_auditoria()`: inserta en `registro_auditoria` en `insert/update/delete` de `proyectos`, `movimientos`, `obligaciones`, `documentos`, `pasivos`. Opera sobre `to_jsonb(new)` en lugar de `new.<campo>` para servir a tablas con y sin columna `estado`.
+- `proteger_filas_de_sistema()`: rechaza `update` y `delete` sobre las filas sembradas de `tipos_proyecto` y `categorias`, y también impide promover una fila propia a fila del sistema (RF-34). **Antes esto era una política RLS, y dejó de servir al desaparecer RLS efectivo:** convertirlo en trigger lo hace más fuerte, porque tampoco puede saltárselo un script conectado como `postgres`. La única excepción es el sembrado, que se declara con `set app.sembrando = 'on'` en `seed.sql`.
+- `validar_movimiento()`: valida moneda, estado del proyecto y compatibilidad de la categoría (§5.7).
+- Ninguna función es `security definer`: en un sistema monousuario no hay privilegios que elevar, y así se evita una superficie de escalada innecesaria.
 
 ### 6.7 Almacenamiento (Supabase Storage)
 
-- Bucket único **privado**: `soportes`.
-- Convención de ruta: `{propietario_id}/{proyecto_id}/{uuid}-{slug-nombre-archivo}`.
-- Políticas de Storage: el primer segmento de la ruta debe ser igual a `auth.uid()` para `select`, `insert` y `delete`.
+- Bucket único **privado**: `soportes`, límite de 10 MB y lista blanca de MIME.
+- Convención de ruta: `{proyecto_id}/{uuid}-{slug-nombre-archivo}`.
+- **Sin políticas de Storage.** `storage.objects` tiene RLS activo en Supabase, así que sin políticas ningún rol público puede listar, leer ni subir. La aplicación opera el bucket con `service_role` desde el servidor.
 - Acceso de lectura exclusivamente por URL firmada con vigencia de 60 minutos, generada en el servidor.
 - Validación de MIME y tamaño antes de subir (cliente) y al registrar el documento (servidor).
 - Borrado: primero se marca `eliminado_en`, luego se elimina el objeto; si falla el borrado en Storage se registra para reintento y el documento queda oculto.
+- Los soportes **no se borran por SQL**: Supabase lo impide con el trigger `storage.protect_delete`, y hace bien, porque eliminar la fila no elimina el archivo y lo dejaría huérfano. Se eliminan por la API de Storage.
 
 ### 6.8 Migraciones
 
 - Carpeta `supabase/migrations/`, archivos `YYYYMMDDHHMMSS_descripcion.sql`, versionados y aplicados con Supabase CLI.
-- Nunca se edita una migración ya aplicada: se crea una nueva.
-- Datos semilla (tipos de proyecto y categorías del sistema) en `supabase/seed.sql`, idempotentes.
-- Los tipos TypeScript se generan desde la base: `supabase gen types typescript` → `src/shared/infrastructure/supabase/database.types.ts`. Nunca se editan a mano.
+- Nunca se edita una migración ya aplicada: se crea una nueva. **Única excepción admitida hasta ahora:** el paso a monousuario ([ADR-14](#16-decisiones-técnicas-adr)) reescribió el juego completo de migraciones en lugar de encadenar cuatro migraciones de deshacer. Se hizo porque la base no tenía ningún dato, las migraciones originales llevaban horas aplicadas y el esquema anterior queda en el historial de git. La regla vuelve a estar en vigor: de aquí en adelante, migración nueva.
+- Datos semilla (ajustes, tipos de proyecto, categorías del sistema y métodos de pago) en `supabase/seed.sql`, idempotentes.
+- **`supabase db push --include-seed` no reejecuta una semilla cuyo hash ya conoce:** informa «hash update» y sigue, dejando un esquema recién creado y vacío sin ningún error a la vista. Por eso `scripts/reiniciar-base.mjs` borra también `supabase_migrations.seed_files`.
+- Los tipos TypeScript de `src/shared/infrastructure/supabase/database.types.ts` están escritos a mano, pero **verificados**: `npm run db:verify-types` contrasta cada columna y su nulabilidad contra la base real. Ejecutarlo después de cada migración.
 
 ---
 
@@ -731,7 +779,7 @@ Arquitectura hexagonal (puertos y adaptadores) con casos de uso independientes y
 ```
 src/
 ├── app/                                  # Next.js App Router — solo presentación
-│   ├── (auth)/login | registro | recuperar-clave/
+│   ├── (auth)/acceso/                    # única pantalla pública: el token
 │   ├── (privado)/
 │   │   ├── layout.tsx                    # shell: sidebar, topbar, guardia de sesión
 │   │   ├── dashboard/
@@ -743,8 +791,7 @@ src/
 │   │   ├── presupuestos/
 │   │   ├── patrimonio/
 │   │   ├── reportes/
-│   │   ├── configuracion/
-│   │   └── perfil/
+│   │   └── configuracion/                # catálogos + preferencias (§4.11)
 │   ├── api/
 │   │   ├── cron/(obligaciones|notificaciones|estados)/route.ts
 │   │   ├── exportar/(excel|pdf)/route.ts
@@ -783,12 +830,12 @@ src/
 │   ├── patrimonio/
 │   ├── reportes/
 │   ├── dashboard/
-│   └── auth/
+│   └── acceso/                            # token, sesión firmada y ajustes
 │
 ├── shared/
 │   ├── domain/                            # Dinero, Reloj, Resultado, enumeraciones, errores base
 │   ├── infrastructure/
-│   │   ├── supabase/(cliente-navegador|cliente-servidor|admin|entorno|database.types).ts
+│   │   ├── supabase/(cliente-servidor|entorno|database.types).ts
 │   │   ├── storage/
 │   │   ├── email/
 │   │   └── export/(excel|pdf)/
@@ -799,7 +846,7 @@ src/
 ├── di/
 │   └── container.ts                       # fábricas de casos de uso por request
 │
-└── middleware.ts                          # refresco de sesión y guardia de rutas privadas
+└── middleware.ts                          # verifica la cookie firmada y protege rutas
 ```
 
 **Notas de implementación:**
@@ -807,6 +854,8 @@ src/
 - Los métodos de pago viven en su propio módulo (`metodos-pago/`) aunque comparten pantalla de configuración con las categorías: son dos catálogos con ciclos de vida distintos.
 - Las reglas de frontera de §7.1 están codificadas como reglas `no-restricted-imports` en `eslint.config.mjs`: violarlas rompe el lint, no solo la convención.
 - Los componentes de `shared/ui` provienen de shadcn/ui sobre **Base UI**, que compone con la prop `render` en lugar de `asChild`. Para enlaces con apariencia de botón se usa el helper `EnlaceBoton`.
+- Hay un solo cliente de Supabase (`cliente-servidor.ts`) y usa `service_role`. Lleva `import "server-only"`, así que si un componente con `"use client"` lo importara, **la compilación falla** en vez de enviar la clave al navegador. Ya no existen `cliente-navegador.ts` ni `admin.ts`: sin clave anónima no hay cliente de navegador, y el administrativo dejó de ser un caso especial.
+- `acceso/domain/sesion-firmada.ts` **no importa nada**, a propósito: solo usa Web Crypto y globales de codificación. Así el middleware —que corre en Edge y no puede cargar `node:crypto`— reutiliza exactamente la misma verificación que el servidor, sin riesgo de que dos implementaciones divergan.
 
 ### 7.3 Puertos definidos
 
@@ -826,6 +875,9 @@ src/
 | `GeneradorPdf` | Exportación .pdf | @react-pdf/renderer |
 | `Reloj` | Fecha/hora actual (testeable) | implementación del sistema |
 | `ServicioAuditoria` | Registro de cambios | Supabase (triggers + repositorio) |
+| `CredencialAcceso` | Token y secreto de sesión configurados | variables de entorno |
+| `AlmacenSesion` | Leer, escribir y borrar la sesión del navegador | cookie `httpOnly` de Next |
+| `AjustesRepository` | Moneda y zona horaria de la instalación | Supabase (fila única) |
 
 ### 7.4 Anatomía de un caso de uso
 
@@ -842,11 +894,11 @@ export class RegistrarMovimiento {
   ) {}
 
   async ejecutar(input: RegistrarMovimientoInput): Promise<Movimiento> {
-    const proyecto = await this.proyectos.buscarPorId(input.proyectoId, input.propietarioId);
+    const proyecto = await this.proyectos.buscarPorId(input.proyectoId);
     if (!proyecto) throw new ProyectoNoEncontrado(input.proyectoId);
     if (!proyecto.aceptaMovimientos()) throw new ProyectoCerrado(proyecto.id);
 
-    const categoria = await this.categorias.buscarPorId(input.categoriaId, input.propietarioId);
+    const categoria = await this.categorias.buscarPorId(input.categoriaId);
     if (!categoria) throw new CategoriaNoEncontrada(input.categoriaId);
 
     const movimiento = Movimiento.crear({ ...input, categoria, moneda: proyecto.moneda, ahora: this.reloj.ahora() });
@@ -897,7 +949,7 @@ Formulario (React Hook Form + Zod)
 | Fechas | date-fns (locale `es`) |
 | Base de datos | Supabase (PostgreSQL) |
 | Archivos | Supabase Storage |
-| Autenticación | Supabase Auth (correo) |
+| Acceso | Token en variable de entorno + cookie firmada con HMAC-SHA256 (Web Crypto) |
 | Correo | Resend |
 | Excel / PDF | ExcelJS / @react-pdf/renderer |
 | Pruebas | Vitest + Testing Library + Playwright |
@@ -909,6 +961,7 @@ Formulario (React Hook Form + Zod)
 - **Prohibido Docker.** Desarrollo local contra Supabase en la nube o Supabase CLI sin contenedores.
 - **Prohibido Prisma.** Acceso a datos exclusivamente con `@supabase/supabase-js` y SQL en migraciones.
 - Sin ORMs adicionales ni librerías de estado global (Redux, Zustand) mientras TanStack Query y Server Components sean suficientes.
+- **Sin Supabase Auth.** El sistema es monousuario y entra por token ([ADR-14](#16-decisiones-técnicas-adr)); `@supabase/ssr` dejó de ser necesario y se retiró.
 
 ### 8.3 Nomenclatura
 
@@ -956,12 +1009,22 @@ Sufijos obligatorios: `.entity.ts`, `.repository.ts` (puerto), `.use-case.ts`, `
 |---|---|---|
 | Unitarias | Entidades, value objects, cálculos de [§5](#5-reglas-de-negocio-y-fórmulas), recurrencias | ≥ 90 % en `domain/` |
 | Casos de uso | Con repositorios en memoria | todos los casos de uso |
-| Esquema | Migraciones y seed reales contra PostgreSQL embebido (PGlite): restricciones, triggers, vistas, recurrencias, Storage y RLS | esquema completo |
+| Esquema | Migraciones y seed reales contra PostgreSQL embebido (PGlite): restricciones, triggers, vistas, recurrencias, Storage y blindaje de permisos | esquema completo |
+| Humo remoto | Las comprobaciones críticas contra el Supabase real (`npm run db:smoke`) | cifras, invariantes, blindaje |
 | E2E (Playwright) | Los dos escenarios de [§3](#3-escenarios-de-referencia) de punta a punta | flujos críticos |
 
-Prueba de RLS obligatoria: el usuario A no puede leer, actualizar ni eliminar registros del usuario B por ninguna vía.
+**Pruebas de seguridad obligatorias**, en lugar de las de aislamiento entre usuarios que ya no aplican:
 
-**Nivel de esquema (`tests/db/`):** dado que Docker está descartado (ADR-04), las pruebas de base de datos no usan `supabase start`. En su lugar, un harness levanta PostgreSQL embebido con [PGlite](https://pglite.dev), simula los esquemas `auth` y `storage` de Supabase, ejecuta las migraciones y el seed tal como están en el repositorio y verifica el comportamiento real —incluido el aislamiento por RLS entre dos usuarios—. Corre en segundos, sin contenedores ni credenciales.
+- `anon` y `authenticated` no pueden leer ni escribir ninguna tabla, ni consultar las vistas, ni invocar las funciones.
+- **Un objeto creado después de las migraciones tampoco queda a su alcance.** Esta es la que importa a largo plazo: verifica que `alter default privileges` surtió efecto y que el blindaje no se erosiona con la próxima migración.
+- Las filas del catálogo del sistema no se pueden modificar ni eliminar, ni se puede promover una fila propia a fila del sistema.
+- Rotar el token invalida la sesión en curso, y el bloqueo por intentos rechaza también el token correcto.
+
+**Nivel de esquema (`tests/db/`):** dado que Docker está descartado (ADR-04), las pruebas de base de datos no usan `supabase start`. En su lugar, un harness levanta PostgreSQL embebido con [PGlite](https://pglite.dev), simula el esquema `storage` y los roles `anon` / `authenticated` / `service_role` de Supabase, ejecuta las migraciones y el seed tal como están en el repositorio y verifica el comportamiento real. Corre en segundos, sin contenedores ni credenciales.
+
+El harness **concede a los roles públicos los permisos que Supabase les da por omisión** antes de aplicar las migraciones. Sin eso, las pruebas de blindaje pasarían por ausencia de permisos en lugar de por haberlos quitado, que no es lo mismo.
+
+**Lo que PGlite no cubre:** todo lo que vive fuera del esquema `public` en el Supabase real — los triggers de `storage`, el historial de migraciones de la CLI, el pooler. Por eso existe `npm run db:smoke`. La experiencia manda: el bug del borrado en cascada del esquema anterior solo apareció allí.
 
 ### 8.9 Git
 
@@ -971,17 +1034,49 @@ Prueba de RLS obligatoria: el usuario A no puede leer, actualizar ni eliminar re
 
 ---
 
-## 9. Seguridad y autenticación
+## 9. Seguridad y acceso
 
-- Supabase Auth con correo y contraseña; sesión en cookies HTTP-only manejada por `@supabase/ssr`.
-- Middleware de Next.js que refresca la sesión y protege el grupo de rutas `(privado)`.
-- Tres clientes Supabase claramente separados: navegador (anon), servidor por request (anon + sesión), administrativo (`service_role`, exclusivo para tareas cron; nunca importable desde `app/**` fuera de `api/cron`).
-- Autorización en dos niveles: verificación de propietario en el caso de uso **y** RLS en la base de datos. RLS nunca es la única barrera, y nunca se omite.
-- Todo `input` del usuario validado con Zod antes de tocar el dominio.
-- Sin secretos en el cliente: solo `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_ANON_KEY`.
+### 9.1 Cómo se entra
+
+- **Un token, sin cuentas.** El valor de `TOKEN_ACCESO` abre la aplicación. No identifica a nadie ni se guarda en la base: se compara con lo que llega y punto.
+- La comparación es **de digestos, no de cadenas**: se compara `SHA-256(esperado)` con `SHA-256(recibido)` en tiempo constante, de modo que el tiempo de respuesta no revele cuántos caracteres iniciales acertó quien lo intenta, ni la longitud del token real.
+- La sesión es una cookie `httpOnly` + `secure` (en producción) + `sameSite=lax`, con valor `<expiración>.<HMAC-SHA256>` y vigencia de 30 días. No lleva dentro ningún dato: solo su propia fecha de caducidad, firmada.
+- **La clave de firma se deriva del secreto de sesión y del digesto del token vigente.** Consecuencia deliberada: cambiar `TOKEN_ACCESO` invalida al instante todas las cookies emitidas antes. Rotar el token cierra las sesiones abiertas, que es lo que uno espera de una rotación.
+- La firma se verifica **antes** de interpretar la carga: nunca se lee una expiración que no se haya demostrado auténtica.
+- Freno a la fuerza bruta por origen (RF-02), con la limitación documentada allí.
+
+### 9.2 Dónde se comprueba
+
+Dos superficies, ninguna cubre a la otra:
+
+| Superficie | Quién la protege |
+|---|---|
+| Navegaciones (`GET` de páginas) | `middleware.ts`, en el runtime Edge |
+| Server Actions (`POST`) | `contenedorPrivado()` en `di/container.ts` |
+
+El shell privado (`(privado)/layout.tsx`) vuelve a comprobar antes de renderizar. Es baratísimo y evita que un fallo de configuración del matcher del middleware exponga datos.
+
+### 9.3 Acceso a datos
+
+- **Un solo cliente de Supabase, con `service_role`, siempre en el servidor.** Omite RLS, y en un sistema monousuario eso no es un atajo: no hay filas de otro de las que aislarse.
+- Lo que sustituye a RLS como barrera es que **la base está cerrada a los roles públicos** ([§6.5](#65-blindaje-de-acceso-a-la-base)): `anon` y `authenticated` no tienen ni un permiso, así que la API REST del proyecto no expone nada. **No se usa ni se configura clave anónima.**
+- La clave `service_role` no puede llegar al navegador: el módulo que la lee lleva `import "server-only"` y el build falla si un componente de cliente lo importa.
+- `SUPABASE_DB_URL` contiene la contraseña del usuario `postgres` (acceso total). La aplicación **nunca** la lee: solo las migraciones y los scripts de `scripts/`.
+- Todo `input` validado con Zod antes de tocar el dominio.
 - Endpoints de cron autenticados con `CRON_SECRET` en el encabezado `Authorization`.
-- Límite de tasa en autenticación y en subida de archivos.
 - Auditoría de creación y modificación en todas las entidades de negocio ([§6.6](#66-triggers)).
+
+### 9.4 Modelo de amenaza, dicho sin adornos
+
+El token es **la única barrera** entre internet y todo el historial financiero. Antes había dos (contraseña de usuario + RLS por propietario); ahora hay una, y esa es la contrapartida honesta de la simplicidad que se ganó ([ADR-15](#16-decisiones-técnicas-adr)).
+
+De ahí se siguen tres consecuencias prácticas:
+
+1. **La entropía del token es la seguridad del sistema.** Un token corto o con forma de contraseña común (`Admin123!` es exactamente el patrón que prueban primero los ataques por diccionario) reduce esa única barrera a casi nada. Conviene una cadena aleatoria larga.
+2. **Conviene no publicar la URL.** No hay nada que descubrir en ella, pero sí una única puerta contra la que probar.
+3. **Rotar es barato:** cambiar la variable de entorno cierra todas las sesiones y no toca la base.
+
+Lo que sigue protegido pase lo que pase, incluso con el token comprometido: nada se puede hacer con la clave publicable de Supabase, los soportes solo se sirven por URL firmada de vida corta, y el catálogo del sistema no se puede corromper porque lo defiende un trigger.
 
 ---
 
@@ -1035,7 +1130,7 @@ Resumen semanal (lunes), aviso individual N días antes, y aviso de obligación 
 | RNF-08 | Auditoría de creación y modificación de todos los registros. | `registro_auditoria` con actor y diferencias. |
 | RNF-09 | Búsquedas rápidas y filtros avanzados combinables. | Filtros persistidos en la URL (compartibles). |
 | RNF-10 | Escalabilidad: nuevos tipos de proyecto sin tocar la lógica existente. | Checklist de [§13](#13-extensibilidad-agregar-un-tipo-de-proyecto) sin migraciones. |
-| RNF-11 | Aislamiento total de datos entre usuarios. | Suite de pruebas de RLS. |
+| RNF-11 | La base no expone nada a los roles públicos de Supabase, ni hoy ni tras la próxima migración. | Pruebas de blindaje de [§8.8](#88-pruebas) y `npm run db:inspect`. |
 | RNF-12 | Estados vacíos, de carga y de error en cada vista. | Skeletons y mensajes con acción sugerida. |
 | RNF-13 | Idioma español (es-CO) en toda la interfaz, incluidos errores y exportaciones. | Sin cadenas en inglés visibles. |
 | RNF-14 | Cero errores de tipos y de lint en `main`. | CI bloqueante. |
@@ -1084,7 +1179,7 @@ Cada fase termina desplegada en Vercel y usable. No se inicia una fase sin cerra
 - Proyecto Next.js 15 con TypeScript strict, Tailwind y shadcn/ui.
 - ESLint, Prettier, Husky, lint-staged, Vitest, Playwright.
 - Proyecto Supabase, Supabase CLI, primera migración y `seed.sql`.
-- Estructura de carpetas de [§7.2](#72-estructura-de-carpetas), clientes Supabase y contenedor de dependencias vacío.
+- Estructura de carpetas de [§7.2](#72-estructura-de-carpetas), cliente Supabase y contenedor de dependencias vacío.
 - Despliegue en Vercel con variables de entorno y pipeline de CI.
 
 **Entregable:** aplicación vacía desplegada, con CI verde y migraciones aplicadas.
@@ -1093,11 +1188,11 @@ Cada fase termina desplegada en Vercel y usable. No se inicia una fase sin cerra
 
 RF-01 a RF-04, RF-10 a RF-15, RF-18, RF-20 a RF-24, RF-26, RF-30 a RF-34, RF-101.
 
-- Autenticación, perfil y shell privado con tema claro/oscuro.
+- Acceso por token, ajustes y shell privado con tema claro/oscuro.
 - CRUD de proyectos con atributos dinámicos por tipo.
 - CRUD de movimientos con categorías, naturaleza, métodos de pago y filtros.
 - Resumen financiero por proyecto ([§5.1](#51-agregados-base-por-proyecto)).
-- RLS completo y pruebas de aislamiento.
+- Blindaje de la base y pruebas de permisos ([§6.5](#65-blindaje-de-acceso-a-la-base)).
 
 **Criterio de cierre:** los escenarios de [§3](#3-escenarios-de-referencia) se registran completos y sus totales son correctos.
 
@@ -1140,10 +1235,14 @@ RF-27, RF-103, notificaciones por WhatsApp, nuevos tipos de proyecto (construcci
 ### 15.1 Variables de entorno
 
 ```bash
+# Acceso — el sistema es monousuario (ADR-14)
+TOKEN_ACCESO=                     # abre la aplicación; ÚNICA barrera de acceso (§9.4)
+SECRETO_SESION=                   # firma la cookie de sesión; mínimo 32 caracteres
+
 # Supabase
 NEXT_PUBLIC_SUPABASE_URL=
-NEXT_PUBLIC_SUPABASE_ANON_KEY=
-SUPABASE_SERVICE_ROLE_KEY=        # solo servidor; nunca en el cliente
+SUPABASE_SERVICE_ROLE_KEY=        # omite RLS; solo servidor, nunca en el cliente
+SUPABASE_DB_URL=                  # contraseña de postgres; solo migraciones y scripts/
 
 # Aplicación
 NEXT_PUBLIC_APP_URL=
@@ -1154,20 +1253,28 @@ RESEND_API_KEY=
 EMAIL_REMITENTE=
 ```
 
-`.env.example` versionado sin valores; `.env.local` en `.gitignore`.
+No hay `NEXT_PUBLIC_SUPABASE_ANON_KEY`: sin usuarios de Supabase Auth no hay sesión que representar, y los roles públicos quedaron sin permisos a propósito ([§6.5](#65-blindaje-de-acceso-a-la-base)).
+
+`.env.example` versionado sin valores; `.env*` en `.gitignore`.
+
+Ambas credenciales de acceso se validan al leerse: si falta `TOKEN_ACCESO` o `SECRETO_SESION` tiene menos de 32 caracteres, la aplicación falla con un mensaje explícito en lugar de quedarse con una puerta abierta.
 
 ### 15.2 Puesta en marcha local
 
 ```bash
 npm install
-cp .env.example .env.local          # completar credenciales de Supabase
-npx supabase link --project-ref <ref>
-npx supabase db push                # aplicar migraciones
-npx supabase gen types typescript --linked > src/shared/infrastructure/supabase/database.types.ts
+cp .env.example .env                # completar token, secreto y credenciales
+npm run db:seed                     # migraciones + datos semilla
+npm run db:inspect                  # tablas, RLS, blindaje, semillas
+npm run db:verify-types             # los tipos TS coinciden con el esquema real
 npm run dev
 ```
 
-Sin Docker: las migraciones se aplican contra el proyecto Supabase en la nube (uno de desarrollo, uno de producción).
+Sin Docker: las migraciones se aplican contra el proyecto Supabase en la nube.
+
+**La región va dentro de la cadena de conexión.** El host del pooler la incluye (`aws-0-ca-central-1.pooler.supabase.com`). Con la región equivocada el error es `tenant/user postgres.<ref> not found`, que parece un problema de credenciales y no lo es. Cópiala del panel, no de otro proyecto.
+
+**Tres subcomandos de la CLI no funcionan sin Docker:** `supabase db dump`, `supabase db diff` y `supabase gen types --db-url`. Los scripts de `scripts/` cubren esas necesidades con `postgres.js`.
 
 ### 15.3 Scripts
 
@@ -1178,7 +1285,14 @@ Sin Docker: las migraciones se aplican contra el proyecto Supabase en la nube (u
 | `lint` / `format` | ESLint / Prettier |
 | `typecheck` | `tsc --noEmit` |
 | `test` / `test:e2e` | Vitest / Playwright |
-| `db:push` / `db:types` / `db:seed` | Migraciones, tipos y semillas |
+| `verify` | typecheck + lint + pruebas (lo que debe pasar antes de subir) |
+| `db:push` / `db:seed` | Migraciones y semillas |
+| `db:reset` | Borra el esquema y lo reconstruye desde cero (se niega si hay datos) |
+| `db:inspect` | Tablas, RLS, vistas, triggers, semillas y **blindaje de permisos** |
+| `db:verify-types` | Contrasta `database.types.ts` con el esquema real; falla si difieren |
+| `db:smoke` | Prueba end-to-end contra la base remota; se niega a correr si hay datos |
+
+Los scripts de base leen `SUPABASE_DB_URL` con `node --env-file=.env`, así que la contraseña no aparece en `package.json` ni en el historial del shell.
 
 ### 15.4 Entornos
 
@@ -1198,7 +1312,7 @@ Sin Docker: las migraciones se aplican contra el proyecto Supabase en la nube (u
 | 02 | Arquitectura hexagonal | Reemplazar Supabase, correo o exportadores sin tocar el dominio; casos de uso testeables | Más archivos y ceremonia inicial |
 | 03 | Sin Prisma: `supabase-js` + SQL en migraciones | Restricción del proyecto; RLS y SQL explícito | Sin ORM: mapeo manual en adaptadores, tipos generados desde la base |
 | 04 | Sin Docker | Restricción del proyecto | Desarrollo local contra Supabase en la nube; se requiere proyecto dev separado |
-| 05 | RLS como segunda barrera obligatoria | Aislamiento garantizado en la base, no solo en la aplicación | Toda tabla necesita `propietario_id` y políticas |
+| 05 | ~~RLS como segunda barrera obligatoria~~ · **Superada por ADR-15** | Tenía sentido con usuarios; sin ellos no hay a quién aislar | Ver ADR-15: el aislamiento se sustituye por cierre total a los roles públicos |
 | 06 | `naturaleza` (capex/opex/ingreso/financiación) en categoría y movimiento | Distinguir "invertido" de "gastado" es el corazón de los indicadores | Al crear una categoría se debe declarar su naturaleza |
 | 07 | Atributos dinámicos por tipo en JSONB | Cumple RNF-10 sin migraciones por cada tipo nuevo | La validación de esos atributos ocurre en aplicación, no en el esquema |
 | 08 | Ocurrencias materializadas de obligaciones | Calendario, notificaciones y proyección consultables y filtrables por SQL | Requiere tarea diaria idempotente |
@@ -1207,6 +1321,8 @@ Sin Docker: las migraciones se aplican contra el proyecto Supabase en la nube (u
 | 11 | Vistas SQL para agregados | Una sola definición de cada cifra, reutilizada por dashboard y reportes | Cambiar una fórmula implica migración |
 | 12 | Borrado lógico en movimientos y documentos | Trazabilidad y auditoría | Todas las consultas deben excluir `anulado`/`eliminado_en` |
 | 13 | Nomenclatura de dominio en español | El lenguaje del modelo coincide con el del usuario | Se mantiene consistencia en tablas, rutas y clases |
+| 14 | **Sistema monousuario con acceso por token** | Es una instalación personal de un solo dueño. Mantener cuentas, registro, recuperación de contraseña y `propietario_id` en catorce tablas era pagar la complejidad del multiusuario sin recibir nada a cambio | Desaparecen `auth.users`, `perfiles` y `propietario_id`; el proyecto pasa a ser la raíz del grafo. **No hay ruta de vuelta al multiusuario sin migración**: reintroducirlo exige añadir la columna a todas las tablas y volver a poblarla |
+| 15 | **Cierre total a los roles públicos en lugar de RLS por propietario** | Sin usuarios, las políticas `propietario_id = auth.uid()` no pueden escribirse. La alternativa es más simple y más estricta: RLS activo sin políticas, y `anon` / `authenticated` sin ningún permiso | La aplicación accede con `service_role`, que omite RLS. **La barrera real pasa a ser el token, no la base** ([§9.4](#94-modelo-de-amenaza-dicho-sin-adornos)). A cambio, la clave publicable de Supabase deja de servir para nada y `RF-34` gana una garantía más fuerte: un trigger que ni `postgres` puede saltarse |
 
 ---
 
@@ -1214,18 +1330,19 @@ Sin Docker: las migraciones se aplican contra el proyecto Supabase en la nube (u
 
 ### Supuestos vigentes (se implementa así salvo indicación contraria)
 
-- **Usuario único por proyecto.** No hay proyectos compartidos ni roles; el modelo con `propietario_id` permite añadir colaboración más adelante mediante una tabla de membresías.
+- **Instalación de un solo dueño.** No hay cuentas, ni proyectos compartidos, ni roles. A diferencia del diseño anterior, el esquema **ya no deja la puerta abierta** a la colaboración: volver al multiusuario exige una migración que reintroduzca `propietario_id` en todas las tablas ([ADR-14](#16-decisiones-técnicas-adr)). Es la contrapartida asumida de la simplificación.
 - **Moneda única COP** por usuario y proyecto. El campo `moneda` existe para habilitar multimoneda después, sin conversión automática en v1.
 - **Sin manejo fiscal explícito** (IVA, retenciones). El valor registrado es el total pagado; si se requiere desglose se agrega en `metadatos`.
 - **Combustible y consumos opcionales** se registran como OPEX normales; no hay módulo de consumo por kilómetro.
-- **Horizonte de proyección por defecto: 12 meses**, configurable en perfil.
+- **Horizonte de proyección por defecto: 12 meses**, configurable en los ajustes.
 - **Zona horaria por defecto: `America/Bogota`.**
 - **Depreciación no automática:** el valor del vehículo baja registrando valoraciones manuales.
 
 ### Pendientes por confirmar
 
-1. ¿Se requiere compartir proyectos con otra persona (pareja, socio) en algún momento? Define si se prioriza el modelo de membresías.
-2. ¿Notificaciones por WhatsApp con proveedor propio (Twilio, API oficial de Meta) o basta el correo en v1?
-3. ¿Se necesita registrar el detalle de la tabla de amortización del crédito hipotecario, o basta el saldo y la cuota?
-4. ¿Los presupuestos son mensuales, anuales o ambos desde el inicio?
-5. ¿Existe histórico previo que se deba importar (Excel), lo que adelantaría el RF-27 a la Fase 2?
+1. ¿Se descarta de forma definitiva compartir proyectos con otra persona (pareja, socio)? Si aparece esa necesidad, la vuelta al multiusuario cuesta una migración de las catorce tablas, no un ajuste ([ADR-14](#16-decisiones-técnicas-adr)).
+2. ¿Se cambia `TOKEN_ACCESO` por una cadena aleatoria larga? Con el valor actual, la única barrera del sistema sigue un patrón que los ataques por diccionario prueban de primeras ([§9.4](#94-modelo-de-amenaza-dicho-sin-adornos)).
+3. ¿Notificaciones por WhatsApp con proveedor propio (Twilio, API oficial de Meta) o basta el correo en v1?
+4. ¿Se necesita registrar el detalle de la tabla de amortización del crédito hipotecario, o basta el saldo y la cuota?
+5. ¿Los presupuestos son mensuales, anuales o ambos desde el inicio?
+6. ¿Existe histórico previo que se deba importar (Excel), lo que adelantaría el RF-27 a la Fase 2?

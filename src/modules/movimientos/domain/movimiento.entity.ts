@@ -10,7 +10,6 @@ import {
 
 export type DatosMovimiento = {
   id: string;
-  propietarioId: string;
   proyectoId: string;
   categoriaId: string;
   metodoPagoId: string | null;
@@ -32,7 +31,6 @@ export type DatosMovimiento = {
 
 export type EntradaCrearMovimiento = {
   id: string;
-  propietarioId: string;
   proyectoId: string;
   categoriaId: string;
   /** Naturaleza propuesta por la categoria; el usuario puede sobreescribirla (RF-21). */
@@ -98,7 +96,6 @@ export class Movimiento {
 
     return new Movimiento({
       id: entrada.id,
-      propietarioId: entrada.propietarioId,
       proyectoId: entrada.proyectoId,
       categoriaId: entrada.categoriaId,
       metodoPagoId: entrada.metodoPagoId ?? null,
@@ -125,9 +122,6 @@ export class Movimiento {
 
   get id(): string {
     return this.datos.id;
-  }
-  get propietarioId(): string {
-    return this.datos.propietarioId;
   }
   get proyectoId(): string {
     return this.datos.proyectoId;

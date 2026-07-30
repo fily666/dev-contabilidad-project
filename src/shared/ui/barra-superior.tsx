@@ -1,33 +1,20 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
-import { LogOut, Menu, User } from "lucide-react";
+import { LogOut, Menu } from "lucide-react";
 
 import { Button } from "@/shared/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/shared/ui/dropdown-menu";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/shared/ui/sheet";
 import { NavegacionLateral } from "@/shared/ui/navegacion-lateral";
 import { SelectorTema } from "@/shared/ui/selector-tema";
-import { cerrarSesionAction } from "@/modules/auth/presentation/actions";
+import { salirAction } from "@/modules/acceso/presentation/actions";
 
-type Props = { nombre: string; correo: string };
-
-export function BarraSuperior({ nombre, correo }: Props) {
+/**
+ * Sin menu de usuario: el sistema es monousuario (ADR-14), asi que no hay nombre
+ * ni correo que mostrar. Queda el tema y la salida.
+ */
+export function BarraSuperior() {
   const [menuAbierto, setMenuAbierto] = useState(false);
-  const iniciales = nombre
-    .split(" ")
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((p) => p[0]?.toUpperCase() ?? "")
-    .join("");
 
   return (
     <header className="sticky top-0 z-30 flex h-14 items-center gap-2 border-b bg-background/80 px-3 backdrop-blur md:px-6">
@@ -48,33 +35,12 @@ export function BarraSuperior({ nombre, correo }: Props) {
       <div className="ml-auto flex items-center gap-1">
         <SelectorTema />
 
-        <DropdownMenu>
-          <DropdownMenuTrigger render={<Button variant="ghost" className="gap-2 px-2" />}>
-            <span className="flex size-7 items-center justify-center rounded-full bg-muted text-xs font-medium">
-              {iniciales || <User className="size-4" aria-hidden />}
-            </span>
-            <span className="hidden max-w-32 truncate text-sm sm:inline">{nombre}</span>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56">
-            <DropdownMenuLabel className="font-normal">
-              <p className="text-sm font-medium">{nombre}</p>
-              <p className="truncate text-xs text-muted-foreground">{correo}</p>
-            </DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem render={<Link href="/perfil" />}>
-              <User className="size-4" aria-hidden /> Mi perfil
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              variant="destructive"
-              onClick={() => {
-                void cerrarSesionAction();
-              }}
-            >
-              <LogOut className="size-4" aria-hidden /> Cerrar sesión
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <form action={salirAction}>
+          <Button type="submit" variant="ghost" className="gap-2">
+            <LogOut className="size-4" aria-hidden />
+            <span className="hidden sm:inline">Salir</span>
+          </Button>
+        </form>
       </div>
     </header>
   );

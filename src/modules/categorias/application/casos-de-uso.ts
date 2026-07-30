@@ -11,11 +11,8 @@ import type {
 export class ListarCategorias {
   constructor(private readonly categorias: CategoriaRepository) {}
 
-  async ejecutar(entrada: {
-    propietarioId: string;
-    filtro?: FiltroCategorias;
-  }): Promise<CategoriaConRuta[]> {
-    return this.categorias.listar(entrada.propietarioId, entrada.filtro);
+  async ejecutar(entrada: { filtro?: FiltroCategorias }): Promise<CategoriaConRuta[]> {
+    return this.categorias.listar(entrada.filtro);
   }
 }
 
@@ -27,15 +24,12 @@ export class CrearCategoria {
   ) {}
 
   async ejecutar(entrada: {
-    propietarioId: string;
     nombre: string;
     naturaleza: Naturaleza;
     tipoProyectoId?: string | null;
     padreId?: string | null;
   }): Promise<Categoria> {
-    const padre = entrada.padreId
-      ? await this.categorias.buscarPorId(entrada.padreId, entrada.propietarioId)
-      : null;
+    const padre = entrada.padreId ? await this.categorias.buscarPorId(entrada.padreId) : null;
 
     if (entrada.padreId && !padre) {
       throw new NoEncontrado("categoria padre", entrada.padreId);
@@ -53,7 +47,6 @@ export class CrearCategoria {
     const tipoProyectoId = padre ? padre.tipoProyectoId : (entrada.tipoProyectoId ?? null);
 
     const duplicada = await this.categorias.existeNombre(
-      entrada.propietarioId,
       entrada.nombre.trim(),
       tipoProyectoId,
       entrada.padreId ?? null,
@@ -68,7 +61,6 @@ export class CrearCategoria {
 
     const categoria = Categoria.crear({
       id: this.nuevoId(),
-      propietarioId: entrada.propietarioId,
       tipoProyectoId,
       padreId: entrada.padreId ?? null,
       nombre: entrada.nombre,
@@ -85,15 +77,13 @@ export class ActualizarCategoria {
 
   async ejecutar(entrada: {
     id: string;
-    propietarioId: string;
     nombre: string;
     naturaleza?: Naturaleza;
   }): Promise<Categoria> {
-    const categoria = await this.categorias.buscarPorId(entrada.id, entrada.propietarioId);
+    const categoria = await this.categorias.buscarPorId(entrada.id);
     if (!categoria) throw new NoEncontrado("categoria", entrada.id);
 
     const duplicada = await this.categorias.existeNombre(
-      entrada.propietarioId,
       entrada.nombre.trim(),
       categoria.tipoProyectoId,
       categoria.padreId,
@@ -120,12 +110,8 @@ export class ActualizarCategoria {
 export class CambiarEstadoCategoria {
   constructor(private readonly categorias: CategoriaRepository) {}
 
-  async ejecutar(entrada: {
-    id: string;
-    propietarioId: string;
-    activa: boolean;
-  }): Promise<Categoria> {
-    const categoria = await this.categorias.buscarPorId(entrada.id, entrada.propietarioId);
+  async ejecutar(entrada: { id: string; activa: boolean }): Promise<Categoria> {
+    const categoria = await this.categorias.buscarPorId(entrada.id);
     if (!categoria) throw new NoEncontrado("categoria", entrada.id);
 
     if (entrada.activa) categoria.activar();
@@ -139,8 +125,8 @@ export class CambiarEstadoCategoria {
 export class EliminarCategoria {
   constructor(private readonly categorias: CategoriaRepository) {}
 
-  async ejecutar(entrada: { id: string; propietarioId: string }): Promise<void> {
-    const categoria = await this.categorias.buscarPorId(entrada.id, entrada.propietarioId);
+  async ejecutar(entrada: { id: string }): Promise<void> {
+    const categoria = await this.categorias.buscarPorId(entrada.id);
     if (!categoria) throw new NoEncontrado("categoria", entrada.id);
 
     if (categoria.esSistema) {
@@ -150,7 +136,7 @@ export class EliminarCategoria {
       );
     }
 
-    const enUso = await this.categorias.contarMovimientos(entrada.id, entrada.propietarioId);
+    const enUso = await this.categorias.contarMovimientos(entrada.id);
     if (enUso > 0) {
       throw new ReglaDeNegocioViolada(
         "CATEGORIA_EN_USO",
@@ -158,6 +144,6 @@ export class EliminarCategoria {
       );
     }
 
-    await this.categorias.eliminar(entrada.id, entrada.propietarioId);
+    await this.categorias.eliminar(entrada.id);
   }
 }

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ArrowLeftRight, ArrowLeft } from "lucide-react";
 
-import { contenedorAutenticado } from "@/di/container";
+import { contenedorPrivado } from "@/di/container";
 import { EnlaceBoton } from "@/shared/ui/enlace-boton";
 import { EstadoVacio } from "@/shared/ui/estado-vacio";
 import { InsigniaEstadoProyecto } from "@/shared/ui/insignias";
@@ -19,11 +19,9 @@ type Props = { params: Promise<{ id: string }> };
 /** RF-15, RF-77 y fórmulas de §5. */
 export default async function PaginaProyecto({ params }: Props) {
   const { id } = await params;
-  const { contenedor, sesion } = await contenedorAutenticado();
+  const { contenedor } = await contenedorPrivado();
 
-  const resumen = await contenedor.proyectos.resumen
-    .ejecutar({ proyectoId: id, propietarioId: sesion.usuarioId })
-    .catch(() => null);
+  const resumen = await contenedor.proyectos.resumen.ejecutar({ proyectoId: id }).catch(() => null);
 
   if (!resumen) notFound();
 
@@ -31,15 +29,13 @@ export default async function PaginaProyecto({ params }: Props) {
 
   const [ultimos, categorias, metodosPago] = await Promise.all([
     contenedor.movimientos.listar.ejecutar({
-      propietarioId: sesion.usuarioId,
       filtro: { proyectoId: id },
       paginacion: { pagina: 1, porPagina: 8 },
     }),
     contenedor.categorias.listar.ejecutar({
-      propietarioId: sesion.usuarioId,
       filtro: { tipoProyectoId: proyecto.tipoProyectoId },
     }),
-    contenedor.metodosPago.listar(sesion.usuarioId),
+    contenedor.metodosPago.listar(),
   ]);
 
   const hoy = contenedor.reloj.hoy();

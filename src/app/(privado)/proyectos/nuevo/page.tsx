@@ -1,14 +1,12 @@
 import type { Metadata } from "next";
-import { contenedorAutenticado } from "@/di/container";
+import { contenedorPrivado } from "@/di/container";
 import { FormularioProyecto } from "@/modules/proyectos/presentation/components/formulario-proyecto";
 
 export const metadata: Metadata = { title: "Nuevo proyecto" };
 
 export default async function PaginaNuevoProyecto() {
-  const { contenedor, sesion } = await contenedorAutenticado();
-  const tipos = await contenedor.proyectos.listarTipos.ejecutar({
-    propietarioId: sesion.usuarioId,
-  });
+  const { contenedor } = await contenedorPrivado();
+  const tipos = await contenedor.proyectos.listarTipos.ejecutar();
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">

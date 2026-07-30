@@ -8,11 +8,11 @@ import type { ProyectoRepository } from "../domain/proyecto.repository";
 export class EliminarProyecto {
   constructor(private readonly proyectos: ProyectoRepository) {}
 
-  async ejecutar(entrada: { id: string; propietarioId: string }): Promise<void> {
-    const proyecto = await this.proyectos.buscarPorId(entrada.id, entrada.propietarioId);
+  async ejecutar(entrada: { id: string }): Promise<void> {
+    const proyecto = await this.proyectos.buscarPorId(entrada.id);
     if (!proyecto) throw new NoEncontrado("proyecto", entrada.id);
 
-    const movimientos = await this.proyectos.contarMovimientos(entrada.id, entrada.propietarioId);
+    const movimientos = await this.proyectos.contarMovimientos(entrada.id);
     if (movimientos > 0) {
       throw new ReglaDeNegocioViolada(
         "PROYECTO_CON_MOVIMIENTOS",
@@ -20,6 +20,6 @@ export class EliminarProyecto {
       );
     }
 
-    await this.proyectos.eliminar(entrada.id, entrada.propietarioId);
+    await this.proyectos.eliminar(entrada.id);
   }
 }

@@ -42,11 +42,12 @@ export function traducirError<T>(error: unknown): Resultado<T> {
   const mensaje = error instanceof Error ? error.message : String(error);
   const codigoConocido = [
     "PROYECTO_CERRADO",
-    "PROYECTO_DE_OTRO_PROPIETARIO",
     "CATEGORIA_INCOMPATIBLE",
     "CATEGORIA_NO_ENCONTRADA",
     "MONEDA_INCOMPATIBLE",
     "PROYECTO_NO_ENCONTRADO",
+    "FILA_DE_SISTEMA_NO_MODIFICABLE",
+    "FILA_DE_SISTEMA_NO_ELIMINABLE",
   ].find((codigo) => mensaje.includes(codigo));
 
   if (codigoConocido) {
@@ -54,9 +55,6 @@ export function traducirError<T>(error: unknown): Resultado<T> {
   }
   if (mensaje.includes("duplicate key")) {
     return fallo("DUPLICADO", "Ya existe un registro con esos datos.");
-  }
-  if (mensaje.includes("row-level security")) {
-    return fallo("NO_AUTORIZADO", mensajeDeError("NO_AUTORIZADO"));
   }
 
   // Detalle solo en el servidor; al usuario un mensaje generico (§8.6).

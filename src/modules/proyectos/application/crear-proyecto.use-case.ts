@@ -5,7 +5,6 @@ import type { ProyectoRepository } from "../domain/proyecto.repository";
 import type { TipoProyectoRepository } from "../domain/tipo-proyecto.repository";
 
 export type EntradaCrearProyecto = {
-  propietarioId: string;
   tipoProyectoId: string;
   nombre: string;
   descripcion?: string | null;
@@ -26,7 +25,7 @@ export class CrearProyecto {
   ) {}
 
   async ejecutar(entrada: EntradaCrearProyecto): Promise<Proyecto> {
-    const tipo = await this.tipos.buscarPorId(entrada.tipoProyectoId, entrada.propietarioId);
+    const tipo = await this.tipos.buscarPorId(entrada.tipoProyectoId);
     if (!tipo) {
       throw new ReglaDeNegocioViolada(
         "TIPO_PROYECTO_NO_ENCONTRADO",
@@ -37,7 +36,6 @@ export class CrearProyecto {
 
     const proyecto = Proyecto.crear({
       id: this.nuevoId(),
-      propietarioId: entrada.propietarioId,
       tipo,
       nombre: entrada.nombre,
       descripcion: entrada.descripcion,
@@ -47,6 +45,6 @@ export class CrearProyecto {
       atributos: entrada.atributos,
     });
 
-    return this.proyectos.guardar(proyecto, entrada.propietarioId);
+    return this.proyectos.guardar(proyecto);
   }
 }

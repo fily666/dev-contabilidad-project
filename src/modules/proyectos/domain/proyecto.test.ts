@@ -37,7 +37,6 @@ function codigo(fn: () => unknown): string {
 function crear(cambios: Record<string, unknown> = {}) {
   return Proyecto.crear({
     id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
-    propietarioId: "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
     tipo: tipoVehiculo,
     nombre: "Moto XR 190",
     fechaInicio: "2026-01-15",

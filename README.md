@@ -2,6 +2,8 @@
 
 Aplicación web para administrar la inversión, los gastos, los ingresos y las obligaciones de proyectos personales de mediano y largo plazo (un inmueble, un vehículo, un negocio, una inversión). Cada proyecto es una unidad financiera independiente con sus propios indicadores de rentabilidad.
 
+**Es un sistema de un solo dueño.** No hay cuentas, registro ni perfiles: se entra con un token configurado en el entorno.
+
 La especificación funcional y técnica completa está en **[Contexto.md](Contexto.md)**. Este README solo cubre cómo levantar y trabajar el proyecto.
 
 ---
@@ -10,8 +12,8 @@ La especificación funcional y técnica completa está en **[Contexto.md](Contex
 
 | Fase | Alcance | Estado |
 |---|---|---|
-| 0 | Andamiaje, tooling, esquema de base de datos, RLS, contenedor de dependencias | ✅ completa |
-| 1 | Autenticación y perfil, proyectos, catálogos, movimientos, resumen financiero | ✅ completa |
+| 0 | Andamiaje, tooling, esquema de base de datos, blindaje, contenedor de dependencias | ✅ completa |
+| 1 | Acceso por token, ajustes, proyectos, catálogos, movimientos, resumen financiero | ✅ completa |
 | 2 | Documentos y obligaciones con recurrencia | pendiente |
 | 3 | Dashboard con gráficas, calendario, reportes PDF/Excel | pendiente |
 | 4 | Pasivos, valoraciones, presupuestos, patrimonio, notificaciones | pendiente |
@@ -26,7 +28,7 @@ En la navegación lateral, los módulos de fases posteriores aparecen deshabilit
 ## Requisitos
 
 - Node.js 20 o superior (probado con 26)
-- Una cuenta de [Supabase](https://supabase.com) con dos proyectos: uno de desarrollo y uno de producción
+- Una cuenta de [Supabase](https://supabase.com)
 - **Sin Docker y sin Prisma** (restricción del proyecto, Contexto.md ADR-03 y ADR-04)
 
 ---
@@ -38,43 +40,63 @@ En la navegación lateral, los módulos de fases posteriores aparecen deshabilit
 npm install
 
 # 2. Variables de entorno
-cp .env.example .env.local
-#    Completa NEXT_PUBLIC_SUPABASE_URL y NEXT_PUBLIC_SUPABASE_ANON_KEY desde
-#    Supabase → Project Settings → API
+cp .env.example .env
+#    TOKEN_ACCESO               → el token con el que entrarás (ver "Sobre el token" abajo)
+#    SECRETO_SESION             → node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"
+#    NEXT_PUBLIC_SUPABASE_URL   → Project Settings → API
+#    SUPABASE_SERVICE_ROLE_KEY  → Project Settings → API (service_role)
+#    SUPABASE_DB_URL            → Project Settings → Database → Connection string (URI)
 
-# 3. Enlazar el proyecto Supabase de desarrollo
-npx supabase login
-npx supabase link --project-ref <ref-del-proyecto>
+# 3. Aplicar migraciones y datos semilla
+npm run db:seed
 
-# 4. Aplicar migraciones y datos semilla
-npm run db:push
-npx supabase db push --include-seed     # siembra tipos de proyecto y categorías
+# 4. Comprobar el resultado
+npm run db:inspect          # tablas, RLS, blindaje de permisos, semillas
+npm run db:verify-types     # los tipos TS coinciden con el esquema real
 
-# 5. Regenerar los tipos de la base
-npm run db:types
-
-# 6. Levantar
+# 5. Levantar
 npm run dev
 ```
 
-Abre <http://localhost:3000>, crea una cuenta en `/registro` y el trigger `crear_perfil_al_registrarse` generará tu perfil y tus métodos de pago iniciales.
+Abre <http://localhost:3000>, escribe el token y ya estás dentro. No hay que crear nada: la semilla deja los 5 tipos de proyecto, las 83 categorías, los 4 métodos de pago y la fila de ajustes.
+
+### Sobre el token
+
+`TOKEN_ACCESO` es la **única** barrera entre internet y todo tu historial financiero. Conviene que sea una cadena aleatoria larga:
+
+```bash
+node -e "console.log(require('crypto').randomBytes(24).toString('base64url'))"
+```
+
+Un valor con forma de contraseña común (`Admin123!` y familia) es exactamente el patrón que los ataques por diccionario prueban primero, y aquí no hay una segunda barrera detrás. El razonamiento completo está en [Contexto.md §9.4](Contexto.md).
+
+**Cambiar el token cierra las sesiones abiertas**, no solo impide entradas nuevas: la clave con que se firma la cookie se deriva del token vigente. Rotarlo es cambiar una variable de entorno y reiniciar, nada más.
 
 ### Notas de instalación
 
 - **npm 11+ bloquea los scripts de instalación por defecto.** Si `npx supabase` no funciona, ejecuta una vez `npm approve-scripts` (o instala la CLI con `brew install supabase/tap/supabase`).
-- `src/shared/infrastructure/supabase/database.types.ts` viene escrito a mano para que el proyecto compile antes del primer enlace. **Sobreescríbelo con `npm run db:types`** en cuanto tengas el proyecto enlazado; a partir de ahí no se edita a mano.
+- **La región importa en la cadena de conexión.** El host del pooler incluye la región del proyecto (`aws-0-ca-central-1.pooler.supabase.com`, no `us-west-2`). Con la región equivocada el error es `tenant/user postgres.<ref> not found`, que parece un problema de credenciales pero no lo es. Cópiala del panel, no de otro proyecto.
+- **Sin Docker, tres subcomandos de la CLI no funcionan:** `supabase db dump`, `supabase db diff` y `supabase gen types --db-url`. Los scripts de [scripts/](scripts/) cubren esas necesidades con `postgres.js` (`db:inspect`, `db:verify-types`, `db:smoke`, `db:reset`). Para regenerar los tipos con la CLI hace falta `supabase login` + `supabase link` y usar `npm run db:types`, que va por la API y no por Docker.
+- `src/shared/infrastructure/supabase/database.types.ts` está escrito a mano, pero **verificado**: `npm run db:verify-types` contrasta cada columna y su nulabilidad contra la base real. Ejecútalo después de cada migración.
+- **No hace falta configurar nada en Supabase Auth.** No se usa: no hay usuarios, ni correos de confirmación, ni URLs de redirección.
 - `npm audit` reporta avisos en dependencias transitivas de tooling (ESLint/minimatch, postcss, sharp). Los arreglos disponibles son cambios mayores o downgrades de Next.js, así que quedan sin aplicar de forma deliberada.
 
 ---
 
-## Configuración de Supabase Auth
+## Cómo está cerrada la base
 
-En el panel de Supabase → **Authentication → URL Configuration**:
+Merece un apartado porque es donde más se aparta el proyecto de lo habitual en Supabase.
 
-- **Site URL:** `http://localhost:3000` (en producción, tu dominio de Vercel)
-- **Redirect URLs:** agrega `http://localhost:3000/auth/confirmar` y `http://localhost:3000/auth/actualizar-clave`
+Al no haber usuarios, no hay nada que aislar con RLS: no existen filas de otro. Así que en lugar de políticas `propietario_id = auth.uid()`, el esquema hace algo más simple y más estricto:
 
-Sin esas URLs, los enlaces de confirmación de correo y de recuperación de contraseña fallarán.
+- **RLS activo en las 14 tablas y cero políticas** → cualquier rol sin `BYPASSRLS` no ve ni escribe una fila.
+- **`anon` y `authenticated` sin ningún permiso** → la API REST del proyecto no expone nada. No hay clave anónima configurada ni se usa.
+- **La aplicación entra con `service_role`**, siempre desde el servidor. El módulo que lee esa clave lleva `import "server-only"`: si un componente de cliente lo importara, el build falla en vez de filtrarla.
+- **El catálogo del sistema lo protege un trigger**, no una política. Es más fuerte: tampoco puede saltárselo un script conectado como `postgres`.
+
+La contrapartida, dicha sin adornos: la barrera real es el token, no la base de datos.
+
+`npm run db:inspect` verifica todo esto y **falla** si aparece cualquier permiso para un rol público. Vale la pena ejecutarlo después de cada migración.
 
 ---
 
@@ -89,10 +111,15 @@ Sin esas URLs, los enlaces de confirmación de correo y de recuperación de cont
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm test` / `test:watch` | Vitest |
 | `npm run verify` | typecheck + lint + pruebas (lo que debe pasar antes de subir) |
-| `npm run db:push` | Aplica las migraciones al proyecto enlazado |
+| `npm run db:push` | Aplica las migraciones pendientes a `SUPABASE_DB_URL` |
 | `npm run db:seed` | Aplica migraciones y `seed.sql` |
-| `npm run db:types` | Regenera `database.types.ts` desde la base |
-| `npm run db:reset` | Recrea la base del proyecto enlazado (⚠️ destructivo) |
+| `npm run db:reset` | Borra el esquema y lo reconstruye desde cero; se niega si hay datos propios |
+| `npm run db:inspect` | Tablas, RLS, vistas, triggers, semillas y blindaje de permisos |
+| `npm run db:verify-types` | Contrasta `database.types.ts` con el esquema real (falla si difieren) |
+| `npm run db:smoke` | Prueba de humo end-to-end contra la base remota; se niega a correr si hay datos |
+| `npm run db:types` | Regenera `database.types.ts` vía la API de Supabase (requiere `supabase login` + `link`) |
+
+Los scripts de base leen `SUPABASE_DB_URL` desde `.env` con `node --env-file`, así que la contraseña no aparece en `package.json` ni en el historial del shell.
 
 ---
 
@@ -102,12 +129,19 @@ Sin esas URLs, los enlaces de confirmación de correo y de recuperación de cont
 npm test
 ```
 
-Dos niveles, 120 pruebas:
+Dos niveles, 157 pruebas:
 
-- **Dominio** (`src/**/*.test.ts`): aritmética de `Dinero`, fórmulas de indicadores de §5 con sus guardas contra división por cero, invariantes de `Movimiento` y `Proyecto`, atributos dinámicos por tipo.
-- **Esquema** (`tests/db/esquema.test.ts`): ejecuta las migraciones y el seed **reales** contra PostgreSQL embebido ([PGlite](https://pglite.dev)) y verifica restricciones, triggers, vistas de agregación, recurrencias, políticas de Storage y —lo más importante— el **aislamiento por RLS entre usuarios** (RNF-11).
+- **Dominio y aplicación** (`src/**/*.test.ts`): aritmética de `Dinero`, fórmulas de indicadores de §5 con sus guardas contra división por cero, invariantes de `Movimiento` y `Proyecto`, atributos dinámicos por tipo, firma y verificación de la sesión, y el freno a la fuerza bruta.
+- **Esquema** (`tests/db/esquema.test.ts`): ejecuta las migraciones y el seed **reales** contra PostgreSQL embebido ([PGlite](https://pglite.dev)) y verifica restricciones, triggers, vistas de agregación, recurrencias, la protección del catálogo del sistema y —lo más importante— que los roles públicos no tengan acceso a nada (RNF-11).
 
 Ese segundo nivel es la alternativa a `supabase start` dado que Docker está descartado: no necesita contenedores ni credenciales, y corre en aproximadamente un segundo.
+
+Dos pruebas que parecen rebuscadas y no lo son:
+
+- **«un objeto nuevo en public tampoco queda al alcance de anon»** comprueba que `alter default privileges` funcionó. Sin eso, la próxima tabla o función que se agregue nace concedida a los roles públicos y el blindaje se erosiona migración a migración sin que nadie lo note. Hizo falta para descubrir que `alter default privileges ... in schema public revoke execute on functions from public` **no hace nada**: el `EXECUTE` a `PUBLIC` es un valor por omisión global y solo la variante sin `in schema` lo revoca.
+- **«cambiar el token invalida la sesión en curso»** comprueba que rotar `TOKEN_ACCESO` cierra lo que ya estaba abierto. Si no, quien tuviera una cookie viva seguiría dentro después del cambio, que es justo lo contrario de lo que uno espera al rotar una credencial.
+
+A eso se suma `npm run db:smoke`, que repite las comprobaciones críticas contra el Supabase real (semillas, cifras, invariantes, protección del catálogo, blindaje) y limpia lo que crea. Vale la pena porque PGlite no puede cubrir lo que vive fuera del esquema `public`: los triggers de `storage`, el historial de migraciones de la CLI, el pooler.
 
 ---
 
@@ -116,28 +150,29 @@ Ese segundo nivel es la alternativa a `supabase start` dado que Docker está des
 ```
 src/
 ├── app/                  Next.js App Router — solo presentación
-│   ├── (auth)/           login, registro, recuperar/actualizar clave
-│   ├── (privado)/        shell con sesión: dashboard, proyectos, movimientos, configuración, perfil
-│   └── auth/             callbacks de Supabase Auth
+│   ├── (auth)/acceso/    única pantalla pública: el token
+│   ├── (privado)/        shell con sesión: dashboard, proyectos, movimientos, configuración
+│   └── api/cron/         tareas programadas (Fase 2+)
 ├── modules/<contexto>/
 │   ├── domain/           entidades, invariantes, PUERTOS (interfaces). Sin framework.
 │   ├── application/      casos de uso. Dependen de puertos, nunca de adaptadores.
 │   ├── infrastructure/   ADAPTADORES Supabase + mappers
-│   └── presentation/      esquemas Zod, Server Actions, componentes
-├── shared/               dominio compartido (Dinero, Reloj, errores), clientes Supabase, UI
+│   └── presentation/     esquemas Zod, Server Actions, componentes
+├── shared/               dominio compartido (Dinero, Reloj, errores), cliente Supabase, UI
 ├── di/container.ts       ensambla casos de uso y adaptadores por request
-└── middleware.ts         refresca la sesión y protege las rutas privadas
+└── middleware.ts         verifica la cookie firmada y protege las rutas privadas
 ```
 
 **Dirección de dependencias:** `presentación → aplicación → dominio ← infraestructura`.
 
-Las fronteras no son solo una convención: `eslint.config.mjs` las hace fallar el lint. El dominio no puede importar React, Next ni Supabase; la aplicación no puede importar adaptadores; y el cliente `service_role` solo es importable desde `src/app/api/cron`.
+Las fronteras no son solo una convención: `eslint.config.mjs` las hace fallar el lint. El dominio no puede importar React, Next ni Supabase; la aplicación no puede importar adaptadores; y las páginas no pueden instanciar el cliente de datos: piden el contenedor.
 
-### Los tres conceptos que hay que entender antes de tocar el código
+### Los cuatro conceptos que hay que entender antes de tocar el código
 
-1. **Naturaleza económica.** Cada movimiento es `capex` (inversión que capitaliza), `opex` (gasto operativo), `financiacion` (deuda) o `ingreso`. Es lo que permite distinguir «cuánto he invertido» de «cuánto he gastado». Se propone desde la categoría y el usuario puede sobreescribirla.
+1. **Naturaleza económica.** Cada movimiento es `capex` (inversión que capitaliza), `opex` (gasto operativo), `financiacion` (deuda) o `ingreso`. Es lo que permite distinguir «cuánto he invertido» de «cuánto he gastado». Se propone desde la categoría y se puede sobreescribir.
 2. **Regla de oro de las cifras.** Solo los movimientos en estado `pagado` alimentan el flujo de caja ejecutado. Los `pendiente`/`vencido` alimentan proyección, calendario y alertas. Nunca se mezclan.
 3. **Guarda de indicadores.** Si el divisor es cero, el indicador es `null` y la interfaz muestra «—». Nunca `0 %`, `NaN` ni `Infinity`.
+4. **Fila del sistema.** Lo que sembró `seed.sql` lleva `es_sistema = true` y no se puede modificar ni eliminar, solo ocultar. Lo garantiza un trigger, con una única puerta de escape declarada (`set app.sembrando = 'on'`) que usa la propia semilla.
 
 ### Agregar un tipo de proyecto nuevo
 
@@ -157,6 +192,7 @@ Para enlaces con apariencia de botón usa el helper `EnlaceBoton` en vez de comb
 
 ## Despliegue
 
-- **Aplicación:** Vercel. Configura las mismas variables de `.env.example` en el proyecto de Vercel (`SUPABASE_SERVICE_ROLE_KEY` y `CRON_SECRET` como secretas).
-- **Base de datos y archivos:** Supabase (proyecto de producción, distinto del de desarrollo).
+- **Aplicación:** Vercel. Configura las mismas variables de `.env.example` en el proyecto de Vercel; `TOKEN_ACCESO`, `SECRETO_SESION`, `SUPABASE_SERVICE_ROLE_KEY` y `CRON_SECRET` como secretas.
+- **Base de datos y archivos:** Supabase.
 - Antes de cada despliegue, `npm run verify` debe pasar.
+- Al desplegar en un dominio público, el token queda expuesto a intentos desde internet. Es el momento de que sea largo y aleatorio.

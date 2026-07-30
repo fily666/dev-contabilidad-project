@@ -12,7 +12,6 @@ type Fila = Tablas<"categorias">;
 function aCategoria(fila: Fila): Categoria {
   return Categoria.desdePersistencia({
     id: fila.id,
-    propietarioId: fila.propietario_id,
     tipoProyectoId: fila.tipo_proyecto_id,
     padreId: fila.padre_id,
     nombre: fila.nombre,
@@ -27,23 +26,19 @@ function aCategoria(fila: Fila): Categoria {
 export class SupabaseCategoriaRepository implements CategoriaRepository {
   constructor(private readonly supabase: SupabaseClient<Database>) {}
 
-  async buscarPorId(id: string, propietarioId: string): Promise<Categoria | null> {
+  async buscarPorId(id: string): Promise<Categoria | null> {
     const { data, error } = await this.supabase
       .from("categorias")
       .select("*")
       .eq("id", id)
-      .or(`propietario_id.is.null,propietario_id.eq.${propietarioId}`)
       .maybeSingle();
 
     if (error) throw error;
     return data ? aCategoria(data) : null;
   }
 
-  async listar(propietarioId: string, filtro?: FiltroCategorias): Promise<CategoriaConRuta[]> {
-    let consulta = this.supabase
-      .from("categorias")
-      .select("*")
-      .or(`propietario_id.is.null,propietario_id.eq.${propietarioId}`);
+  async listar(filtro?: FiltroCategorias): Promise<CategoriaConRuta[]> {
+    let consulta = this.supabase.from("categorias").select("*");
 
     if (filtro?.tipoProyectoId !== undefined && filtro.tipoProyectoId !== null) {
       // Transversales (sin tipo) + las del tipo solicitado.
@@ -87,12 +82,12 @@ export class SupabaseCategoriaRepository implements CategoriaRepository {
       .from("categorias")
       .insert({
         id: d.id,
-        propietario_id: d.propietarioId,
         tipo_proyecto_id: d.tipoProyectoId,
         padre_id: d.padreId,
         nombre: d.nombre,
         naturaleza: d.naturaleza,
-        es_sistema: false,
+        // es_sistema no se envia: la columna nace en false y el tipo generado lo
+        // excluye a proposito para que solo seed.sql cree filas del sistema.
         activa: d.activa,
         orden: d.orden,
       })
@@ -121,29 +116,23 @@ export class SupabaseCategoriaRepository implements CategoriaRepository {
     return aCategoria(data);
   }
 
-  async eliminar(id: string, propietarioId: string): Promise<void> {
-    const { error } = await this.supabase
-      .from("categorias")
-      .delete()
-      .eq("id", id)
-      .eq("propietario_id", propietarioId);
+  async eliminar(id: string): Promise<void> {
+    const { error } = await this.supabase.from("categorias").delete().eq("id", id);
 
     if (error) throw error;
   }
 
-  async contarMovimientos(categoriaId: string, propietarioId: string): Promise<number> {
+  async contarMovimientos(categoriaId: string): Promise<number> {
     const { count, error } = await this.supabase
       .from("movimientos")
       .select("id", { count: "exact", head: true })
-      .eq("categoria_id", categoriaId)
-      .eq("propietario_id", propietarioId);
+      .eq("categoria_id", categoriaId);
 
     if (error) throw error;
     return count ?? 0;
   }
 
   async existeNombre(
-    propietarioId: string,
     nombre: string,
     tipoProyectoId: string | null,
     padreId: string | null,
@@ -152,7 +141,6 @@ export class SupabaseCategoriaRepository implements CategoriaRepository {
     let consulta = this.supabase
       .from("categorias")
       .select("id", { count: "exact", head: true })
-      .eq("propietario_id", propietarioId)
       .ilike("nombre", nombre);
 
     consulta = tipoProyectoId

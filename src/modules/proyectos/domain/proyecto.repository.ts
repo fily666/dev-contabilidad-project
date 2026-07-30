@@ -28,12 +28,12 @@ export type ResumenProyecto = {
 };
 
 export interface ProyectoRepository {
-  buscarPorId(id: string, propietarioId: string): Promise<Proyecto | null>;
-  listar(propietarioId: string, filtro?: FiltroProyectos): Promise<ResumenProyecto[]>;
-  guardar(proyecto: Proyecto, actorId: string): Promise<Proyecto>;
-  actualizar(proyecto: Proyecto, actorId: string): Promise<Proyecto>;
-  eliminar(id: string, propietarioId: string): Promise<void>;
-  contarMovimientos(proyectoId: string, propietarioId: string): Promise<number>;
+  buscarPorId(id: string): Promise<Proyecto | null>;
+  listar(filtro?: FiltroProyectos): Promise<ResumenProyecto[]>;
+  guardar(proyecto: Proyecto): Promise<Proyecto>;
+  actualizar(proyecto: Proyecto): Promise<Proyecto>;
+  eliminar(id: string): Promise<void>;
+  contarMovimientos(proyectoId: string): Promise<number>;
   /** Insumos agregados para calcular los indicadores de §5. */
-  obtenerCifras(proyectoId: string, propietarioId: string, hoy: FechaIso): Promise<CifrasProyecto>;
+  obtenerCifras(proyectoId: string, hoy: FechaIso): Promise<CifrasProyecto>;
 }

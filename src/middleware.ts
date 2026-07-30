@@ -1,60 +1,51 @@
-import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-const RUTAS_PUBLICAS = ["/login", "/registro", "/recuperar-clave", "/actualizar-clave", "/auth"];
+import { verificarSesion } from "@/modules/acceso/domain/sesion-firmada";
+import { NOMBRE_COOKIE_SESION } from "@/modules/acceso/infrastructure/almacen-sesion-cookies";
+import { credencialDelEntorno } from "@/modules/acceso/infrastructure/credencial-entorno";
+
+const RUTAS_PUBLICAS = ["/acceso"];
 
 /**
- * Refresca la sesion en cada navegacion y protege las rutas privadas.
+ * Protege las rutas privadas verificando la cookie de sesion firmada.
  * Contexto.md §9 y criterio de aceptacion de RF-04.
+ *
+ * Corre en el runtime Edge, asi que no puede usar `node:crypto` ni hablar con la
+ * base. Solo necesita HMAC sobre la cookie, que es exactamente lo que hace
+ * `verificarSesion` con Web Crypto: la misma funcion que usa el servidor.
  */
 export async function middleware(request: NextRequest) {
-  let respuesta = NextResponse.next({ request });
-
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return request.cookies.getAll();
-        },
-        setAll(cookies) {
-          for (const { name, value } of cookies) {
-            request.cookies.set(name, value);
-          }
-          respuesta = NextResponse.next({ request });
-          for (const { name, value, options } of cookies) {
-            respuesta.cookies.set(name, value, options);
-          }
-        },
-      },
-    },
-  );
-
-  // getUser() valida el token contra el servidor de Auth; no usar getSession()
-  // en middleware porque lee la cookie sin verificarla.
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
   const ruta = request.nextUrl.pathname;
   const esPublica = RUTAS_PUBLICAS.some((p) => ruta === p || ruta.startsWith(`${p}/`));
 
-  if (!user && !esPublica) {
+  const cookie = request.cookies.get(NOMBRE_COOKIE_SESION)?.value ?? null;
+
+  let haySesion = false;
+  if (cookie) {
+    const credencial = credencialDelEntorno();
+    haySesion = await verificarSesion(
+      credencial.secretoSesion(),
+      credencial.token(),
+      cookie,
+      Math.floor(Date.now() / 1000),
+    );
+  }
+
+  if (!haySesion && !esPublica) {
     const destino = request.nextUrl.clone();
-    destino.pathname = "/login";
+    destino.pathname = "/acceso";
     destino.searchParams.set("siguiente", ruta);
     return NextResponse.redirect(destino);
   }
 
-  if (user && (ruta === "/login" || ruta === "/registro")) {
+  if (haySesion && esPublica) {
     const destino = request.nextUrl.clone();
     destino.pathname = "/dashboard";
     destino.search = "";
     return NextResponse.redirect(destino);
   }
 
-  return respuesta;
+  return NextResponse.next({ request });
 }
 
 export const config = {

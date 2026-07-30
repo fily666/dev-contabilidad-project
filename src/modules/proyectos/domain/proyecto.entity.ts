@@ -5,7 +5,6 @@ import type { TipoProyecto, ValorAtributo } from "./tipo-proyecto.entity";
 
 export type DatosProyecto = {
   id: string;
-  propietarioId: string;
   tipoProyectoId: string;
   nombre: string;
   descripcion: string | null;
@@ -18,7 +17,6 @@ export type DatosProyecto = {
 
 export type EntradaCrearProyecto = {
   id: string;
-  propietarioId: string;
   tipo: TipoProyecto;
   nombre: string;
   descripcion?: string | null;
@@ -50,7 +48,6 @@ export class Proyecto {
 
     return new Proyecto({
       id: entrada.id,
-      propietarioId: entrada.propietarioId,
       tipoProyectoId: entrada.tipo.id,
       nombre,
       descripcion: normalizarTexto(entrada.descripcion),
@@ -68,9 +65,6 @@ export class Proyecto {
 
   get id(): string {
     return this.datos.id;
-  }
-  get propietarioId(): string {
-    return this.datos.propietarioId;
   }
   get tipoProyectoId(): string {
     return this.datos.tipoProyectoId;

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { contenedorAutenticado } from "@/di/container";
+import { contenedorPrivado } from "@/di/container";
 import { FormularioProyecto } from "@/modules/proyectos/presentation/components/formulario-proyecto";
 
 export const metadata: Metadata = { title: "Editar proyecto" };
@@ -9,11 +9,11 @@ type Props = { params: Promise<{ id: string }> };
 
 export default async function PaginaEditarProyecto({ params }: Props) {
   const { id } = await params;
-  const { contenedor, sesion } = await contenedorAutenticado();
+  const { contenedor } = await contenedorPrivado();
 
   const [proyecto, tipos] = await Promise.all([
-    contenedor.proyectos.repositorio.buscarPorId(id, sesion.usuarioId),
-    contenedor.proyectos.listarTipos.ejecutar({ propietarioId: sesion.usuarioId }),
+    contenedor.proyectos.repositorio.buscarPorId(id),
+    contenedor.proyectos.listarTipos.ejecutar(),
   ]);
 
   if (!proyecto) notFound();

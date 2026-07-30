@@ -17,14 +17,10 @@ export type EntradaMetodoPago = {
 };
 
 export interface MetodoPagoRepository {
-  listar(propietarioId: string, soloActivos?: boolean): Promise<MetodoPago[]>;
-  buscarPorId(id: string, propietarioId: string): Promise<MetodoPago | null>;
-  crear(propietarioId: string, entrada: EntradaMetodoPago): Promise<MetodoPago>;
-  actualizar(
-    id: string,
-    propietarioId: string,
-    entrada: EntradaMetodoPago & { activo?: boolean },
-  ): Promise<MetodoPago>;
-  eliminar(id: string, propietarioId: string): Promise<void>;
-  contarMovimientos(id: string, propietarioId: string): Promise<number>;
+  listar(soloActivos?: boolean): Promise<MetodoPago[]>;
+  buscarPorId(id: string): Promise<MetodoPago | null>;
+  crear(entrada: EntradaMetodoPago): Promise<MetodoPago>;
+  actualizar(id: string, entrada: EntradaMetodoPago & { activo?: boolean }): Promise<MetodoPago>;
+  eliminar(id: string): Promise<void>;
+  contarMovimientos(id: string): Promise<number>;
 }

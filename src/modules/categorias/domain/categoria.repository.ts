@@ -25,14 +25,13 @@ export type CategoriaConRuta = {
 };
 
 export interface CategoriaRepository {
-  buscarPorId(id: string, propietarioId: string): Promise<Categoria | null>;
-  listar(propietarioId: string, filtro?: FiltroCategorias): Promise<CategoriaConRuta[]>;
+  buscarPorId(id: string): Promise<Categoria | null>;
+  listar(filtro?: FiltroCategorias): Promise<CategoriaConRuta[]>;
   guardar(categoria: Categoria): Promise<Categoria>;
   actualizar(categoria: Categoria): Promise<Categoria>;
-  eliminar(id: string, propietarioId: string): Promise<void>;
-  contarMovimientos(categoriaId: string, propietarioId: string): Promise<number>;
+  eliminar(id: string): Promise<void>;
+  contarMovimientos(categoriaId: string): Promise<number>;
   existeNombre(
-    propietarioId: string,
     nombre: string,
     tipoProyectoId: string | null,
     padreId: string | null,

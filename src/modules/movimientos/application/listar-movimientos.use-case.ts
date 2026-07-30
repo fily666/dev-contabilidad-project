@@ -14,7 +14,6 @@ export class ListarMovimientos {
   constructor(private readonly movimientos: MovimientoRepository) {}
 
   async ejecutar(entrada: {
-    propietarioId: string;
     filtro?: FiltroMovimientos;
     orden?: Partial<OrdenMovimientos>;
     paginacion?: Partial<Paginacion>;
@@ -32,6 +31,6 @@ export class ListarMovimientos {
       ),
     };
 
-    return this.movimientos.listar(entrada.propietarioId, entrada.filtro ?? {}, orden, paginacion);
+    return this.movimientos.listar(entrada.filtro ?? {}, orden, paginacion);
   }
 }

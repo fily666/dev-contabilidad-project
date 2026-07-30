@@ -1,15 +1,28 @@
 -- ============================================================================
 -- Datos semilla del sistema — Contexto.md §6.8
 -- Idempotente: puede ejecutarse varias veces sin duplicar.
+--   0. Fila unica de ajustes
 --   1. Tipos de proyecto del sistema, con sus atributos e indicadores (§13)
 --   2. Catalogo de categorias del sistema, con su naturaleza (§2, RF-32)
+--   3. Metodos de pago iniciales (RF-33)
 -- ============================================================================
+
+-- El trigger proteger_filas_de_sistema bloquea cualquier update sobre las filas
+-- sembradas. Este ajuste declara que lo que sigue ES el sembrado, y es la unica
+-- via legitima para volver a escribirlas.
+set app.sembrando = 'on';
+
+-- ─── 0. Ajustes de la instalacion ───────────────────────────────────────────
+
+insert into ajustes (id, moneda, zona_horaria)
+values (true, 'COP', 'America/Bogota')
+on conflict (id) do nothing;
 
 -- ─── 1. Tipos de proyecto ───────────────────────────────────────────────────
 
-insert into tipos_proyecto (propietario_id, codigo, nombre, icono, configuracion) values
+insert into tipos_proyecto (codigo, nombre, icono, es_sistema, configuracion) values
 (
-  null, 'inmueble', 'Inmueble', 'building-2',
+  'inmueble', 'Inmueble', 'building-2', true,
   '{
     "atributos": [
       { "clave": "direccion",   "etiqueta": "Direccion",              "tipo": "text",   "requerido": true },
@@ -24,7 +37,7 @@ insert into tipos_proyecto (propietario_id, codigo, nombre, icono, configuracion
   }'::jsonb
 ),
 (
-  null, 'vehiculo', 'Vehiculo', 'car',
+  'vehiculo', 'Vehiculo', 'car', true,
   '{
     "atributos": [
       { "clave": "placa",      "etiqueta": "Placa",       "tipo": "text",   "requerido": true },
@@ -39,7 +52,7 @@ insert into tipos_proyecto (propietario_id, codigo, nombre, icono, configuracion
   }'::jsonb
 ),
 (
-  null, 'negocio', 'Negocio', 'store',
+  'negocio', 'Negocio', 'store', true,
   '{
     "atributos": [
       { "clave": "razon_social", "etiqueta": "Razon social", "tipo": "text", "requerido": false },
@@ -52,7 +65,7 @@ insert into tipos_proyecto (propietario_id, codigo, nombre, icono, configuracion
   }'::jsonb
 ),
 (
-  null, 'inversion', 'Inversion', 'trending-up',
+  'inversion', 'Inversion', 'trending-up', true,
   '{
     "atributos": [
       { "clave": "instrumento", "etiqueta": "Instrumento", "tipo": "text", "requerido": false },
@@ -64,7 +77,7 @@ insert into tipos_proyecto (propietario_id, codigo, nombre, icono, configuracion
   }'::jsonb
 ),
 (
-  null, 'otro', 'Otro', 'folder',
+  'otro', 'Otro', 'folder', true,
   '{
     "atributos": [],
     "indicadores": ["total_invertido","total_ingresos","total_egresos","balance","costo_mensual"],
@@ -72,7 +85,7 @@ insert into tipos_proyecto (propietario_id, codigo, nombre, icono, configuracion
     "se_valoriza": false
   }'::jsonb
 )
-on conflict (propietario_id, codigo) do update
+on conflict (codigo) do update
   set nombre        = excluded.nombre,
       icono         = excluded.icono,
       configuracion = excluded.configuracion;
@@ -93,14 +106,12 @@ declare
   v_padre_id uuid;
 begin
   if p_tipo_codigo is not null then
-    select id into v_tipo_id from tipos_proyecto
-     where propietario_id is null and codigo = p_tipo_codigo;
+    select id into v_tipo_id from tipos_proyecto where codigo = p_tipo_codigo;
   end if;
 
   if p_padre is not null then
     select id into v_padre_id from categorias
-     where propietario_id is null
-       and nombre = p_padre
+     where nombre = p_padre
        and tipo_proyecto_id is not distinct from v_tipo_id
        and padre_id is null;
     if v_padre_id is null then
@@ -108,9 +119,9 @@ begin
     end if;
   end if;
 
-  insert into categorias (propietario_id, tipo_proyecto_id, padre_id, nombre, naturaleza, es_sistema, orden)
-  values (null, v_tipo_id, v_padre_id, p_nombre, p_naturaleza, true, p_orden)
-  on conflict (tipo_proyecto_id, padre_id, nombre) where propietario_id is null
+  insert into categorias (tipo_proyecto_id, padre_id, nombre, naturaleza, es_sistema, orden)
+  values (v_tipo_id, v_padre_id, p_nombre, p_naturaleza, true, p_orden)
+  on conflict (tipo_proyecto_id, padre_id, nombre)
   do update set naturaleza = excluded.naturaleza, orden = excluded.orden;
 end;
 $$;
@@ -219,3 +230,15 @@ select pg_temp.sembrar_categoria('inversion', 'Rendimientos', 'Dividendos',     
 select pg_temp.sembrar_categoria('inversion', 'Rendimientos', 'Intereses',             'ingreso', 2);
 select pg_temp.sembrar_categoria('inversion', 'Rendimientos', 'Valorizacion realizada','ingreso', 3);
 select pg_temp.sembrar_categoria('inversion', 'Rendimientos', 'Retiro de capital',     'ingreso', 4);
+
+-- ─── 3. Metodos de pago iniciales (RF-33) ───────────────────────────────────
+-- Antes los creaba el trigger de alta de usuario; sin usuarios, se siembran aqui.
+
+insert into metodos_pago (nombre, tipo) values
+  ('Efectivo',           'efectivo'),
+  ('Transferencia',      'transferencia'),
+  ('Tarjeta de credito', 'tarjeta_credito'),
+  ('Debito automatico',  'debito_automatico')
+on conflict (nombre) do nothing;
+
+reset app.sembrando;

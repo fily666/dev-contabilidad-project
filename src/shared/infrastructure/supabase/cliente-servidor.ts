@@ -1,31 +1,24 @@
-import { createServerClient } from "@supabase/ssr";
-import { cookies } from "next/headers";
+import "server-only";
+
+import { createClient } from "@supabase/supabase-js";
+
 import type { Database } from "./database.types";
-import { claveAnonima, urlSupabase } from "./entorno";
+import { claveServicio, urlSupabase } from "./entorno";
 
 /**
- * Cliente por request para Server Components, Server Actions y Route Handlers.
- * Contexto.md §9: clave anonima + sesion del usuario en cookies HTTP-only.
+ * Cliente unico de acceso a datos (Contexto.md §9, ADR-15).
+ *
+ * Se conecta con service_role, que pasa por encima de RLS. En un sistema
+ * monousuario eso no es un atajo: no hay filas de otro a las que aislarse, y la
+ * base esta cerrada a los roles publicos precisamente para que esta sea la unica
+ * puerta (migracion 20260730120300).
+ *
+ * El `import "server-only"` de arriba es la barrera que importa: si algun dia un
+ * componente con "use client" importa este modulo, la compilacion falla en vez de
+ * enviar la clave al navegador.
  */
-export async function crearClienteServidor() {
-  const almacen = await cookies();
-
-  return createServerClient<Database>(urlSupabase(), claveAnonima(), {
-    cookies: {
-      getAll() {
-        return almacen.getAll();
-      },
-      setAll(cookiesPorEscribir) {
-        try {
-          for (const { name, value, options } of cookiesPorEscribir) {
-            almacen.set(name, value, options);
-          }
-        } catch {
-          // Los Server Components no pueden escribir cookies: el refresco de
-          // sesion lo hace el middleware. Ignorar aqui es el comportamiento
-          // esperado por @supabase/ssr.
-        }
-      },
-    },
+export function crearClienteServidor() {
+  return createClient<Database>(urlSupabase(), claveServicio(), {
+    auth: { autoRefreshToken: false, persistSession: false },
   });
 }

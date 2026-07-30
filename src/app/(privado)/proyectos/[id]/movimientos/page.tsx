@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ArrowLeft, ArrowLeftRight } from "lucide-react";
 
-import { contenedorAutenticado } from "@/di/container";
+import { contenedorPrivado } from "@/di/container";
 import { EnlaceBoton } from "@/shared/ui/enlace-boton";
 import { EstadoVacio } from "@/shared/ui/estado-vacio";
 import { Skeleton } from "@/shared/ui/skeleton";
@@ -28,24 +28,22 @@ type Props = {
 export default async function PaginaMovimientosProyecto({ params, searchParams }: Props) {
   const [{ id }, parametros] = await Promise.all([params, searchParams]);
   const { filtro, orden, pagina, porPagina } = leerFiltros(parametros);
-  const { contenedor, sesion } = await contenedorAutenticado();
+  const { contenedor } = await contenedorPrivado();
 
-  const proyecto = await contenedor.proyectos.repositorio.buscarPorId(id, sesion.usuarioId);
+  const proyecto = await contenedor.proyectos.repositorio.buscarPorId(id);
   if (!proyecto) notFound();
 
   const [resultado, categorias, metodosPago] = await Promise.all([
     contenedor.movimientos.listar.ejecutar({
-      propietarioId: sesion.usuarioId,
       // El proyecto de la ruta manda sobre cualquier parametro de la URL.
       filtro: { ...filtro, proyectoId: id },
       orden,
       paginacion: { pagina, porPagina },
     }),
     contenedor.categorias.listar.ejecutar({
-      propietarioId: sesion.usuarioId,
       filtro: { tipoProyectoId: proyecto.tipoProyectoId },
     }),
-    contenedor.metodosPago.listar(sesion.usuarioId),
+    contenedor.metodosPago.listar(),
   ]);
 
   const hoy = contenedor.reloj.hoy();

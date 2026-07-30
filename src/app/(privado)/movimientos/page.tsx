@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import type { Metadata } from "next";
 import { ArrowLeftRight, FolderPlus } from "lucide-react";
 
-import { contenedorAutenticado } from "@/di/container";
+import { contenedorPrivado } from "@/di/container";
 import { EnlaceBoton } from "@/shared/ui/enlace-boton";
 import { EstadoVacio } from "@/shared/ui/estado-vacio";
 import { Skeleton } from "@/shared/ui/skeleton";
@@ -25,21 +25,19 @@ type Props = { searchParams: Promise<ParametrosBusqueda> };
 export default async function PaginaMovimientos({ searchParams }: Props) {
   const parametros = await searchParams;
   const { filtro, orden, pagina, porPagina } = leerFiltros(parametros);
-  const { contenedor, sesion } = await contenedorAutenticado();
+  const { contenedor } = await contenedorPrivado();
 
   const [resultado, proyectos, categorias, metodosPago] = await Promise.all([
     contenedor.movimientos.listar.ejecutar({
-      propietarioId: sesion.usuarioId,
       filtro,
       orden,
       paginacion: { pagina, porPagina },
     }),
     contenedor.proyectos.listar.ejecutar({
-      propietarioId: sesion.usuarioId,
       filtro: { estados: ["activo", "pausado"] },
     }),
-    contenedor.categorias.listar.ejecutar({ propietarioId: sesion.usuarioId }),
-    contenedor.metodosPago.listar(sesion.usuarioId),
+    contenedor.categorias.listar.ejecutar({}),
+    contenedor.metodosPago.listar(),
   ]);
 
   const moneda = proyectos[0]?.moneda ?? "COP";

@@ -14,27 +14,25 @@ import { aFilaProyecto, aProyecto } from "./proyecto.mapper";
 export class SupabaseProyectoRepository implements ProyectoRepository {
   constructor(private readonly supabase: SupabaseClient<Database>) {}
 
-  async buscarPorId(id: string, propietarioId: string): Promise<Proyecto | null> {
+  async buscarPorId(id: string): Promise<Proyecto | null> {
     const { data, error } = await this.supabase
       .from("proyectos")
       .select("*")
       .eq("id", id)
-      .eq("propietario_id", propietarioId)
       .maybeSingle();
 
     if (error) throw error;
     return data ? aProyecto(data) : null;
   }
 
-  async listar(propietarioId: string, filtro?: FiltroProyectos): Promise<ResumenProyecto[]> {
+  async listar(filtro?: FiltroProyectos): Promise<ResumenProyecto[]> {
     // Las vistas no tienen relacion declarada con proyectos, asi que PostgREST
     // no puede anidarlas: se consultan aparte y se unen aqui.
     let consulta = this.supabase
       .from("proyectos")
       .select(
         `id, nombre, estado, fecha_inicio, moneda, tipos_proyecto!inner ( codigo, nombre, icono )`,
-      )
-      .eq("propietario_id", propietarioId);
+      );
 
     if (filtro?.estados?.length) consulta = consulta.in("estado", filtro.estados);
     if (filtro?.tipoProyectoId) consulta = consulta.eq("tipo_proyecto_id", filtro.tipoProyectoId);
@@ -42,7 +40,7 @@ export class SupabaseProyectoRepository implements ProyectoRepository {
 
     const [proyectos, resumenes] = await Promise.all([
       consulta.order("creado_en", { ascending: false }),
-      this.supabase.from("v_resumen_proyecto").select("*").eq("propietario_id", propietarioId),
+      this.supabase.from("v_resumen_proyecto").select("*"),
     ]);
 
     if (proyectos.error) throw proyectos.error;
@@ -79,10 +77,10 @@ export class SupabaseProyectoRepository implements ProyectoRepository {
     });
   }
 
-  async guardar(proyecto: Proyecto, actorId: string): Promise<Proyecto> {
+  async guardar(proyecto: Proyecto): Promise<Proyecto> {
     const { data, error } = await this.supabase
       .from("proyectos")
-      .insert(aFilaProyecto(proyecto, actorId))
+      .insert(aFilaProyecto(proyecto))
       .select("*")
       .single();
 
@@ -90,7 +88,7 @@ export class SupabaseProyectoRepository implements ProyectoRepository {
     return aProyecto(data);
   }
 
-  async actualizar(proyecto: Proyecto, actorId: string): Promise<Proyecto> {
+  async actualizar(proyecto: Proyecto): Promise<Proyecto> {
     const d = proyecto.aDatos();
     const { data, error } = await this.supabase
       .from("proyectos")
@@ -102,10 +100,8 @@ export class SupabaseProyectoRepository implements ProyectoRepository {
         fecha_fin: d.fechaFin,
         estado: d.estado,
         atributos: d.atributos,
-        actualizado_por: actorId,
       })
       .eq("id", d.id)
-      .eq("propietario_id", d.propietarioId)
       .select("*")
       .single();
 
@@ -113,40 +109,26 @@ export class SupabaseProyectoRepository implements ProyectoRepository {
     return aProyecto(data);
   }
 
-  async eliminar(id: string, propietarioId: string): Promise<void> {
-    const { error } = await this.supabase
-      .from("proyectos")
-      .delete()
-      .eq("id", id)
-      .eq("propietario_id", propietarioId);
+  async eliminar(id: string): Promise<void> {
+    const { error } = await this.supabase.from("proyectos").delete().eq("id", id);
 
     if (error) throw error;
   }
 
-  async contarMovimientos(proyectoId: string, propietarioId: string): Promise<number> {
+  async contarMovimientos(proyectoId: string): Promise<number> {
     const { count, error } = await this.supabase
       .from("movimientos")
       .select("id", { count: "exact", head: true })
-      .eq("proyecto_id", proyectoId)
-      .eq("propietario_id", propietarioId);
+      .eq("proyecto_id", proyectoId);
 
     if (error) throw error;
     return count ?? 0;
   }
 
   /** Lee los agregados de las vistas de §6.4 y los entrega al dominio. */
-  async obtenerCifras(
-    proyectoId: string,
-    propietarioId: string,
-    hoy: FechaIso,
-  ): Promise<CifrasProyecto> {
+  async obtenerCifras(proyectoId: string, hoy: FechaIso): Promise<CifrasProyecto> {
     const [proyecto, resumen, metricas, flujo, patrimonio] = await Promise.all([
-      this.supabase
-        .from("proyectos")
-        .select("fecha_inicio, moneda")
-        .eq("id", proyectoId)
-        .eq("propietario_id", propietarioId)
-        .single(),
+      this.supabase.from("proyectos").select("fecha_inicio, moneda").eq("id", proyectoId).single(),
       this.supabase
         .from("v_resumen_proyecto")
         .select("*")

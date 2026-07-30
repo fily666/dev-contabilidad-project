@@ -23,7 +23,6 @@ const SELECT_LISTADO = `
 function aMovimiento(fila: Fila): Movimiento {
   return Movimiento.desdePersistencia({
     id: fila.id,
-    propietarioId: fila.propietario_id,
     proyectoId: fila.proyecto_id,
     categoriaId: fila.categoria_id,
     metodoPagoId: fila.metodo_pago_id,
@@ -55,12 +54,11 @@ const COLUMNA_ORDEN: Record<OrdenMovimientos["campo"], string> = {
 export class SupabaseMovimientoRepository implements MovimientoRepository {
   constructor(private readonly supabase: SupabaseClient<Database>) {}
 
-  async buscarPorId(id: string, propietarioId: string): Promise<Movimiento | null> {
+  async buscarPorId(id: string): Promise<Movimiento | null> {
     const { data, error } = await this.supabase
       .from("movimientos")
       .select("*")
       .eq("id", id)
-      .eq("propietario_id", propietarioId)
       .maybeSingle();
 
     if (error) throw error;
@@ -68,7 +66,6 @@ export class SupabaseMovimientoRepository implements MovimientoRepository {
   }
 
   async listar(
-    propietarioId: string,
     filtro: FiltroMovimientos,
     orden: OrdenMovimientos,
     paginacion: Paginacion,
@@ -78,7 +75,6 @@ export class SupabaseMovimientoRepository implements MovimientoRepository {
 
     const consulta = this.aplicarFiltros(
       this.supabase.from("movimientos").select(SELECT_LISTADO, { count: "exact" }),
-      propietarioId,
       filtro,
     );
 
@@ -87,7 +83,7 @@ export class SupabaseMovimientoRepository implements MovimientoRepository {
         .order(COLUMNA_ORDEN[orden.campo], { ascending: orden.direccion === "asc" })
         .order("creado_en", { ascending: false })
         .range(desde, hasta),
-      this.calcularTotales(propietarioId, filtro),
+      this.calcularTotales(filtro),
     ]);
 
     if (pagina.error) throw pagina.error;
@@ -160,13 +156,12 @@ export class SupabaseMovimientoRepository implements MovimientoRepository {
     };
   }
 
-  async guardar(movimiento: Movimiento, actorId: string): Promise<Movimiento> {
+  async guardar(movimiento: Movimiento): Promise<Movimiento> {
     const d = movimiento.aDatos();
     const { data, error } = await this.supabase
       .from("movimientos")
       .insert({
         id: d.id,
-        propietario_id: d.propietarioId,
         proyecto_id: d.proyectoId,
         categoria_id: d.categoriaId,
         metodo_pago_id: d.metodoPagoId,
@@ -183,7 +178,6 @@ export class SupabaseMovimientoRepository implements MovimientoRepository {
         observaciones: d.observaciones,
         estado: d.estado,
         ocurrencia_id: d.ocurrenciaId,
-        creado_por: actorId,
       })
       .select("*")
       .single();
@@ -192,7 +186,7 @@ export class SupabaseMovimientoRepository implements MovimientoRepository {
     return aMovimiento(data);
   }
 
-  async actualizar(movimiento: Movimiento, actorId: string): Promise<Movimiento> {
+  async actualizar(movimiento: Movimiento): Promise<Movimiento> {
     const d = movimiento.aDatos();
     const { data, error } = await this.supabase
       .from("movimientos")
@@ -211,10 +205,8 @@ export class SupabaseMovimientoRepository implements MovimientoRepository {
         observaciones: d.observaciones,
         estado: d.estado,
         motivo_anulacion: d.motivoAnulacion,
-        actualizado_por: actorId,
       })
       .eq("id", d.id)
-      .eq("propietario_id", d.propietarioId)
       .select("*")
       .single();
 
@@ -223,13 +215,9 @@ export class SupabaseMovimientoRepository implements MovimientoRepository {
   }
 
   /** Totales del conjunto filtrado completo (no solo de la pagina visible). */
-  private async calcularTotales(
-    propietarioId: string,
-    filtro: FiltroMovimientos,
-  ): Promise<PaginaMovimientos["totales"]> {
+  private async calcularTotales(filtro: FiltroMovimientos): Promise<PaginaMovimientos["totales"]> {
     const { data, error } = await this.aplicarFiltros(
       this.supabase.from("movimientos").select("tipo, naturaleza, valor, estado"),
-      propietarioId,
       filtro,
     );
 
@@ -252,16 +240,12 @@ export class SupabaseMovimientoRepository implements MovimientoRepository {
     return { ingresos, egresos, invertido };
   }
 
-  private aplicarFiltros<T extends { eq: unknown }>(
-    consulta: T,
-    propietarioId: string,
-    filtro: FiltroMovimientos,
-  ): T {
+  private aplicarFiltros<T extends { eq: unknown }>(consulta: T, filtro: FiltroMovimientos): T {
     // Se usa `any` acotado a este metodo: los builders de PostgREST son
     // genericos encadenados y tiparlos aqui no aporta seguridad real.
     /* eslint-disable @typescript-eslint/no-explicit-any */
     let q = consulta as any;
-    q = q.eq("propietario_id", propietarioId);
+    q = q;
 
     if (filtro.proyectoId) q = q.eq("proyecto_id", filtro.proyectoId);
     if (filtro.desde) q = q.gte("fecha", filtro.desde);

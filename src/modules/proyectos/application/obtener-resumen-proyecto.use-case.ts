@@ -22,21 +22,14 @@ export class ObtenerResumenProyecto {
     private readonly reloj: Reloj,
   ) {}
 
-  async ejecutar(entrada: {
-    proyectoId: string;
-    propietarioId: string;
-  }): Promise<ResumenFinancieroProyecto> {
-    const proyecto = await this.proyectos.buscarPorId(entrada.proyectoId, entrada.propietarioId);
+  async ejecutar(entrada: { proyectoId: string }): Promise<ResumenFinancieroProyecto> {
+    const proyecto = await this.proyectos.buscarPorId(entrada.proyectoId);
     if (!proyecto) throw new NoEncontrado("proyecto", entrada.proyectoId);
 
-    const tipo = await this.tipos.buscarPorId(proyecto.tipoProyectoId, entrada.propietarioId);
+    const tipo = await this.tipos.buscarPorId(proyecto.tipoProyectoId);
     if (!tipo) throw new NoEncontrado("tipo de proyecto", proyecto.tipoProyectoId);
 
-    const cifras = await this.proyectos.obtenerCifras(
-      entrada.proyectoId,
-      entrada.propietarioId,
-      this.reloj.hoy(),
-    );
+    const cifras = await this.proyectos.obtenerCifras(entrada.proyectoId, this.reloj.hoy());
 
     return {
       proyecto,

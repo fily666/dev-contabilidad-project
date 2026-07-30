@@ -1,13 +1,16 @@
 /**
  * Tipos de la base de datos.
  *
- * IMPORTANTE (Contexto.md §6.8): este archivo se regenera desde la base y no se
- * edita a mano. Una vez enlazado el proyecto Supabase, ejecuta:
+ * Escrito a mano a partir de supabase/migrations, pero NO a ciegas: se verifica
+ * columna por columna contra la base real con
  *
- *     npm run db:types
+ *     npm run db:verify-types
  *
- * Esta version inicial se escribio a mano a partir de las migraciones de
- * supabase/migrations para que el proyecto compile antes del primer enlace.
+ * Ejecuta ese comando despues de cada migracion. Alternativamente, con el
+ * proyecto enlazado, `npm run db:types` lo regenera desde Supabase.
+ *
+ * Esquema monousuario (ADR-14): no existe tabla de usuarios ni columna
+ * propietario_id; `ajustes` es una fila unica con las preferencias.
  */
 
 export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
@@ -46,30 +49,24 @@ type EstadoNotificacion = "programada" | "enviada" | "fallida" | "cancelada";
 export type Database = {
   public: {
     Tables: {
-      perfiles: {
+      ajustes: {
         Row: {
-          id: string;
-          nombre_completo: string;
+          id: boolean;
           moneda: string;
           zona_horaria: string;
-          tema: string;
           preferencias: Json;
           creado_en: string;
           actualizado_en: string;
         };
         Insert: {
-          id: string;
-          nombre_completo: string;
+          id?: boolean;
           moneda?: string;
           zona_horaria?: string;
-          tema?: string;
           preferencias?: Json;
         };
         Update: {
-          nombre_completo?: string;
           moneda?: string;
           zona_horaria?: string;
-          tema?: string;
           preferencias?: Json;
         };
         Relationships: [];
@@ -77,17 +74,19 @@ export type Database = {
       tipos_proyecto: {
         Row: {
           id: string;
-          propietario_id: string | null;
           codigo: string;
           nombre: string;
           icono: string | null;
           configuracion: Json;
+          es_sistema: boolean;
           activo: boolean;
           creado_en: string;
         };
+        // es_sistema queda fuera de Insert y Update a proposito: solo seed.sql
+        // crea filas del sistema, y el trigger proteger_filas_de_sistema
+        // impide modificarlas o promover una fila propia (§6.6).
         Insert: {
           id?: string;
-          propietario_id?: string | null;
           codigo: string;
           nombre: string;
           icono?: string | null;
@@ -106,7 +105,6 @@ export type Database = {
       proyectos: {
         Row: {
           id: string;
-          propietario_id: string;
           tipo_proyecto_id: string;
           nombre: string;
           descripcion: string | null;
@@ -116,13 +114,10 @@ export type Database = {
           moneda: string;
           atributos: Json;
           creado_en: string;
-          creado_por: string;
           actualizado_en: string;
-          actualizado_por: string | null;
         };
         Insert: {
           id?: string;
-          propietario_id: string;
           tipo_proyecto_id: string;
           nombre: string;
           descripcion?: string | null;
@@ -131,7 +126,6 @@ export type Database = {
           estado?: EstadoProyecto;
           moneda?: string;
           atributos?: Json;
-          creado_por: string;
         };
         Update: {
           tipo_proyecto_id?: string;
@@ -142,14 +136,12 @@ export type Database = {
           estado?: EstadoProyecto;
           moneda?: string;
           atributos?: Json;
-          actualizado_por?: string | null;
         };
         Relationships: [];
       };
       categorias: {
         Row: {
           id: string;
-          propietario_id: string | null;
           tipo_proyecto_id: string | null;
           padre_id: string | null;
           nombre: string;
@@ -161,12 +153,10 @@ export type Database = {
         };
         Insert: {
           id?: string;
-          propietario_id?: string | null;
           tipo_proyecto_id?: string | null;
           padre_id?: string | null;
           nombre: string;
           naturaleza: NaturalezaCategoria;
-          es_sistema?: boolean;
           activa?: boolean;
           orden?: number;
         };
@@ -183,7 +173,6 @@ export type Database = {
       metodos_pago: {
         Row: {
           id: string;
-          propietario_id: string;
           nombre: string;
           tipo: string;
           ultimos_digitos: string | null;
@@ -192,7 +181,6 @@ export type Database = {
         };
         Insert: {
           id?: string;
-          propietario_id: string;
           nombre: string;
           tipo?: string;
           ultimos_digitos?: string | null;
@@ -209,7 +197,6 @@ export type Database = {
       movimientos: {
         Row: {
           id: string;
-          propietario_id: string;
           proyecto_id: string;
           categoria_id: string;
           metodo_pago_id: string | null;
@@ -229,13 +216,10 @@ export type Database = {
           ocurrencia_id: string | null;
           metadatos: Json;
           creado_en: string;
-          creado_por: string;
           actualizado_en: string;
-          actualizado_por: string | null;
         };
         Insert: {
           id?: string;
-          propietario_id: string;
           proyecto_id: string;
           categoria_id: string;
           metodo_pago_id?: string | null;
@@ -254,7 +238,6 @@ export type Database = {
           motivo_anulacion?: string | null;
           ocurrencia_id?: string | null;
           metadatos?: Json;
-          creado_por: string;
         };
         Update: {
           proyecto_id?: string;
@@ -275,14 +258,12 @@ export type Database = {
           motivo_anulacion?: string | null;
           ocurrencia_id?: string | null;
           metadatos?: Json;
-          actualizado_por?: string | null;
         };
         Relationships: [];
       };
       obligaciones: {
         Row: {
           id: string;
-          propietario_id: string;
           proyecto_id: string;
           categoria_id: string;
           concepto: string;
@@ -294,13 +275,10 @@ export type Database = {
           crear_movimiento_auto: boolean;
           activa: boolean;
           creado_en: string;
-          creado_por: string;
           actualizado_en: string;
-          actualizado_por: string | null;
         };
         Insert: {
           id?: string;
-          propietario_id: string;
           proyecto_id: string;
           categoria_id: string;
           concepto: string;
@@ -311,7 +289,6 @@ export type Database = {
           dias_aviso?: number[];
           crear_movimiento_auto?: boolean;
           activa?: boolean;
-          creado_por: string;
         };
         Update: {
           categoria_id?: string;
@@ -323,7 +300,6 @@ export type Database = {
           dias_aviso?: number[];
           crear_movimiento_auto?: boolean;
           activa?: boolean;
-          actualizado_por?: string | null;
         };
         Relationships: [];
       };
@@ -331,7 +307,6 @@ export type Database = {
         Row: {
           id: string;
           obligacion_id: string;
-          propietario_id: string;
           fecha_vencimiento: string;
           valor_estimado: number;
           estado: EstadoOcurrencia;
@@ -341,7 +316,6 @@ export type Database = {
         Insert: {
           id?: string;
           obligacion_id: string;
-          propietario_id: string;
           fecha_vencimiento: string;
           valor_estimado: number;
           estado?: EstadoOcurrencia;
@@ -358,7 +332,6 @@ export type Database = {
       documentos: {
         Row: {
           id: string;
-          propietario_id: string;
           proyecto_id: string;
           movimiento_id: string | null;
           nombre_archivo: string;
@@ -366,13 +339,11 @@ export type Database = {
           tipo_documento: TipoDocumento;
           mime_type: string;
           tamano_bytes: number;
-          cargado_por: string;
           cargado_en: string;
           eliminado_en: string | null;
         };
         Insert: {
           id?: string;
-          propietario_id: string;
           proyecto_id: string;
           movimiento_id?: string | null;
           nombre_archivo: string;
@@ -380,7 +351,6 @@ export type Database = {
           tipo_documento?: TipoDocumento;
           mime_type: string;
           tamano_bytes: number;
-          cargado_por: string;
         };
         Update: {
           nombre_archivo?: string;
@@ -393,7 +363,6 @@ export type Database = {
       pasivos: {
         Row: {
           id: string;
-          propietario_id: string;
           proyecto_id: string;
           nombre: string;
           tipo: TipoPasivo;
@@ -409,7 +378,6 @@ export type Database = {
         };
         Insert: {
           id?: string;
-          propietario_id: string;
           proyecto_id: string;
           nombre: string;
           tipo: TipoPasivo;
@@ -437,7 +405,6 @@ export type Database = {
       valoraciones: {
         Row: {
           id: string;
-          propietario_id: string;
           proyecto_id: string;
           fecha: string;
           valor: number;
@@ -447,7 +414,6 @@ export type Database = {
         };
         Insert: {
           id?: string;
-          propietario_id: string;
           proyecto_id: string;
           fecha: string;
           valor: number;
@@ -465,7 +431,6 @@ export type Database = {
       presupuestos: {
         Row: {
           id: string;
-          propietario_id: string;
           proyecto_id: string | null;
           categoria_id: string;
           periodo_inicio: string;
@@ -476,7 +441,6 @@ export type Database = {
         };
         Insert: {
           id?: string;
-          propietario_id: string;
           proyecto_id?: string | null;
           categoria_id: string;
           periodo_inicio: string;
@@ -497,7 +461,6 @@ export type Database = {
       notificaciones: {
         Row: {
           id: string;
-          propietario_id: string;
           ocurrencia_id: string | null;
           canal: CanalNotificacion;
           asunto: string;
@@ -510,7 +473,6 @@ export type Database = {
         };
         Insert: {
           id?: string;
-          propietario_id: string;
           ocurrencia_id?: string | null;
           canal: CanalNotificacion;
           asunto: string;
@@ -529,14 +491,13 @@ export type Database = {
       registro_auditoria: {
         Row: {
           id: number;
-          propietario_id: string;
           entidad: string;
           entidad_id: string;
           accion: string;
           cambios: Json | null;
-          actor_id: string;
           ocurrido_en: string;
         };
+        // Solo la escribe el trigger registrar_auditoria (§6.6).
         Insert: never;
         Update: never;
         Relationships: [];
@@ -546,7 +507,6 @@ export type Database = {
       v_resumen_proyecto: {
         Row: {
           proyecto_id: string;
-          propietario_id: string;
           total_invertido: number;
           total_gastos_operativos: number;
           total_financiacion: number;
@@ -561,7 +521,6 @@ export type Database = {
       };
       v_flujo_caja_mensual: {
         Row: {
-          propietario_id: string;
           proyecto_id: string;
           mes: string;
           ingresos: number;
@@ -572,7 +531,6 @@ export type Database = {
       };
       v_metricas_12m: {
         Row: {
-          propietario_id: string;
           proyecto_id: string;
           ingresos_12m: number;
           gastos_operativos_12m: number;
@@ -581,7 +539,6 @@ export type Database = {
       };
       v_gastos_por_categoria: {
         Row: {
-          propietario_id: string;
           proyecto_id: string;
           categoria_id: string;
           categoria_raiz: string;
@@ -594,7 +551,6 @@ export type Database = {
       };
       v_agenda_obligaciones: {
         Row: {
-          propietario_id: string;
           proyecto_id: string;
           proyecto: string;
           ocurrencia_id: string;
@@ -610,7 +566,6 @@ export type Database = {
       };
       v_flujo_proyectado_mensual: {
         Row: {
-          propietario_id: string;
           proyecto_id: string;
           mes: string;
           ingresos_esperados: number;
@@ -622,7 +577,6 @@ export type Database = {
       v_patrimonio_proyecto: {
         Row: {
           proyecto_id: string;
-          propietario_id: string;
           proyecto: string;
           valoracion_actual: number | null;
           valoracion_fecha: string | null;

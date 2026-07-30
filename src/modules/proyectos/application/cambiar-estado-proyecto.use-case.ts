@@ -11,15 +11,11 @@ export class CambiarEstadoProyecto {
     private readonly reloj: Reloj,
   ) {}
 
-  async ejecutar(entrada: {
-    id: string;
-    propietarioId: string;
-    estado: EstadoProyecto;
-  }): Promise<Proyecto> {
-    const proyecto = await this.proyectos.buscarPorId(entrada.id, entrada.propietarioId);
+  async ejecutar(entrada: { id: string; estado: EstadoProyecto }): Promise<Proyecto> {
+    const proyecto = await this.proyectos.buscarPorId(entrada.id);
     if (!proyecto) throw new NoEncontrado("proyecto", entrada.id);
 
     proyecto.cambiarEstado(entrada.estado, this.reloj.hoy());
-    return this.proyectos.actualizar(proyecto, entrada.propietarioId);
+    return this.proyectos.actualizar(proyecto);
   }
 }

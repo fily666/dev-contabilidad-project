@@ -7,7 +7,6 @@ import { Movimiento } from "../domain/movimiento.entity";
 import type { MovimientoRepository } from "../domain/movimiento.repository";
 
 export type EntradaRegistrarMovimiento = {
-  propietarioId: string;
   proyectoId: string;
   categoriaId: string;
   metodoPagoId?: string | null;
@@ -37,7 +36,7 @@ export class RegistrarMovimiento {
   ) {}
 
   async ejecutar(entrada: EntradaRegistrarMovimiento): Promise<Movimiento> {
-    const proyecto = await this.proyectos.buscarPorId(entrada.proyectoId, entrada.propietarioId);
+    const proyecto = await this.proyectos.buscarPorId(entrada.proyectoId);
     if (!proyecto) throw new NoEncontrado("proyecto", entrada.proyectoId);
 
     // Invariante §5.7.7.
@@ -48,7 +47,7 @@ export class RegistrarMovimiento {
       );
     }
 
-    const categoria = await this.categorias.buscarPorId(entrada.categoriaId, entrada.propietarioId);
+    const categoria = await this.categorias.buscarPorId(entrada.categoriaId);
     if (!categoria) throw new NoEncontrado("categoria", entrada.categoriaId);
 
     // Invariante §5.7.3.
@@ -62,7 +61,6 @@ export class RegistrarMovimiento {
 
     const movimiento = Movimiento.crear({
       id: this.nuevoId(),
-      propietarioId: entrada.propietarioId,
       proyectoId: proyecto.id,
       categoriaId: categoria.id,
       naturalezaDeCategoria: categoria.naturaleza,
@@ -83,6 +81,6 @@ export class RegistrarMovimiento {
       ocurrenciaId: entrada.ocurrenciaId,
     });
 
-    return this.movimientos.guardar(movimiento, entrada.propietarioId);
+    return this.movimientos.guardar(movimiento);
   }
 }

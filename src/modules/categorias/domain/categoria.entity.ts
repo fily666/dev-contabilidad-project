@@ -4,7 +4,6 @@ import { naturalezaEsCompatible } from "@/shared/domain/enumeraciones";
 
 export type DatosCategoria = {
   id: string;
-  propietarioId: string | null;
   tipoProyectoId: string | null;
   padreId: string | null;
   nombre: string;
@@ -23,7 +22,6 @@ export class Categoria {
 
   static crear(entrada: {
     id: string;
-    propietarioId: string;
     tipoProyectoId?: string | null;
     padreId?: string | null;
     nombre: string;
@@ -41,7 +39,6 @@ export class Categoria {
 
     return new Categoria({
       id: entrada.id,
-      propietarioId: entrada.propietarioId,
       tipoProyectoId: entrada.tipoProyectoId ?? null,
       padreId: entrada.padreId ?? null,
       nombre,
@@ -58,9 +55,6 @@ export class Categoria {
 
   get id(): string {
     return this.datos.id;
-  }
-  get propietarioId(): string | null {
-    return this.datos.propietarioId;
   }
   get tipoProyectoId(): string | null {
     return this.datos.tipoProyectoId;

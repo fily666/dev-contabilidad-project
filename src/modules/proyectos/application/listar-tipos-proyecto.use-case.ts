@@ -5,7 +5,7 @@ import type { TipoProyectoRepository } from "../domain/tipo-proyecto.repository"
 export class ListarTiposProyecto {
   constructor(private readonly tipos: TipoProyectoRepository) {}
 
-  async ejecutar(entrada: { propietarioId: string }): Promise<TipoProyecto[]> {
-    return this.tipos.listar(entrada.propietarioId);
+  async ejecutar(): Promise<TipoProyecto[]> {
+    return this.tipos.listar();
   }
 }

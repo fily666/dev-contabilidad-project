@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
-import { crearContenedor } from "@/di/container";
+
+import { contenedorDeAcceso } from "@/di/container";
 import { BarraSuperior } from "@/shared/ui/barra-superior";
 import { NavegacionLateral } from "@/shared/ui/navegacion-lateral";
 
@@ -8,10 +9,9 @@ import { NavegacionLateral } from "@/shared/ui/navegacion-lateral";
  * redirige, aqui se verifica de nuevo antes de renderizar datos (§9).
  */
 export default async function LayoutPrivado({ children }: { children: React.ReactNode }) {
-  const contenedor = await crearContenedor();
-  const sesion = await contenedor.autenticacion.sesionActual();
+  const acceso = await contenedorDeAcceso();
 
-  if (!sesion) redirect("/login");
+  if (!(await acceso.verificar.haySesion())) redirect("/acceso");
 
   return (
     <div className="flex min-h-svh">
@@ -22,7 +22,7 @@ export default async function LayoutPrivado({ children }: { children: React.Reac
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <BarraSuperior nombre={sesion.perfil.nombreCompleto} correo={sesion.correo} />
+        <BarraSuperior />
         <main className="flex-1 px-4 py-6 md:px-6 md:py-8">{children}</main>
       </div>
     </div>

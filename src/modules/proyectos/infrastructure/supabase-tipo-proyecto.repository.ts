@@ -8,13 +8,12 @@ import { aTipoProyecto } from "./proyecto.mapper";
 export class SupabaseTipoProyectoRepository implements TipoProyectoRepository {
   constructor(private readonly supabase: SupabaseClient<Database>) {}
 
-  async listar(propietarioId: string): Promise<TipoProyecto[]> {
+  async listar(): Promise<TipoProyecto[]> {
     // RLS ya limita la lectura a los del sistema mas los propios; el filtro
     // explicito documenta la intencion y evita depender solo de la politica.
     const { data, error } = await this.supabase
       .from("tipos_proyecto")
       .select("*")
-      .or(`propietario_id.is.null,propietario_id.eq.${propietarioId}`)
       .eq("activo", true)
       .order("nombre");
 
@@ -22,25 +21,23 @@ export class SupabaseTipoProyectoRepository implements TipoProyectoRepository {
     return (data ?? []).map(aTipoProyecto);
   }
 
-  async buscarPorId(id: string, propietarioId: string): Promise<TipoProyecto | null> {
+  async buscarPorId(id: string): Promise<TipoProyecto | null> {
     const { data, error } = await this.supabase
       .from("tipos_proyecto")
       .select("*")
       .eq("id", id)
-      .or(`propietario_id.is.null,propietario_id.eq.${propietarioId}`)
       .maybeSingle();
 
     if (error) throw error;
     return data ? aTipoProyecto(data) : null;
   }
 
-  async buscarPorCodigo(codigo: string, propietarioId: string): Promise<TipoProyecto | null> {
+  async buscarPorCodigo(codigo: string): Promise<TipoProyecto | null> {
     const { data, error } = await this.supabase
       .from("tipos_proyecto")
       .select("*")
       .eq("codigo", codigo)
-      .or(`propietario_id.is.null,propietario_id.eq.${propietarioId}`)
-      .order("propietario_id", { ascending: false, nullsFirst: false })
+      .order("es_sistema", { ascending: true })
       .limit(1)
       .maybeSingle();
 

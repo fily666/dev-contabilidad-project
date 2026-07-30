@@ -9,7 +9,6 @@ type FilaTipoProyecto = Tablas<"tipos_proyecto">;
 export function aProyecto(fila: FilaProyecto): Proyecto {
   const datos: DatosProyecto = {
     id: fila.id,
-    propietarioId: fila.propietario_id,
     tipoProyectoId: fila.tipo_proyecto_id,
     nombre: fila.nombre,
     descripcion: fila.descripcion,
@@ -22,11 +21,10 @@ export function aProyecto(fila: FilaProyecto): Proyecto {
   return Proyecto.desdePersistencia(datos);
 }
 
-export function aFilaProyecto(proyecto: Proyecto, actorId: string) {
+export function aFilaProyecto(proyecto: Proyecto) {
   const d = proyecto.aDatos();
   return {
     id: d.id,
-    propietario_id: d.propietarioId,
     tipo_proyecto_id: d.tipoProyectoId,
     nombre: d.nombre,
     descripcion: d.descripcion,
@@ -35,7 +33,6 @@ export function aFilaProyecto(proyecto: Proyecto, actorId: string) {
     estado: d.estado,
     moneda: d.moneda,
     atributos: d.atributos,
-    creado_por: actorId,
   };
 }
 
@@ -46,7 +43,7 @@ export function aTipoProyecto(fila: FilaTipoProyecto): TipoProyecto {
     fila.nombre,
     fila.icono,
     leerConfiguracion(fila.configuracion),
-    fila.propietario_id === null,
+    fila.es_sistema,
     fila.activo,
   );
 }

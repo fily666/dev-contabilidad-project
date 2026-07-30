@@ -5,25 +5,16 @@ import { PGlite } from "@electric-sql/pglite";
 const RAIZ = join(process.cwd(), "supabase");
 
 /**
- * Stubs de los esquemas que Supabase provee (auth y storage).
- * Permiten ejecutar las migraciones reales contra PostgreSQL embebido (PGlite),
- * sin Docker y sin depender del proyecto en la nube (Contexto.md ADR-04).
+ * Stubs de lo que Supabase provee y PostgreSQL desnudo no: el esquema storage y
+ * los roles anon / authenticated / service_role. Permiten ejecutar las
+ * migraciones reales contra PostgreSQL embebido (PGlite), sin Docker y sin
+ * depender del proyecto en la nube (Contexto.md ADR-04).
+ *
+ * Ya no hace falta un stub del esquema auth: el sistema es monousuario y ninguna
+ * migracion menciona auth.users ni auth.uid() (ADR-14).
  */
 const STUBS_SUPABASE = /* sql */ `
-create schema if not exists auth;
 create schema if not exists storage;
-
-create table auth.users (
-  id                 uuid primary key default gen_random_uuid(),
-  email              text,
-  raw_user_meta_data jsonb not null default '{}'::jsonb,
-  created_at         timestamptz not null default now()
-);
-
--- En Supabase auth.uid() lee el JWT. Aqui lo simula un ajuste de sesion.
-create or replace function auth.uid() returns uuid
-language sql stable
-as $$ select nullif(current_setting('test.usuario_actual', true), '')::uuid $$;
 
 create table storage.buckets (
   id                 text primary key,
@@ -52,18 +43,20 @@ do $$ begin
   if not exists (select 1 from pg_roles where rolname = 'service_role') then create role service_role bypassrls; end if;
 end $$;
 
-grant usage on schema auth, storage to anon, authenticated, service_role;
-grant select on auth.users to authenticated;
-grant select, insert, update, delete on storage.objects to authenticated;
-grant select on storage.buckets to authenticated;
+-- Supabase concede estos permisos por omision a los roles publicos. Se replican
+-- aqui para que la migracion de blindaje tenga algo real que revocar: si no,
+-- la prueba pasaria por ausencia de permisos en lugar de por haberlos quitado.
+grant usage on schema public, storage to anon, authenticated, service_role;
+grant select, insert, update, delete on storage.objects to anon, authenticated;
+grant select on storage.buckets to anon, authenticated;
+alter default privileges in schema public grant all on tables to anon, authenticated;
+alter default privileges in schema public grant all on sequences to anon, authenticated;
 `;
 
 export type BaseDePrueba = {
   db: PGlite;
-  /** Ejecuta como el usuario indicado, con el rol `authenticated` y RLS activo. */
-  comoUsuario<T>(usuarioId: string, fn: () => Promise<T>): Promise<T>;
-  /** Crea un usuario en auth.users; el trigger crea su perfil y catalogos. */
-  crearUsuario(email: string, nombre: string): Promise<string>;
+  /** Ejecuta con el rol indicado (anon / authenticated), con RLS activo. */
+  comoRol<T>(rol: string, fn: () => Promise<T>): Promise<T>;
   cerrar(): Promise<void>;
 };
 
@@ -93,22 +86,13 @@ export async function crearBaseDePrueba(): Promise<BaseDePrueba> {
 
   return {
     db,
-    async comoUsuario(usuarioId, fn) {
-      await db.exec(`set role authenticated; set test.usuario_actual = '${usuarioId}';`);
+    async comoRol(rol, fn) {
+      await db.exec(`set role ${rol};`);
       try {
         return await fn();
       } finally {
-        await db.exec(`reset role; reset test.usuario_actual;`);
+        await db.exec(`reset role;`);
       }
-    },
-    async crearUsuario(email, nombre) {
-      const res = await db.query<{ id: string }>(
-        `insert into auth.users (email, raw_user_meta_data)
-         values ($1::text, jsonb_build_object('nombre_completo', $2::text))
-         returning id`,
-        [email, nombre],
-      );
-      return res.rows[0]!.id;
     },
     async cerrar() {
       await db.close();

@@ -8,10 +8,7 @@ import type {
 export class ListarProyectos {
   constructor(private readonly proyectos: ProyectoRepository) {}
 
-  async ejecutar(entrada: {
-    propietarioId: string;
-    filtro?: FiltroProyectos;
-  }): Promise<ResumenProyecto[]> {
-    return this.proyectos.listar(entrada.propietarioId, entrada.filtro);
+  async ejecutar(entrada: { filtro?: FiltroProyectos }): Promise<ResumenProyecto[]> {
+    return this.proyectos.listar(entrada.filtro);
   }
 }

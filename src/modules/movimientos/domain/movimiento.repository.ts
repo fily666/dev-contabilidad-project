@@ -57,13 +57,12 @@ export type PaginaMovimientos = {
 };
 
 export interface MovimientoRepository {
-  buscarPorId(id: string, propietarioId: string): Promise<Movimiento | null>;
+  buscarPorId(id: string): Promise<Movimiento | null>;
   listar(
-    propietarioId: string,
     filtro: FiltroMovimientos,
     orden: OrdenMovimientos,
     paginacion: Paginacion,
   ): Promise<PaginaMovimientos>;
-  guardar(movimiento: Movimiento, actorId: string): Promise<Movimiento>;
-  actualizar(movimiento: Movimiento, actorId: string): Promise<Movimiento>;
+  guardar(movimiento: Movimiento): Promise<Movimiento>;
+  actualizar(movimiento: Movimiento): Promise<Movimiento>;
 }
