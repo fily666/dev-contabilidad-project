@@ -94,7 +94,7 @@ export function GestorCategorias({ categorias, tipos }: Props) {
 
   return (
     <div className="space-y-6">
-      <div className="space-y-4 rounded-lg border bg-card p-4">
+      <div className="panel space-y-4 p-5">
         <div>
           <h3 className="font-medium">Crear categoría</h3>
           <p className="text-sm text-muted-foreground">
@@ -198,7 +198,7 @@ export function GestorCategorias({ categorias, tipos }: Props) {
 
       <div className="space-y-4">
         {agrupadas.map(({ raiz, hijas }) => (
-          <div key={raiz.id} className="rounded-lg border bg-card">
+          <div key={raiz.id} className="panel">
             <div className="flex items-center justify-between gap-3 border-b p-3">
               <div className="flex min-w-0 flex-wrap items-center gap-2">
                 <span className="truncate font-medium">{raiz.nombre}</span>

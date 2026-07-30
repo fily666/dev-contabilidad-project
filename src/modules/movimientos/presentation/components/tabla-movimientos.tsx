@@ -20,7 +20,7 @@ export function TablaMovimientos({ filas, metodosPago, hoy, ocultarProyecto }: P
   return (
     <>
       {/* Escritorio */}
-      <div className="hidden overflow-x-auto rounded-lg border md:block">
+      <div className="panel hidden overflow-hidden md:block">
         <Table>
           <TableHeader>
             <TableRow>
@@ -88,13 +88,7 @@ export function TablaMovimientos({ filas, metodosPago, hoy, ocultarProyecto }: P
       {/* Móvil */}
       <ul className="space-y-3 md:hidden">
         {filas.map((fila) => (
-          <li
-            key={fila.id}
-            className={cn(
-              "rounded-lg border bg-card p-4",
-              fila.estado === "anulado" && "opacity-60",
-            )}
-          >
+          <li key={fila.id} className={cn("panel p-4", fila.estado === "anulado" && "opacity-60")}>
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
                 <p className="truncate font-medium">{fila.descripcion}</p>

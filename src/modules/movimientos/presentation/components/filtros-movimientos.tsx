@@ -40,7 +40,7 @@ export function FiltrosMovimientos({ proyectos, ocultarProyecto }: Props) {
   const hayFiltros = [...parametros.keys()].some((k) => k !== "pagina");
 
   return (
-    <div className="space-y-4 rounded-lg border bg-card p-4">
+    <div className="panel space-y-4 p-5">
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {!ocultarProyecto ? (
           <div className="space-y-1.5">

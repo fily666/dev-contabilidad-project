@@ -10,7 +10,10 @@ export default async function PaginaNuevoProyecto() {
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
-      <h1 className="text-2xl font-semibold tracking-tight">Nuevo proyecto</h1>
+      <div>
+        <p className="etiqueta-dato">Cartera</p>
+        <h1 className="mt-1 text-2xl font-semibold tracking-tight">Nuevo proyecto</h1>
+      </div>
       <FormularioProyecto
         hoy={contenedor.reloj.hoy()}
         tipos={tipos.map((t) => ({

@@ -72,7 +72,7 @@ export function GestorMetodosPago({ metodos }: { metodos: MetodoPago[] }) {
 
   return (
     <div className="space-y-6">
-      <div className="space-y-4 rounded-lg border bg-card p-4">
+      <div className="panel space-y-4 p-5">
         <h3 className="font-medium">Agregar método de pago</h3>
 
         <div className="grid gap-3 sm:grid-cols-3">
@@ -131,7 +131,7 @@ export function GestorMetodosPago({ metodos }: { metodos: MetodoPago[] }) {
         </Button>
       </div>
 
-      <ul className="divide-y rounded-lg border bg-card">
+      <ul className="panel divide-y divide-border/60">
         {metodos.map((metodo) => (
           <li key={metodo.id} className="flex items-center justify-between gap-3 p-3">
             <div className="min-w-0">

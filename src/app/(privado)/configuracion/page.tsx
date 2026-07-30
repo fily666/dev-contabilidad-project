@@ -24,7 +24,8 @@ export default async function PaginaConfiguracion() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Configuración</h1>
+        <p className="etiqueta-dato">Ajustes</p>
+        <h1 className="mt-1 text-2xl font-semibold tracking-tight">Configuración</h1>
         <p className="text-sm text-muted-foreground">
           Preferencias de la instalación y catálogos que alimentan el registro de movimientos.
         </p>

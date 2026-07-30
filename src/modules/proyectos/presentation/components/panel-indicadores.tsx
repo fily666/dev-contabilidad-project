@@ -155,7 +155,8 @@ export function PanelIndicadores({ indicadores, visibles }: Props) {
   if (definiciones.length === 0) return null;
 
   return (
-    <section aria-label="Indicadores del proyecto">
+    <section aria-label="Indicadores del proyecto" className="space-y-3">
+      <h2 className="etiqueta-dato">Indicadores</h2>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {definiciones.map(({ clave, definicion }) => (
           <TarjetaIndicador

@@ -20,7 +20,10 @@ export default async function PaginaEditarProyecto({ params }: Props) {
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
-      <h1 className="text-2xl font-semibold tracking-tight">Editar proyecto</h1>
+      <div>
+        <p className="etiqueta-dato">{proyecto.nombre}</p>
+        <h1 className="mt-1 text-2xl font-semibold tracking-tight">Editar proyecto</h1>
+      </div>
       <FormularioProyecto
         hoy={contenedor.reloj.hoy()}
         tipos={tipos.map((t) => ({ id: t.id, nombre: t.nombre, configuracion: t.configuracion }))}

@@ -34,7 +34,8 @@ export default async function PaginaProyectos({ searchParams }: Props) {
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Proyectos</h1>
+          <p className="etiqueta-dato">Cartera</p>
+          <h1 className="mt-1 text-2xl font-semibold tracking-tight">Proyectos</h1>
           <p className="text-sm text-muted-foreground">
             {proyectos.length === 1 ? "1 proyecto" : `${proyectos.length} proyectos`} en el filtro
             actual.
@@ -45,7 +46,10 @@ export default async function PaginaProyectos({ searchParams }: Props) {
         </EnlaceBoton>
       </div>
 
-      <nav aria-label="Filtrar por estado" className="flex flex-wrap gap-2">
+      <nav
+        aria-label="Filtrar por estado"
+        className="panel flex flex-wrap gap-2 p-2 shadow-none backdrop-blur-none"
+      >
         <FiltroEstado activo={!estadoFiltro} href="/proyectos" etiqueta="Vigentes" />
         {ESTADOS_PROYECTO.map((e) => (
           <FiltroEstado
@@ -93,10 +97,10 @@ function FiltroEstado({
       href={href}
       aria-current={activo ? "page" : undefined}
       className={cn(
-        "rounded-full border px-3 py-1 text-sm transition-colors",
+        "rounded-full border px-3.5 py-1.5 text-xs font-medium tracking-[0.08em] uppercase transition-colors",
         activo
-          ? "border-primary bg-primary text-primary-foreground"
-          : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
+          ? "border-neon/40 bg-gradient-to-r from-neon/20 to-neon-2/20 text-foreground"
+          : "border-transparent text-muted-foreground hover:bg-accent/70 hover:text-accent-foreground",
       )}
     >
       {etiqueta}

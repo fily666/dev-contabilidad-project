@@ -1,6 +1,6 @@
 import { NoEncontrado } from "@/shared/domain/errores";
 import type { Reloj } from "@/shared/domain/reloj";
-import { calcularIndicadores, type Indicadores } from "../domain/indicadores";
+import { calcularIndicadores, type FlujoMensual, type Indicadores } from "../domain/indicadores";
 import type { Proyecto } from "../domain/proyecto.entity";
 import type { ProyectoRepository } from "../domain/proyecto.repository";
 import type { TipoProyecto } from "../domain/tipo-proyecto.entity";
@@ -12,6 +12,8 @@ export type ResumenFinancieroProyecto = {
   indicadores: Indicadores;
   /** Claves de indicadores que este tipo de proyecto debe mostrar (§5.4). */
   indicadoresVisibles: string[];
+  /** Serie mensual de ingresos y egresos, para la grafica de flujo. */
+  flujoMensual: FlujoMensual[];
 };
 
 /** RF-15, RF-77 y fórmulas de §5. */
@@ -36,6 +38,7 @@ export class ObtenerResumenProyecto {
       tipo,
       indicadores: calcularIndicadores(cifras),
       indicadoresVisibles: tipo.configuracion.indicadores,
+      flujoMensual: cifras.flujoMensual,
     };
   }
 }

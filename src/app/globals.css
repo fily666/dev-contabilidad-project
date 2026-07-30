@@ -7,9 +7,15 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-sans);
-  --font-mono: var(--font-geist-mono);
-  --font-heading: var(--font-sans);
+  /*
+   * Tipografia. Se referencian las variables que next/font declara en <html>
+   * con nombres distintos a los del tema: `--font-sans: var(--font-sans)` es
+   * autorreferencial y deja la variable invalida, con lo que la fuente nunca
+   * llega a aplicarse.
+   */
+  --font-sans: var(--fuente-texto), ui-sans-serif, system-ui, sans-serif;
+  --font-heading: var(--fuente-titulos), var(--fuente-texto), ui-sans-serif, sans-serif;
+  --font-mono: var(--fuente-mono), ui-monospace, "SFMono-Regular", monospace;
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -48,6 +54,18 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
+
+  /* Superficies y acentos del tablero técnico. */
+  --color-panel: var(--panel);
+  --color-panel-alto: var(--panel-alto);
+  --color-neon: var(--neon);
+  --color-neon-2: var(--neon-2);
+  --color-rejilla: var(--rejilla);
+  --color-linea: var(--linea);
+
+  --shadow-neon: 0 0 0 1px var(--neon-borde), 0 18px 40px -22px var(--neon-brillo);
+  --shadow-panel: var(--sombra-panel);
+
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -57,91 +75,142 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
+/*
+ * Tema claro. Es la contraparte del tema oscuro (el modo principal del
+ * producto): mismos roles, mismas familias de color, pasos aclarados.
+ */
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.62 0.16 250);
-  --chart-2: oklch(0.68 0.15 165);
-  --chart-3: oklch(0.75 0.15 75);
-  --chart-4: oklch(0.62 0.2 320);
-  --chart-5: oklch(0.65 0.18 25);
-  --success: oklch(0.55 0.13 160);
-  --success-foreground: oklch(0.985 0 0);
-  --success-soft: oklch(0.95 0.04 160);
-  --warning: oklch(0.68 0.15 70);
-  --warning-foreground: oklch(0.2 0.02 70);
-  --warning-soft: oklch(0.96 0.05 85);
-  --danger-soft: oklch(0.96 0.03 25);
-  --info: oklch(0.55 0.15 250);
-  --info-soft: oklch(0.96 0.03 250);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  color-scheme: light;
+
+  --background: #f4f7fd;
+  --foreground: #0b1220;
+  --panel: #ffffff;
+  --panel-alto: #f7f9fe;
+  --card: var(--panel);
+  --card-foreground: var(--foreground);
+  --popover: #ffffff;
+  --popover-foreground: var(--foreground);
+
+  --primary: #0d8474;
+  --primary-foreground: #ffffff;
+  --secondary: #e8eefb;
+  --secondary-foreground: #17233c;
+  --muted: #eef2fb;
+  --muted-foreground: #566585;
+  --accent: #e9effc;
+  --accent-foreground: #17233c;
+
+  --destructive: #c93a52;
+  --border: #dde5f4;
+  --input: #dde5f4;
+  --ring: #0d8474;
+
+  /* Paleta categórica validada (ver README §Diseño): orden fijo, nunca ciclado. */
+  --chart-1: #0a8e7c;
+  --chart-2: #3560e0;
+  --chart-3: #9a6a15;
+  --chart-4: #c93a6d;
+  --chart-5: #6b56d6;
+
+  --success: #0a8e7c;
+  --success-foreground: #05463c;
+  --success-soft: #d9f5ef;
+  --warning: #9a6a15;
+  --warning-foreground: #4d340a;
+  --warning-soft: #fbeed4;
+  --danger-soft: #fbe0e5;
+  --info: #3560e0;
+  --info-soft: #e0e8fd;
+
+  /* Acentos de superficie: brillos, rejilla y bordes luminosos. */
+  --neon: #0d8474;
+  --neon-2: #3560e0;
+  --neon-borde: color-mix(in oklab, var(--neon) 22%, transparent);
+  --neon-brillo: color-mix(in oklab, var(--neon) 35%, transparent);
+  --marca-realce: #0b1220;
+  --rejilla: color-mix(in oklab, #17233c 6%, transparent);
+  --linea: color-mix(in oklab, #17233c 10%, transparent);
+  --realce: color-mix(in oklab, #17233c 5%, transparent);
+  --sombra-panel: 0 1px 2px rgba(16, 30, 60, 0.06), 0 12px 30px -24px rgba(16, 30, 60, 0.4);
+
+  --radius: 0.75rem;
+
+  --sidebar: #ffffff;
+  --sidebar-foreground: var(--foreground);
+  --sidebar-primary: var(--primary);
+  --sidebar-primary-foreground: var(--primary-foreground);
+  --sidebar-accent: #e9effc;
+  --sidebar-accent-foreground: #17233c;
+  --sidebar-border: var(--border);
+  --sidebar-ring: var(--ring);
 }
 
+/*
+ * Tema oscuro: azul profundo, paneles translúcidos y acentos neón.
+ * Es el modo por defecto del producto.
+ */
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.7 0.15 250);
-  --chart-2: oklch(0.74 0.14 165);
-  --chart-3: oklch(0.8 0.14 80);
-  --chart-4: oklch(0.7 0.18 320);
-  --chart-5: oklch(0.72 0.16 25);
-  --success: oklch(0.72 0.14 162);
-  --success-foreground: oklch(0.16 0.02 162);
-  --success-soft: oklch(0.28 0.05 162);
-  --warning: oklch(0.79 0.15 78);
-  --warning-foreground: oklch(0.18 0.03 78);
-  --warning-soft: oklch(0.3 0.06 78);
-  --danger-soft: oklch(0.3 0.06 25);
-  --info: oklch(0.7 0.14 250);
-  --info-soft: oklch(0.28 0.05 250);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  color-scheme: dark;
+
+  --background: #060a16;
+  --foreground: #e9eefb;
+  --panel: #0d1426;
+  --panel-alto: #121b31;
+  --card: var(--panel);
+  --card-foreground: var(--foreground);
+  --popover: #111a2f;
+  --popover-foreground: var(--foreground);
+
+  --primary: #2ed3bb;
+  --primary-foreground: #04231f;
+  --secondary: #17203a;
+  --secondary-foreground: #dce6fa;
+  --muted: #131c31;
+  --muted-foreground: #8ea0c4;
+  --accent: #1b2540;
+  --accent-foreground: #eaf1ff;
+
+  --destructive: #f2607e;
+  --border: #1f2b48;
+  --input: #1f2b48;
+  --ring: #2ed3bb;
+
+  /* Mismos tonos que en claro, escalonados para la superficie oscura. */
+  --chart-1: #0aa791;
+  --chart-2: #4f7ff5;
+  --chart-3: #c1841e;
+  --chart-4: #e04f85;
+  --chart-5: #8b78ee;
+
+  --success: #22c98d;
+  --success-foreground: #a9f2d6;
+  --success-soft: color-mix(in oklab, #22c98d 16%, transparent);
+  --warning: #f5b73d;
+  --warning-foreground: #f8dfa8;
+  --warning-soft: color-mix(in oklab, #f5b73d 16%, transparent);
+  --danger-soft: color-mix(in oklab, #f2607e 16%, transparent);
+  --info: #5b8cff;
+  --info-soft: color-mix(in oklab, #5b8cff 16%, transparent);
+
+  --neon: #2ed3bb;
+  --neon-2: #5b8cff;
+  --neon-borde: color-mix(in oklab, var(--neon) 28%, transparent);
+  --neon-brillo: color-mix(in oklab, var(--neon) 55%, transparent);
+  --marca-realce: #ffffff;
+  --rejilla: color-mix(in oklab, #5b8cff 8%, transparent);
+  --linea: color-mix(in oklab, #8ea0c4 16%, transparent);
+  --realce: color-mix(in oklab, #ffffff 6%, transparent);
+  --sombra-panel:
+    inset 0 1px 0 color-mix(in oklab, #ffffff 5%, transparent), 0 20px 45px -30px rgba(0, 0, 0, 0.9);
+
+  --sidebar: #09101f;
+  --sidebar-foreground: var(--foreground);
+  --sidebar-primary: var(--primary);
+  --sidebar-primary-foreground: var(--primary-foreground);
+  --sidebar-accent: #16203a;
+  --sidebar-accent-foreground: #eaf1ff;
+  --sidebar-border: var(--border);
+  --sidebar-ring: var(--ring);
 }
 
 @layer base {
@@ -153,5 +222,147 @@
   }
   html {
     @apply font-sans;
+    font-optical-sizing: auto;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  /*
+   * Titulos con el corte de display. Las cifras NO lo usan: un numero
+   * protagonista se lee mejor en la misma sans que el resto de la interfaz.
+   */
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-heading);
+    letter-spacing: -0.02em;
+    font-weight: 600;
+  }
+}
+
+@layer components {
+  /*
+   * Fondo del tablero: rejilla técnica muy tenue y dos halos de color.
+   * Va en un elemento fijo detrás del contenido para que no se repinte
+   * al desplazar la página.
+   */
+  .fondo-tablero {
+    background-color: var(--background);
+    background-image:
+      radial-gradient(
+        60rem 40rem at 12% -10%,
+        color-mix(in oklab, var(--neon) 12%, transparent),
+        transparent 60%
+      ),
+      radial-gradient(
+        55rem 38rem at 92% 0%,
+        color-mix(in oklab, var(--neon-2) 14%, transparent),
+        transparent 60%
+      ),
+      radial-gradient(
+        50rem 40rem at 60% 110%,
+        color-mix(in oklab, var(--neon-2) 8%, transparent),
+        transparent 65%
+      ),
+      linear-gradient(to right, var(--rejilla) 1px, transparent 1px),
+      linear-gradient(to bottom, var(--rejilla) 1px, transparent 1px);
+    background-size:
+      100% 100%,
+      100% 100%,
+      100% 100%,
+      44px 44px,
+      44px 44px;
+  }
+
+  /* Superficie estándar de todo el producto. */
+  .panel {
+    @apply rounded-xl border border-border/80 bg-card/85;
+    box-shadow: var(--sombra-panel);
+    backdrop-filter: blur(10px);
+  }
+
+  /* Panel con la línea de acento superior de los tableros de control. */
+  .panel-acento {
+    position: relative;
+    overflow: hidden;
+  }
+  .panel-acento::before {
+    content: "";
+    position: absolute;
+    inset-inline: 0;
+    top: 0;
+    height: 1px;
+    background: linear-gradient(
+      to right,
+      transparent,
+      color-mix(in oklab, var(--neon) 70%, transparent),
+      color-mix(in oklab, var(--neon-2) 70%, transparent),
+      transparent
+    );
+  }
+
+  /* Panel interactivo (tarjetas que son enlaces). */
+  .panel-enlace {
+    @apply transition-[border-color,box-shadow,transform] duration-200;
+  }
+  .panel-enlace:hover {
+    border-color: var(--neon-borde);
+    box-shadow:
+      var(--sombra-panel),
+      0 0 0 1px var(--neon-borde);
+  }
+
+  /* Etiqueta de dato: versalitas espaciadas, como en los tableros técnicos. */
+  .etiqueta-dato {
+    @apply font-mono text-[0.7rem] font-medium tracking-[0.11em] text-muted-foreground uppercase;
+  }
+
+  /* Cifra grande de un indicador. */
+  .cifra {
+    @apply font-sans font-semibold tracking-tight;
+    font-variant-numeric: proportional-nums;
+  }
+
+  /* Número protagonista de una vista (uno solo por pantalla). */
+  .cifra-heroe {
+    @apply font-sans font-semibold tracking-[-0.03em];
+    font-variant-numeric: proportional-nums;
+    background: linear-gradient(
+      100deg,
+      var(--foreground) 10%,
+      color-mix(in oklab, var(--neon) 85%, var(--foreground)) 55%,
+      color-mix(in oklab, var(--neon-2) 85%, var(--foreground)) 95%
+    );
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  /* Brillo suave alrededor de un elemento activo. */
+  .brillo-neon {
+    box-shadow:
+      0 0 0 1px var(--neon-borde),
+      0 12px 30px -18px var(--neon-brillo);
+  }
+}
+
+@layer utilities {
+  /* Marcas de gráfica: el degradado va del tono base a un paso más claro. */
+  .marca-1 {
+    color: var(--chart-1);
+  }
+  .marca-2 {
+    color: var(--chart-2);
+  }
+  .marca-3 {
+    color: var(--chart-3);
+  }
+  .marca-4 {
+    color: var(--chart-4);
+  }
+  .marca-5 {
+    color: var(--chart-5);
   }
 }

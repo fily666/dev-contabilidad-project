@@ -17,7 +17,7 @@ export function BarraSuperior() {
   const [menuAbierto, setMenuAbierto] = useState(false);
 
   return (
-    <header className="sticky top-0 z-30 flex h-14 items-center gap-2 border-b bg-background/80 px-3 backdrop-blur md:px-6">
+    <header className="sticky top-0 z-30 flex h-14 items-center gap-2 border-b border-border/70 bg-background/60 px-3 backdrop-blur-xl md:px-8">
       <Sheet open={menuAbierto} onOpenChange={setMenuAbierto}>
         <SheetTrigger
           render={
@@ -31,6 +31,14 @@ export function BarraSuperior() {
           <NavegacionLateral alNavegar={() => setMenuAbierto(false)} />
         </SheetContent>
       </Sheet>
+
+      <span className="hidden items-center gap-2 rounded-full border border-border/70 bg-panel-alto/60 px-3 py-1 sm:inline-flex">
+        <span aria-hidden className="relative flex size-1.5">
+          <span className="absolute inline-flex size-full animate-ping rounded-full bg-neon opacity-70" />
+          <span className="relative inline-flex size-1.5 rounded-full bg-neon" />
+        </span>
+        <span className="etiqueta-dato">Datos en vivo</span>
+      </span>
 
       <div className="ml-auto flex items-center gap-1">
         <SelectorTema />

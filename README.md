@@ -190,6 +190,70 @@ Para enlaces con apariencia de botón usa el helper `EnlaceBoton` en vez de comb
 
 ---
 
+## Diseño
+
+El producto es un **tablero de control oscuro**: fondo azul profundo con rejilla técnica y halos de color, paneles translúcidos y acentos neón. El tema oscuro es el modo por defecto (`defaultTheme="dark"`); el claro es su contraparte —mismos roles, mismas familias de color, pasos aclarados— y sigue disponible desde el selector de tema junto con «Sistema» (RNF-03).
+
+Todo vive en `src/app/globals.css`: los tokens por tema y un puñado de clases que se reutilizan en lugar de repetir combinaciones de utilidades.
+
+| Clase | Para qué |
+| --- | --- |
+| `.fondo-tablero` | Fondo fijo de la aplicación: rejilla de 44 px y tres halos radiales. |
+| `.panel` | Superficie estándar: borde de un píxel, fondo translúcido y desenfoque. Sustituye a `rounded-lg border bg-card`. |
+| `.panel-acento` | Añade la línea de acento superior de los paneles de datos. |
+| `.panel-enlace` | Estado *hover* de las tarjetas que son enlaces. |
+| `.etiqueta-dato` | Versalitas espaciadas de las etiquetas de dato y de los títulos de sección. |
+| `.cifra` / `.cifra-heroe` | Cifra de un indicador / número protagonista de la vista (uno solo por pantalla). |
+| `.brillo-neon` | Halo suave alrededor de un elemento destacado. |
+
+### Tipografía
+
+Tres cortes, cada uno con un trabajo. Se cargan con `next/font/google` (subconjunto latino, `display: swap`) y las variables se declaran en `<html>`, no en `<body>`: la regla base `html { font-family: … }` vive por encima del body y no las vería.
+
+| Rol | Familia | Dónde |
+| --- | --- | --- |
+| `font-sans` | **Inter** | Texto de interfaz, formularios, tablas y **todas las cifras**, incluida la protagonista. |
+| `font-heading` | **Space Grotesk** | `h1`–`h4` y títulos de tarjeta. Da el carácter técnico sin tocar los números. |
+| `font-mono` | **JetBrains Mono** | Etiquetas de dato (`.etiqueta-dato`), cabeceras de tabla, insignias y marcas de eje. |
+
+Dos reglas que conviene no romper:
+
+- **Las cifras van en Inter, nunca en el corte de titulares.** Un número grande en una tipografía de display se lee como decoración; en la sans de la interfaz se lee como dato. Por eso `.cifra` y `.cifra-heroe` fijan `font-sans` explícitamente.
+- **`tabular-nums` solo en columnas** (filas de tabla, marcas de eje). En una cifra grande y aislada, los dígitos de ancho fijo se ven flojos: ahí van proporcionales.
+
+En el tema anterior, `@theme inline { --font-sans: var(--font-sans) }` era autorreferencial, así que la variable quedaba inválida en `:root` y la tipografía no llegaba a aplicarse nunca. Los nombres del tema (`--font-*`) y los de `next/font` (`--fuente-*`) se mantienen separados justamente para eso.
+
+### Gráficas
+
+`src/shared/ui/viz` contiene las gráficas, todas en SVG y CSS —sin dependencias nuevas— y renderizadas en el servidor salvo `GraficoFlujo`, que necesita la capa de interacción:
+
+- `MedidorAnillo` y `AnillosConcentricos`: una magnitud acotada y el reparto de un total.
+- `MedidorLineal`: proporción sobre una pista del mismo tono.
+- `BarrasComparativas`: columnas agrupadas, un solo eje de valores.
+- `BarrasRanking`: barras horizontales ordenadas, con el valor en la punta.
+- `GraficoFlujo`: ingresos y egresos mensuales con mira vertical y globo.
+- `PanelGrafica` y `TablaDeDatos`: marco común (título y leyenda) y la tabla equivalente que acompaña a cada gráfica.
+
+`DefinicionesGraficas` monta una vez por documento los degradados que usan las marcas; va en el layout privado.
+
+### Paleta categórica
+
+Orden fijo, asignado por serie y **nunca ciclado**: 1 verdemar (ingresos), 2 azul (egresos), 3 ámbar (inversión), 4 rosa, 5 violeta. Las tres primeras ranuras son las que se pueden usar cuando cualquier par de marcas puede quedar contiguo.
+
+| Ranura | Claro | Oscuro |
+| --- | --- | --- |
+| 1 | `#0a8e7c` | `#0aa791` |
+| 2 | `#3560e0` | `#4f7ff5` |
+| 3 | `#9a6a15` | `#c1841e` |
+| 4 | `#c93a6d` | `#e04f85` |
+| 5 | `#6b56d6` | `#8b78ee` |
+
+Ambas columnas pasan las comprobaciones de banda de luminosidad, croma mínimo, separación bajo daltonismo (ΔE ≥ 8 en OKLab ×100), umbral de visión normal (ΔE ≥ 15) y contraste ≥ 3:1 contra su superficie. Si cambias un tono, vuelve a validarlo antes de subirlo; no se ajusta «a ojo».
+
+El degradado de cada marca va del paso base a `--marca-realce` (blanco en oscuro, tinta en claro), así que el brillo nunca deja la marca por debajo del contraste ya validado.
+
+---
+
 ## Despliegue
 
 - **Aplicación:** Vercel. Configura las mismas variables de `.env.example` en el proyecto de Vercel; `TOKEN_ACCESO`, `SECRETO_SESION`, `SUPABASE_SERVICE_ROLE_KEY` y `CRON_SECRET` como secretas.
