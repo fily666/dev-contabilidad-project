@@ -29,7 +29,7 @@ type Props = { searchParams: Promise<ParametrosBusqueda> };
 export default async function PaginaMovimientos({ searchParams }: Props) {
   const parametros = await searchParams;
   const { filtro, orden, pagina, porPagina } = leerFiltros(parametros);
-  const { contenedor } = await contenedorPrivado();
+  const { contenedor, ajustes } = await contenedorPrivado();
 
   const [resultado, proyectos, categorias, metodosPago] = await Promise.all([
     contenedor.movimientos.listar.ejecutar({
@@ -41,7 +41,7 @@ export default async function PaginaMovimientos({ searchParams }: Props) {
       filtro: { estados: ["activo", "pausado"] },
     }),
     contenedor.categorias.listar.ejecutar({}),
-    contenedor.metodosPago.listar(),
+    contenedor.metodosPago.listar.ejecutar(),
   ]);
 
   const moneda = proyectos[0]?.moneda ?? "COP";
@@ -168,7 +168,12 @@ export default async function PaginaMovimientos({ searchParams }: Props) {
             />
           ) : (
             <div className="space-y-4">
-              <TablaMovimientos filas={resultado.filas} metodosPago={metodosPago} hoy={hoy} />
+              <TablaMovimientos
+                filas={resultado.filas}
+                metodosPago={metodosPago}
+                hoy={hoy}
+                formatoFecha={ajustes.formatoFecha}
+              />
               <Suspense fallback={null}>
                 <Paginacion
                   pagina={resultado.pagina}

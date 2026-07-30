@@ -48,6 +48,15 @@ export async function middleware(request: NextRequest) {
   return NextResponse.next({ request });
 }
 
+/**
+ * `api` queda fuera a proposito. Las rutas de `/api/cron/*` y los webhooks se
+ * autentican con `CRON_SECRET` en el encabezado `Authorization` (§9.3, §10.1) y
+ * no llevan cookie de sesion: si el middleware las cubriera, Vercel Cron seria
+ * redirigido a `/acceso` y la tarea diaria nunca correria. Cada ruta de `api/`
+ * comprueba su propia credencial; ninguna queda sin proteger.
+ */
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)"],
+  matcher: [
+    "/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+  ],
 };

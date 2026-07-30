@@ -45,9 +45,15 @@ export function formatearOpcional(
   return formateador(valor);
 }
 
-/** `2026-02-05` -> `5 feb 2026` */
-export function formatearFecha(fechaIso: string): string {
-  return format(parseISO(fechaIso), "d MMM yyyy", { locale: es });
+/**
+ * `2026-02-05` -> `5 feb 2026`
+ *
+ * El patron es el que el dueno eligio en los ajustes (RF-101). Se recibe como
+ * argumento en lugar de leerse de un contexto global porque este modulo lo usan
+ * Server Components, y una fecha debe poder formatearse sin sesion.
+ */
+export function formatearFecha(fechaIso: string, patron = "d MMM yyyy"): string {
+  return format(parseISO(fechaIso), patron, { locale: es });
 }
 
 /** `2026-02-05` -> `5 de febrero de 2026` */

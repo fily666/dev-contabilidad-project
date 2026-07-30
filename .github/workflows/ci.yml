@@ -1,0 +1,103 @@
+# CI bloqueante de Contexto.md RNF-14: cero errores de tipos y de lint en `main`.
+#
+# Se divide en dos trabajos por una razon practica: `calidad` no necesita ningun
+# secreto y protege cada PR, incluidos los de forks. `e2e` si los necesita
+# (token y base del proyecto dev, §15.4), asi que se salta cuando no estan en
+# lugar de fallar con un error que parece del codigo y es de configuracion.
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  calidad:
+    name: Tipos, lint, formato y pruebas
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Tipos (tsc --noEmit)
+        run: npm run typecheck
+
+      - name: Lint (ESLint, incluidas las reglas de frontera de §7.1)
+        run: npm run lint -- --max-warnings 0
+
+      - name: Formato (Prettier)
+        run: npm run format:check
+
+      # Unitarias, casos de uso y esquema completo con PGlite (§8.8). Sin
+      # credenciales ni contenedores: por eso puede correr en cada PR.
+      - name: Pruebas (Vitest, incluye el esquema en PGlite)
+        run: npm run test
+
+      # El build valida lo que `tsc` no ve: Server/Client Components, el
+      # `import "server-only"` del cliente de datos (§9.3) y el middleware Edge.
+      - name: Build de produccion
+        run: npm run build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://ejemplo.supabase.co
+          SUPABASE_SERVICE_ROLE_KEY: clave-de-build-sin-uso-real
+          TOKEN_ACCESO: token-solo-para-compilar
+          SECRETO_SESION: secreto-de-compilacion-de-al-menos-32-chars
+          CRON_SECRET: cron-de-compilacion
+
+  e2e:
+    name: E2E de los escenarios de §3
+    needs: calidad
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Comprobar que hay credenciales de desarrollo
+        id: credenciales
+        run: |
+          if [ -n "${{ secrets.TOKEN_ACCESO }}" ] && [ -n "${{ secrets.SUPABASE_DB_URL }}" ]; then
+            echo "disponibles=si" >> "$GITHUB_OUTPUT"
+          else
+            echo "disponibles=no" >> "$GITHUB_OUTPUT"
+            echo "::notice::Sin secretos de desarrollo: se omiten los E2E."
+          fi
+
+      - if: steps.credenciales.outputs.disponibles == 'si'
+        run: npm ci
+
+      - if: steps.credenciales.outputs.disponibles == 'si'
+        run: npx playwright install --with-deps chromium
+
+      - if: steps.credenciales.outputs.disponibles == 'si'
+        run: npm run test:e2e
+        env:
+          CI: "true"
+          NEXT_PUBLIC_APP_URL: http://localhost:3000
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          TOKEN_ACCESO: ${{ secrets.TOKEN_ACCESO }}
+          SECRETO_SESION: ${{ secrets.SECRETO_SESION }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+
+      - if: failure() && steps.credenciales.outputs.disponibles == 'si'
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7

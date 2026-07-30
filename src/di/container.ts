@@ -25,6 +25,12 @@ import {
 } from "@/modules/categorias/application/casos-de-uso";
 
 import { SupabaseMetodoPagoRepository } from "@/modules/metodos-pago/infrastructure/supabase-metodo-pago.repository";
+import {
+  ActualizarMetodoPago,
+  CrearMetodoPago,
+  EliminarMetodoPago,
+  ListarMetodosPago,
+} from "@/modules/metodos-pago/application/casos-de-uso";
 
 import { SupabaseProyectoRepository } from "@/modules/proyectos/infrastructure/supabase-proyecto.repository";
 import { SupabaseTipoProyectoRepository } from "@/modules/proyectos/infrastructure/supabase-tipo-proyecto.repository";
@@ -34,6 +40,7 @@ import { CambiarEstadoProyecto } from "@/modules/proyectos/application/cambiar-e
 import { EliminarProyecto } from "@/modules/proyectos/application/eliminar-proyecto.use-case";
 import { ListarProyectos } from "@/modules/proyectos/application/listar-proyectos.use-case";
 import { ListarTiposProyecto } from "@/modules/proyectos/application/listar-tipos-proyecto.use-case";
+import { ObtenerProyecto } from "@/modules/proyectos/application/obtener-proyecto.use-case";
 import { ObtenerResumenProyecto } from "@/modules/proyectos/application/obtener-resumen-proyecto.use-case";
 
 import { SupabaseMovimientoRepository } from "@/modules/movimientos/infrastructure/supabase-movimiento.repository";
@@ -62,15 +69,21 @@ export function crearContenedor(zonaHoraria = AJUSTES_POR_OMISION.zonaHoraria) {
   const movimientos = new SupabaseMovimientoRepository(supabase);
 
   return {
-    supabase,
+    // El cliente de datos NO se expone: la presentacion invoca casos de uso, no
+    // consulta la base (§7.1.4). Vive solo dentro de este ambito para inyectarlo
+    // en los adaptadores.
     reloj,
 
     ajustes: {
       obtener: () => ajustes.obtener(),
       actualizar: new ActualizarAjustes(ajustes),
     },
-    // Repositorios expuestos para lecturas simples de catalogos.
-    metodosPago,
+    metodosPago: {
+      listar: new ListarMetodosPago(metodosPago),
+      crear: new CrearMetodoPago(metodosPago, nuevoId),
+      actualizar: new ActualizarMetodoPago(metodosPago),
+      eliminar: new EliminarMetodoPago(metodosPago),
+    },
 
     proyectos: {
       crear: new CrearProyecto(proyectos, tiposProyecto, reloj, nuevoId),
@@ -78,9 +91,9 @@ export function crearContenedor(zonaHoraria = AJUSTES_POR_OMISION.zonaHoraria) {
       cambiarEstado: new CambiarEstadoProyecto(proyectos, reloj),
       eliminar: new EliminarProyecto(proyectos),
       listar: new ListarProyectos(proyectos),
+      obtener: new ObtenerProyecto(proyectos),
       resumen: new ObtenerResumenProyecto(proyectos, tiposProyecto, reloj),
       listarTipos: new ListarTiposProyecto(tiposProyecto),
-      repositorio: proyectos,
     },
 
     categorias: {
@@ -89,7 +102,6 @@ export function crearContenedor(zonaHoraria = AJUSTES_POR_OMISION.zonaHoraria) {
       actualizar: new ActualizarCategoria(categorias),
       cambiarEstado: new CambiarEstadoCategoria(categorias),
       eliminar: new EliminarCategoria(categorias),
-      repositorio: categorias,
     },
 
     movimientos: {
@@ -98,7 +110,6 @@ export function crearContenedor(zonaHoraria = AJUSTES_POR_OMISION.zonaHoraria) {
       marcarPagado: new MarcarMovimientoPagado(movimientos, metodosPago, reloj),
       anular: new AnularMovimiento(movimientos),
       listar: new ListarMovimientos(movimientos),
-      repositorio: movimientos,
     },
   };
 }

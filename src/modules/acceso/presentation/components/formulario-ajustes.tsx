@@ -18,7 +18,15 @@ import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/ui/select";
 
-import type { Ajustes } from "../../domain/sesion";
+import { formatearFecha } from "@/shared/utils/formato";
+
+import {
+  FORMATOS_FECHA,
+  HORIZONTE_PROYECCION_MAXIMO,
+  HORIZONTE_PROYECCION_MINIMO,
+  type Ajustes,
+  type FormatoFecha,
+} from "../../domain/sesion";
 import { actualizarAjustesAction } from "../actions";
 import { esquemaAjustes, type DatosAjustes } from "../schemas";
 
@@ -33,10 +41,20 @@ const ZONAS = [
   "UTC",
 ];
 
+/** Fecha de muestra para que la opcion se lea como se vera, no como patron. */
+const EJEMPLO = "2026-02-05";
+
+const CAMPOS = ["moneda", "zonaHoraria", "formatoFecha", "horizonteProyeccionMeses"] as const;
+
 export function FormularioAjustes({ ajustes }: { ajustes: Ajustes }) {
   const formulario = useForm<DatosAjustes, unknown, DatosAjustes>({
     resolver: zodResolver(esquemaAjustes),
-    defaultValues: { moneda: ajustes.moneda, zonaHoraria: ajustes.zonaHoraria },
+    defaultValues: {
+      moneda: ajustes.moneda,
+      zonaHoraria: ajustes.zonaHoraria,
+      formatoFecha: ajustes.formatoFecha,
+      horizonteProyeccionMeses: ajustes.horizonteProyeccionMeses,
+    },
   });
 
   async function enviar(datos: DatosAjustes) {
@@ -45,8 +63,8 @@ export function FormularioAjustes({ ajustes }: { ajustes: Ajustes }) {
     if (!resultado.ok) {
       toast.error(resultado.mensaje);
       for (const [campo, mensajes] of Object.entries(resultado.camposConError ?? {})) {
-        if (campo === "moneda" || campo === "zonaHoraria") {
-          formulario.setError(campo, { message: mensajes[0] });
+        if ((CAMPOS as readonly string[]).includes(campo)) {
+          formulario.setError(campo as (typeof CAMPOS)[number], { message: mensajes[0] });
         }
       }
       return;
@@ -64,7 +82,8 @@ export function FormularioAjustes({ ajustes }: { ajustes: Ajustes }) {
         <CardTitle>Preferencias</CardTitle>
         <CardDescription>
           La zona horaria decide a qué mes contable pertenece cada movimiento; en Colombia son cinco
-          horas de diferencia con UTC y a fin de mes eso cambia el cierre.
+          horas de diferencia con UTC y a fin de mes eso cambia el cierre. El horizonte gobierna
+          hasta dónde llegan las proyecciones y las ocurrencias que se generan.
         </CardDescription>
       </CardHeader>
 
@@ -107,6 +126,53 @@ export function FormularioAjustes({ ajustes }: { ajustes: Ajustes }) {
                 ))}
               </SelectContent>
             </Select>
+          </div>
+
+          {/* RF-101: formato de fecha. */}
+          <div className="space-y-2">
+            <Label htmlFor="formatoFecha">Formato de fecha</Label>
+            <Select
+              value={formulario.watch("formatoFecha")}
+              onValueChange={(valor) =>
+                formulario.setValue(
+                  "formatoFecha",
+                  (valor as FormatoFecha) ?? ajustes.formatoFecha,
+                  {
+                    shouldDirty: true,
+                  },
+                )
+              }
+            >
+              <SelectTrigger id="formatoFecha">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {FORMATOS_FECHA.map((formato) => (
+                  <SelectItem key={formato} value={formato}>
+                    {formatearFecha(EJEMPLO, formato)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* RF-101: horizonte de proyección. */}
+          <div className="space-y-2">
+            <Label htmlFor="horizonteProyeccionMeses">Horizonte de proyección (meses)</Label>
+            <Input
+              id="horizonteProyeccionMeses"
+              type="number"
+              inputMode="numeric"
+              min={HORIZONTE_PROYECCION_MINIMO}
+              max={HORIZONTE_PROYECCION_MAXIMO}
+              aria-invalid={!!formulario.formState.errors.horizonteProyeccionMeses}
+              {...formulario.register("horizonteProyeccionMeses")}
+            />
+            {formulario.formState.errors.horizonteProyeccionMeses ? (
+              <p className="text-sm text-destructive">
+                {formulario.formState.errors.horizonteProyeccionMeses.message}
+              </p>
+            ) : null}
           </div>
         </CardContent>
 

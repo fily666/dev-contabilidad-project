@@ -8,7 +8,16 @@ import {
   tokenCoincide,
   verificarSesion,
 } from "../domain/sesion-firmada";
-import type { Ajustes, AjustesRepository, AlmacenSesion, CredencialAcceso } from "../domain/sesion";
+import {
+  FORMATOS_FECHA,
+  HORIZONTE_PROYECCION_MAXIMO,
+  HORIZONTE_PROYECCION_MINIMO,
+  type Ajustes,
+  type AjustesRepository,
+  type AlmacenSesion,
+  type CredencialAcceso,
+  type FormatoFecha,
+} from "../domain/sesion";
 
 function enSegundos(reloj: Reloj): number {
   return Math.floor(reloj.ahora().getTime() / 1000);
@@ -91,7 +100,10 @@ export class VerificarSesion {
   }
 }
 
-/** RF-03: ajustes de la instalacion (moneda y zona horaria de negocio). */
+/**
+ * RF-03 y RF-101: preferencias de la instalacion (moneda, zona horaria de
+ * negocio, formato de fecha y horizonte de proyeccion).
+ */
 export class ActualizarAjustes {
   constructor(private readonly ajustes: AjustesRepository) {}
 
@@ -101,6 +113,31 @@ export class ActualizarAjustes {
         "MONEDA_INVALIDA",
         "Usa el código ISO de tres letras, por ejemplo COP.",
         "moneda",
+      );
+    }
+
+    if (
+      datos.formatoFecha !== undefined &&
+      !FORMATOS_FECHA.includes(datos.formatoFecha as FormatoFecha)
+    ) {
+      throw new ErrorDeDominio(
+        "FORMATO_FECHA_INVALIDO",
+        "El formato de fecha no está entre los disponibles.",
+        "formatoFecha",
+      );
+    }
+
+    const horizonte = datos.horizonteProyeccionMeses;
+    if (
+      horizonte !== undefined &&
+      (!Number.isInteger(horizonte) ||
+        horizonte < HORIZONTE_PROYECCION_MINIMO ||
+        horizonte > HORIZONTE_PROYECCION_MAXIMO)
+    ) {
+      throw new ErrorDeDominio(
+        "HORIZONTE_INVALIDO",
+        `El horizonte de proyección debe ser un número entero entre ${HORIZONTE_PROYECCION_MINIMO} y ${HORIZONTE_PROYECCION_MAXIMO} meses.`,
+        "horizonteProyeccionMeses",
       );
     }
 

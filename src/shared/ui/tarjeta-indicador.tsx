@@ -34,7 +34,12 @@ export function TarjetaIndicador({
   className,
 }: Props) {
   return (
-    <div className={cn("panel panel-acento flex flex-col gap-3 p-4", className)}>
+    // `data-indicador` es el asidero de los E2E (§8.8): un nombre estable al que
+    // agarrarse sin depender de clases de Tailwind ni del orden de las tarjetas.
+    <div
+      data-indicador={etiqueta}
+      className={cn("panel panel-acento flex flex-col gap-3 p-4", className)}
+    >
       <div className="flex items-start justify-between gap-2">
         <span className="etiqueta-dato leading-4">{etiqueta}</span>
         {icono ? (

@@ -25,13 +25,13 @@ import { Label } from "@/shared/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/ui/select";
 import { Textarea } from "@/shared/ui/textarea";
 import type { EstadoMovimiento } from "@/shared/domain/enumeraciones";
-import type { MetodoPago } from "@/modules/metodos-pago/domain/metodo-pago.repository";
+import type { MetodoPagoVista } from "@/modules/metodos-pago/domain/metodo-pago.repository";
 import { anularMovimientoAction, marcarPagadoAction } from "../actions";
 
 type Props = {
   id: string;
   estado: EstadoMovimiento;
-  metodosPago: MetodoPago[];
+  metodosPago: MetodoPagoVista[];
   hoy: string;
 };
 

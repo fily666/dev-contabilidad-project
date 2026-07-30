@@ -13,6 +13,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
     "verify": "npm run typecheck && npm run lint && npm run test",
     "db:push": "node --env-file=.env scripts/aplicar-migraciones.mjs",
     "db:seed": "node --env-file=.env scripts/aplicar-migraciones.mjs --seed",
@@ -20,7 +22,17 @@
     "db:inspect": "node --env-file=.env scripts/inspeccionar-base.mjs",
     "db:verify-types": "node --env-file=.env scripts/verificar-tipos.mjs",
     "db:smoke": "node --env-file=.env scripts/humo-remoto.mjs",
-    "db:types": "supabase gen types typescript --linked --schema public > src/shared/infrastructure/supabase/database.types.ts"
+    "prepare": "husky"
+  },
+  "//lint-staged": "Contexto.md §8.9. Prettier antes de ESLint: el formateo puede introducir un cambio que el lint deba revisar, no al contrario.",
+  "lint-staged": {
+    "*.{ts,tsx,css}": [
+      "prettier --write",
+      "eslint --fix --max-warnings 0"
+    ],
+    "*.{json,md,mjs,yml,yaml}": [
+      "prettier --write"
+    ]
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",
@@ -46,6 +58,7 @@
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.4",
     "@eslint/eslintrc": "^3",
+    "@playwright/test": "^1.62.1",
     "@tailwindcss/postcss": "^4",
     "@testing-library/jest-dom": "^7.0.0",
     "@testing-library/react": "^16.3.2",
@@ -57,7 +70,9 @@
     "eslint": "^9",
     "eslint-config-next": "15.5.22",
     "eslint-config-prettier": "^10.1.8",
+    "husky": "^9.1.7",
     "jsdom": "^30.0.1",
+    "lint-staged": "^17.2.0",
     "postgres": "^3.4.9",
     "prettier": "^3.9.6",
     "prettier-plugin-tailwindcss": "^0.8.1",

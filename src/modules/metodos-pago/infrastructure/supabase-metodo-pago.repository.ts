@@ -1,13 +1,10 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database, Tablas } from "@/shared/infrastructure/supabase/database.types";
 import type { TipoMetodoPago } from "@/shared/domain/enumeraciones";
-import type {
-  EntradaMetodoPago,
-  MetodoPago,
-  MetodoPagoRepository,
-} from "../domain/metodo-pago.repository";
+import { MetodoPago } from "../domain/metodo-pago.entity";
+import type { MetodoPagoRepository, MetodoPagoVista } from "../domain/metodo-pago.repository";
 
-function aMetodo(fila: Tablas<"metodos_pago">): MetodoPago {
+function aVista(fila: Tablas<"metodos_pago">): MetodoPagoVista {
   return {
     id: fila.id,
     nombre: fila.nombre,
@@ -17,18 +14,22 @@ function aMetodo(fila: Tablas<"metodos_pago">): MetodoPago {
   };
 }
 
+function aEntidad(fila: Tablas<"metodos_pago">): MetodoPago {
+  return MetodoPago.desdePersistencia(aVista(fila));
+}
+
 /** ADAPTADOR del puerto MetodoPagoRepository (Contexto.md §7.3). */
 export class SupabaseMetodoPagoRepository implements MetodoPagoRepository {
   constructor(private readonly supabase: SupabaseClient<Database>) {}
 
-  async listar(soloActivos = true): Promise<MetodoPago[]> {
+  async listar(soloActivos = true): Promise<MetodoPagoVista[]> {
     let consulta = this.supabase.from("metodos_pago").select("*");
 
     if (soloActivos) consulta = consulta.eq("activo", true);
 
     const { data, error } = await consulta.order("nombre");
     if (error) throw error;
-    return (data ?? []).map(aMetodo);
+    return (data ?? []).map(aVista);
   }
 
   async buscarPorId(id: string): Promise<MetodoPago | null> {
@@ -39,42 +40,59 @@ export class SupabaseMetodoPagoRepository implements MetodoPagoRepository {
       .maybeSingle();
 
     if (error) throw error;
-    return data ? aMetodo(data) : null;
+    return data ? aEntidad(data) : null;
   }
 
-  async crear(entrada: EntradaMetodoPago): Promise<MetodoPago> {
+  /**
+   * `ilike` sin comodines compara sin distinguir mayusculas: «Efectivo» y
+   * «efectivo» son el mismo metodo para quien lo lee, aunque el unique de la
+   * tabla los admitiria como dos filas distintas.
+   */
+  async existeNombre(nombre: string, excluirId?: string): Promise<boolean> {
+    let consulta = this.supabase
+      .from("metodos_pago")
+      .select("id", { count: "exact", head: true })
+      .ilike("nombre", nombre.trim());
+
+    if (excluirId) consulta = consulta.neq("id", excluirId);
+
+    const { count, error } = await consulta;
+    if (error) throw error;
+    return (count ?? 0) > 0;
+  }
+
+  async guardar(metodo: MetodoPago): Promise<MetodoPagoVista> {
     const { data, error } = await this.supabase
       .from("metodos_pago")
       .insert({
-        nombre: entrada.nombre.trim(),
-        tipo: entrada.tipo,
-        ultimos_digitos: entrada.ultimosDigitos?.trim() || null,
+        id: metodo.id,
+        nombre: metodo.nombre,
+        tipo: metodo.tipo,
+        ultimos_digitos: metodo.ultimosDigitos,
+        activo: metodo.activo,
       })
       .select("*")
       .single();
 
     if (error) throw error;
-    return aMetodo(data);
+    return aVista(data);
   }
 
-  async actualizar(
-    id: string,
-    entrada: EntradaMetodoPago & { activo?: boolean },
-  ): Promise<MetodoPago> {
+  async actualizar(metodo: MetodoPago): Promise<MetodoPagoVista> {
     const { data, error } = await this.supabase
       .from("metodos_pago")
       .update({
-        nombre: entrada.nombre.trim(),
-        tipo: entrada.tipo,
-        ultimos_digitos: entrada.ultimosDigitos?.trim() || null,
-        ...(entrada.activo === undefined ? {} : { activo: entrada.activo }),
+        nombre: metodo.nombre,
+        tipo: metodo.tipo,
+        ultimos_digitos: metodo.ultimosDigitos,
+        activo: metodo.activo,
       })
-      .eq("id", id)
+      .eq("id", metodo.id)
       .select("*")
       .single();
 
     if (error) throw error;
-    return aMetodo(data);
+    return aVista(data);
   }
 
   async eliminar(id: string): Promise<void> {

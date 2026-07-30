@@ -14,8 +14,14 @@ set app.sembrando = 'on';
 
 -- ─── 0. Ajustes de la instalacion ───────────────────────────────────────────
 
-insert into ajustes (id, moneda, zona_horaria)
-values (true, 'COP', 'America/Bogota')
+-- `preferencias` guarda RF-101 (formato de fecha y horizonte de proyeccion) en
+-- lugar de columnas propias: son preferencias de presentacion, y agregar una mas
+-- no debe costar una migracion. La aplicacion tolera claves ausentes.
+insert into ajustes (id, moneda, zona_horaria, preferencias)
+values (
+  true, 'COP', 'America/Bogota',
+  '{"formato_fecha": "d MMM yyyy", "horizonte_proyeccion_meses": 12}'::jsonb
+)
 on conflict (id) do nothing;
 
 -- ─── 1. Tipos de proyecto ───────────────────────────────────────────────────
@@ -25,10 +31,10 @@ insert into tipos_proyecto (codigo, nombre, icono, es_sistema, configuracion) va
   'inmueble', 'Inmueble', 'building-2', true,
   '{
     "atributos": [
-      { "clave": "direccion",   "etiqueta": "Direccion",              "tipo": "text",   "requerido": true },
+      { "clave": "direccion",   "etiqueta": "Dirección",              "tipo": "text",   "requerido": true },
       { "clave": "ciudad",      "etiqueta": "Ciudad",                 "tipo": "text",   "requerido": false },
-      { "clave": "matricula",   "etiqueta": "Matricula inmobiliaria", "tipo": "text",   "requerido": false },
-      { "clave": "area_m2",     "etiqueta": "Area (m2)",              "tipo": "number", "requerido": false },
+      { "clave": "matricula",   "etiqueta": "Matrícula inmobiliaria", "tipo": "text",   "requerido": false },
+      { "clave": "area_m2",     "etiqueta": "Área (m²)",              "tipo": "number", "requerido": false },
       { "clave": "estrato",     "etiqueta": "Estrato",                "tipo": "number", "requerido": false }
     ],
     "indicadores": ["total_invertido","total_ingresos","total_egresos","balance","yield_neto","cap_rate","roi_acumulado","payback","plusvalia"],
@@ -37,13 +43,13 @@ insert into tipos_proyecto (codigo, nombre, icono, es_sistema, configuracion) va
   }'::jsonb
 ),
 (
-  'vehiculo', 'Vehiculo', 'car', true,
+  'vehiculo', 'Vehículo', 'car', true,
   '{
     "atributos": [
       { "clave": "placa",      "etiqueta": "Placa",       "tipo": "text",   "requerido": true },
       { "clave": "marca",      "etiqueta": "Marca",       "tipo": "text",   "requerido": true },
-      { "clave": "linea",      "etiqueta": "Linea",       "tipo": "text",   "requerido": false },
-      { "clave": "modelo",     "etiqueta": "Modelo (ano)","tipo": "number", "requerido": false },
+      { "clave": "linea",      "etiqueta": "Línea",       "tipo": "text",   "requerido": false },
+      { "clave": "modelo",     "etiqueta": "Modelo (año)","tipo": "number", "requerido": false },
       { "clave": "cilindraje", "etiqueta": "Cilindraje",  "tipo": "number", "requerido": false }
     ],
     "indicadores": ["total_invertido","total_egresos","tco","costo_mensual","plusvalia"],
@@ -55,7 +61,7 @@ insert into tipos_proyecto (codigo, nombre, icono, es_sistema, configuracion) va
   'negocio', 'Negocio', 'store', true,
   '{
     "atributos": [
-      { "clave": "razon_social", "etiqueta": "Razon social", "tipo": "text", "requerido": false },
+      { "clave": "razon_social", "etiqueta": "Razón social", "tipo": "text", "requerido": false },
       { "clave": "nit",          "etiqueta": "NIT",          "tipo": "text", "requerido": false },
       { "clave": "sector",       "etiqueta": "Sector",       "tipo": "text", "requerido": false }
     ],
@@ -65,7 +71,7 @@ insert into tipos_proyecto (codigo, nombre, icono, es_sistema, configuracion) va
   }'::jsonb
 ),
 (
-  'inversion', 'Inversion', 'trending-up', true,
+  'inversion', 'Inversión', 'trending-up', true,
   '{
     "atributos": [
       { "clave": "instrumento", "etiqueta": "Instrumento", "tipo": "text", "requerido": false },
@@ -127,31 +133,31 @@ end;
 $$;
 
 -- 2.1 Transversales (aplican a todos los tipos de proyecto)
-select pg_temp.sembrar_categoria(null, null, 'Financiacion',                    'financiacion', 90);
-select pg_temp.sembrar_categoria(null, 'Financiacion', 'Desembolso de credito', 'financiacion', 1);
-select pg_temp.sembrar_categoria(null, 'Financiacion', 'Cuota de credito',      'financiacion', 2);
-select pg_temp.sembrar_categoria(null, 'Financiacion', 'Abono extraordinario a capital', 'financiacion', 3);
+select pg_temp.sembrar_categoria(null, null, 'Financiación',                    'financiacion', 90);
+select pg_temp.sembrar_categoria(null, 'Financiación', 'Desembolso de crédito', 'financiacion', 1);
+select pg_temp.sembrar_categoria(null, 'Financiación', 'Cuota de crédito',      'financiacion', 2);
+select pg_temp.sembrar_categoria(null, 'Financiación', 'Abono extraordinario a capital', 'financiacion', 3);
 select pg_temp.sembrar_categoria(null, null, 'Otros ingresos',                  'ingreso', 95);
 select pg_temp.sembrar_categoria(null, null, 'Otros egresos',                   'opex',    96);
 
 -- 2.2 Inmueble (§3.1)
-select pg_temp.sembrar_categoria('inmueble', null, 'Adquisicion', 'capex', 1);
-select pg_temp.sembrar_categoria('inmueble', 'Adquisicion', 'Separacion',            'capex', 1);
-select pg_temp.sembrar_categoria('inmueble', 'Adquisicion', 'Cuota inicial',         'capex', 2);
-select pg_temp.sembrar_categoria('inmueble', 'Adquisicion', 'Gastos notariales',     'capex', 3);
-select pg_temp.sembrar_categoria('inmueble', 'Adquisicion', 'Escrituracion',         'capex', 4);
-select pg_temp.sembrar_categoria('inmueble', 'Adquisicion', 'Impuesto de registro',  'capex', 5);
-select pg_temp.sembrar_categoria('inmueble', 'Adquisicion', 'Comision inmobiliaria', 'capex', 6);
+select pg_temp.sembrar_categoria('inmueble', null, 'Adquisición', 'capex', 1);
+select pg_temp.sembrar_categoria('inmueble', 'Adquisición', 'Separación',            'capex', 1);
+select pg_temp.sembrar_categoria('inmueble', 'Adquisición', 'Cuota inicial',         'capex', 2);
+select pg_temp.sembrar_categoria('inmueble', 'Adquisición', 'Gastos notariales',     'capex', 3);
+select pg_temp.sembrar_categoria('inmueble', 'Adquisición', 'Escrituración',         'capex', 4);
+select pg_temp.sembrar_categoria('inmueble', 'Adquisición', 'Impuesto de registro',  'capex', 5);
+select pg_temp.sembrar_categoria('inmueble', 'Adquisición', 'Comisión inmobiliaria', 'capex', 6);
 
 select pg_temp.sembrar_categoria('inmueble', null, 'Mejoras y adecuaciones', 'capex', 2);
-select pg_temp.sembrar_categoria('inmueble', 'Mejoras y adecuaciones', 'Remodelacion',            'capex', 1);
+select pg_temp.sembrar_categoria('inmueble', 'Mejoras y adecuaciones', 'Remodelación',            'capex', 1);
 select pg_temp.sembrar_categoria('inmueble', 'Mejoras y adecuaciones', 'Muebles',                 'capex', 2);
-select pg_temp.sembrar_categoria('inmueble', 'Mejoras y adecuaciones', 'Electrodomesticos',       'capex', 3);
+select pg_temp.sembrar_categoria('inmueble', 'Mejoras y adecuaciones', 'Electrodomésticos',       'capex', 3);
 select pg_temp.sembrar_categoria('inmueble', 'Mejoras y adecuaciones', 'Otras adecuaciones',      'capex', 4);
 
 select pg_temp.sembrar_categoria('inmueble', null, 'Sostenimiento', 'opex', 3);
-select pg_temp.sembrar_categoria('inmueble', 'Sostenimiento', 'Administracion',        'opex', 1);
-select pg_temp.sembrar_categoria('inmueble', 'Sostenimiento', 'Servicios publicos',    'opex', 2);
+select pg_temp.sembrar_categoria('inmueble', 'Sostenimiento', 'Administración',        'opex', 1);
+select pg_temp.sembrar_categoria('inmueble', 'Sostenimiento', 'Servicios públicos',    'opex', 2);
 select pg_temp.sembrar_categoria('inmueble', 'Sostenimiento', 'Cuotas extraordinarias','opex', 3);
 select pg_temp.sembrar_categoria('inmueble', 'Sostenimiento', 'Reparaciones',          'opex', 4);
 select pg_temp.sembrar_categoria('inmueble', 'Sostenimiento', 'Aseo y mantenimiento',  'opex', 5);
@@ -167,11 +173,11 @@ select pg_temp.sembrar_categoria('inmueble', 'Arrendamiento', 'Reajuste de canon
 select pg_temp.sembrar_categoria('inmueble', 'Arrendamiento', 'Reembolsos del inquilino','ingreso', 3);
 
 -- 2.3 Vehiculo (§3.2)
-select pg_temp.sembrar_categoria('vehiculo', null, 'Adquisicion', 'capex', 1);
-select pg_temp.sembrar_categoria('vehiculo', 'Adquisicion', 'Valor de compra', 'capex', 1);
-select pg_temp.sembrar_categoria('vehiculo', 'Adquisicion', 'Matricula',       'capex', 2);
-select pg_temp.sembrar_categoria('vehiculo', 'Adquisicion', 'Accesorios',      'capex', 3);
-select pg_temp.sembrar_categoria('vehiculo', 'Adquisicion', 'Traspaso',        'capex', 4);
+select pg_temp.sembrar_categoria('vehiculo', null, 'Adquisición', 'capex', 1);
+select pg_temp.sembrar_categoria('vehiculo', 'Adquisición', 'Valor de compra', 'capex', 1);
+select pg_temp.sembrar_categoria('vehiculo', 'Adquisición', 'Matrícula',       'capex', 2);
+select pg_temp.sembrar_categoria('vehiculo', 'Adquisición', 'Accesorios',      'capex', 3);
+select pg_temp.sembrar_categoria('vehiculo', 'Adquisición', 'Traspaso',        'capex', 4);
 
 select pg_temp.sembrar_categoria('vehiculo', null, 'Mantenimiento', 'opex', 2);
 select pg_temp.sembrar_categoria('vehiculo', 'Mantenimiento', 'Mantenimiento preventivo', 'opex', 1);
@@ -182,34 +188,34 @@ select pg_temp.sembrar_categoria('vehiculo', 'Mantenimiento', 'Reparaciones',   
 
 select pg_temp.sembrar_categoria('vehiculo', null, 'Documentos e impuestos', 'opex', 3);
 select pg_temp.sembrar_categoria('vehiculo', 'Documentos e impuestos', 'SOAT',                     'opex', 1);
-select pg_temp.sembrar_categoria('vehiculo', 'Documentos e impuestos', 'Revision tecnicomecanica', 'opex', 2);
+select pg_temp.sembrar_categoria('vehiculo', 'Documentos e impuestos', 'Revisión tecnicomecánica', 'opex', 2);
 select pg_temp.sembrar_categoria('vehiculo', 'Documentos e impuestos', 'Impuesto vehicular',       'opex', 3);
-select pg_temp.sembrar_categoria('vehiculo', 'Documentos e impuestos', 'Renovacion de documentos', 'opex', 4);
+select pg_temp.sembrar_categoria('vehiculo', 'Documentos e impuestos', 'Renovación de documentos', 'opex', 4);
 select pg_temp.sembrar_categoria('vehiculo', 'Documentos e impuestos', 'Comparendos',              'opex', 5);
 
-select pg_temp.sembrar_categoria('vehiculo', null, 'Operacion', 'opex', 4);
-select pg_temp.sembrar_categoria('vehiculo', 'Operacion', 'Combustible',  'opex', 1);
-select pg_temp.sembrar_categoria('vehiculo', 'Operacion', 'Parqueadero',  'opex', 2);
-select pg_temp.sembrar_categoria('vehiculo', 'Operacion', 'Peajes',       'opex', 3);
-select pg_temp.sembrar_categoria('vehiculo', 'Operacion', 'Lavado',       'opex', 4);
+select pg_temp.sembrar_categoria('vehiculo', null, 'Operación', 'opex', 4);
+select pg_temp.sembrar_categoria('vehiculo', 'Operación', 'Combustible',  'opex', 1);
+select pg_temp.sembrar_categoria('vehiculo', 'Operación', 'Parqueadero',  'opex', 2);
+select pg_temp.sembrar_categoria('vehiculo', 'Operación', 'Peajes',       'opex', 3);
+select pg_temp.sembrar_categoria('vehiculo', 'Operación', 'Lavado',       'opex', 4);
 
 select pg_temp.sembrar_categoria('vehiculo', null, 'Seguros', 'opex', 5);
 select pg_temp.sembrar_categoria('vehiculo', 'Seguros', 'Seguro todo riesgo', 'opex', 1);
 
 -- 2.4 Negocio
-select pg_temp.sembrar_categoria('negocio', null, 'Inversion inicial', 'capex', 1);
-select pg_temp.sembrar_categoria('negocio', 'Inversion inicial', 'Constitucion legal',  'capex', 1);
-select pg_temp.sembrar_categoria('negocio', 'Inversion inicial', 'Equipos',             'capex', 2);
-select pg_temp.sembrar_categoria('negocio', 'Inversion inicial', 'Adecuacion de local', 'capex', 3);
-select pg_temp.sembrar_categoria('negocio', 'Inversion inicial', 'Inventario inicial',  'capex', 4);
+select pg_temp.sembrar_categoria('negocio', null, 'Inversión inicial', 'capex', 1);
+select pg_temp.sembrar_categoria('negocio', 'Inversión inicial', 'Constitución legal',  'capex', 1);
+select pg_temp.sembrar_categoria('negocio', 'Inversión inicial', 'Equipos',             'capex', 2);
+select pg_temp.sembrar_categoria('negocio', 'Inversión inicial', 'Adecuación de local', 'capex', 3);
+select pg_temp.sembrar_categoria('negocio', 'Inversión inicial', 'Inventario inicial',  'capex', 4);
 
-select pg_temp.sembrar_categoria('negocio', null, 'Operacion', 'opex', 2);
-select pg_temp.sembrar_categoria('negocio', 'Operacion', 'Arriendo',    'opex', 1);
-select pg_temp.sembrar_categoria('negocio', 'Operacion', 'Nomina',      'opex', 2);
-select pg_temp.sembrar_categoria('negocio', 'Operacion', 'Servicios',   'opex', 3);
-select pg_temp.sembrar_categoria('negocio', 'Operacion', 'Insumos',     'opex', 4);
-select pg_temp.sembrar_categoria('negocio', 'Operacion', 'Publicidad',  'opex', 5);
-select pg_temp.sembrar_categoria('negocio', 'Operacion', 'Impuestos',   'opex', 6);
+select pg_temp.sembrar_categoria('negocio', null, 'Operación', 'opex', 2);
+select pg_temp.sembrar_categoria('negocio', 'Operación', 'Arriendo',    'opex', 1);
+select pg_temp.sembrar_categoria('negocio', 'Operación', 'Nómina',      'opex', 2);
+select pg_temp.sembrar_categoria('negocio', 'Operación', 'Servicios',   'opex', 3);
+select pg_temp.sembrar_categoria('negocio', 'Operación', 'Insumos',     'opex', 4);
+select pg_temp.sembrar_categoria('negocio', 'Operación', 'Publicidad',  'opex', 5);
+select pg_temp.sembrar_categoria('negocio', 'Operación', 'Impuestos',   'opex', 6);
 
 select pg_temp.sembrar_categoria('negocio', null, 'Ventas', 'ingreso', 3);
 select pg_temp.sembrar_categoria('negocio', 'Ventas', 'Venta de productos', 'ingreso', 1);
@@ -228,7 +234,7 @@ select pg_temp.sembrar_categoria('inversion', 'Costos', 'Impuestos',    'opex', 
 select pg_temp.sembrar_categoria('inversion', null, 'Rendimientos', 'ingreso', 3);
 select pg_temp.sembrar_categoria('inversion', 'Rendimientos', 'Dividendos',            'ingreso', 1);
 select pg_temp.sembrar_categoria('inversion', 'Rendimientos', 'Intereses',             'ingreso', 2);
-select pg_temp.sembrar_categoria('inversion', 'Rendimientos', 'Valorizacion realizada','ingreso', 3);
+select pg_temp.sembrar_categoria('inversion', 'Rendimientos', 'Valorización realizada','ingreso', 3);
 select pg_temp.sembrar_categoria('inversion', 'Rendimientos', 'Retiro de capital',     'ingreso', 4);
 
 -- ─── 3. Metodos de pago iniciales (RF-33) ───────────────────────────────────

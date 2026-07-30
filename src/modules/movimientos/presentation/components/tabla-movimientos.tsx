@@ -3,20 +3,28 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { InsigniaEstadoMovimiento, InsigniaNaturaleza } from "@/shared/ui/insignias";
 import { formatearDinero, formatearFecha } from "@/shared/utils/formato";
 import { cn } from "@/shared/utils/cn";
-import type { MetodoPago } from "@/modules/metodos-pago/domain/metodo-pago.repository";
+import type { MetodoPagoVista } from "@/modules/metodos-pago/domain/metodo-pago.repository";
 import type { MovimientoListado } from "../../domain/movimiento.repository";
 import { AccionesMovimiento } from "./acciones-movimiento";
 
 type Props = {
   filas: MovimientoListado[];
-  metodosPago: MetodoPago[];
+  metodosPago: MetodoPagoVista[];
   hoy: string;
+  /** Patron de fecha elegido en los ajustes (RF-101). */
+  formatoFecha?: string;
   /** Oculta la columna de proyecto cuando ya se esta dentro de uno. */
   ocultarProyecto?: boolean;
 };
 
 /** RF-23, RF-24. En móvil la tabla se presenta como tarjetas (RNF-01). */
-export function TablaMovimientos({ filas, metodosPago, hoy, ocultarProyecto }: Props) {
+export function TablaMovimientos({
+  filas,
+  metodosPago,
+  hoy,
+  formatoFecha,
+  ocultarProyecto,
+}: Props) {
   return (
     <>
       {/* Escritorio */}
@@ -37,7 +45,9 @@ export function TablaMovimientos({ filas, metodosPago, hoy, ocultarProyecto }: P
           <TableBody>
             {filas.map((fila) => (
               <TableRow key={fila.id} className={cn(fila.estado === "anulado" && "opacity-60")}>
-                <TableCell className="tabular-nums">{formatearFecha(fila.fecha)}</TableCell>
+                <TableCell className="tabular-nums">
+                  {formatearFecha(fila.fecha, formatoFecha)}
+                </TableCell>
                 {ocultarProyecto ? null : (
                   <TableCell className="max-w-40 truncate">{fila.proyectoNombre}</TableCell>
                 )}
@@ -108,7 +118,7 @@ export function TablaMovimientos({ filas, metodosPago, hoy, ocultarProyecto }: P
 
             <div className="mt-3 flex items-center justify-between gap-2">
               <span className="text-xs text-muted-foreground tabular-nums">
-                {formatearFecha(fila.fecha)}
+                {formatearFecha(fila.fecha, formatoFecha)}
               </span>
               <span
                 className={cn(

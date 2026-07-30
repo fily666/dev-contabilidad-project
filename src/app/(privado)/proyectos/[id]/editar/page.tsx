@@ -12,7 +12,7 @@ export default async function PaginaEditarProyecto({ params }: Props) {
   const { contenedor } = await contenedorPrivado();
 
   const [proyecto, tipos] = await Promise.all([
-    contenedor.proyectos.repositorio.buscarPorId(id),
+    contenedor.proyectos.obtener.buscar({ id }),
     contenedor.proyectos.listarTipos.ejecutar(),
   ]);
 

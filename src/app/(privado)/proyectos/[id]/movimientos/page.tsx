@@ -30,9 +30,9 @@ type Props = {
 export default async function PaginaMovimientosProyecto({ params, searchParams }: Props) {
   const [{ id }, parametros] = await Promise.all([params, searchParams]);
   const { filtro, orden, pagina, porPagina } = leerFiltros(parametros);
-  const { contenedor } = await contenedorPrivado();
+  const { contenedor, ajustes } = await contenedorPrivado();
 
-  const proyecto = await contenedor.proyectos.repositorio.buscarPorId(id);
+  const proyecto = await contenedor.proyectos.obtener.buscar({ id });
   if (!proyecto) notFound();
 
   const [resultado, categorias, metodosPago] = await Promise.all([
@@ -45,7 +45,7 @@ export default async function PaginaMovimientosProyecto({ params, searchParams }
     contenedor.categorias.listar.ejecutar({
       filtro: { tipoProyectoId: proyecto.tipoProyectoId },
     }),
-    contenedor.metodosPago.listar(),
+    contenedor.metodosPago.listar.ejecutar(),
   ]);
 
   const hoy = contenedor.reloj.hoy();
@@ -130,6 +130,7 @@ export default async function PaginaMovimientosProyecto({ params, searchParams }
             filas={resultado.filas}
             metodosPago={metodosPago}
             hoy={hoy}
+            formatoFecha={ajustes.formatoFecha}
             ocultarProyecto
           />
           <Suspense fallback={null}>

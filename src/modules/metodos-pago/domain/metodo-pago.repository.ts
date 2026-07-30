@@ -1,8 +1,14 @@
 import type { TipoMetodoPago } from "@/shared/domain/enumeraciones";
+import type { MetodoPago } from "./metodo-pago.entity";
 
 /** PUERTO (Contexto.md §7.3). RF-33. */
 
-export type MetodoPago = {
+/**
+ * Proyeccion de lectura del catalogo. Es un objeto plano a proposito: viaja del
+ * Server Component al Client Component, y una instancia de entidad no cruza esa
+ * frontera de serializacion.
+ */
+export type MetodoPagoVista = {
   id: string;
   nombre: string;
   tipo: TipoMetodoPago;
@@ -17,10 +23,11 @@ export type EntradaMetodoPago = {
 };
 
 export interface MetodoPagoRepository {
-  listar(soloActivos?: boolean): Promise<MetodoPago[]>;
+  listar(soloActivos?: boolean): Promise<MetodoPagoVista[]>;
   buscarPorId(id: string): Promise<MetodoPago | null>;
-  crear(entrada: EntradaMetodoPago): Promise<MetodoPago>;
-  actualizar(id: string, entrada: EntradaMetodoPago & { activo?: boolean }): Promise<MetodoPago>;
+  existeNombre(nombre: string, excluirId?: string): Promise<boolean>;
+  guardar(metodo: MetodoPago): Promise<MetodoPagoVista>;
+  actualizar(metodo: MetodoPago): Promise<MetodoPagoVista>;
   eliminar(id: string): Promise<void>;
   contarMovimientos(id: string): Promise<number>;
 }

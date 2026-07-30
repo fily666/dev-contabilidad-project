@@ -25,7 +25,7 @@ import {
   type TipoMovimiento,
 } from "@/shared/domain/enumeraciones";
 import type { CategoriaConRuta } from "@/modules/categorias/domain/categoria.repository";
-import type { MetodoPago } from "@/modules/metodos-pago/domain/metodo-pago.repository";
+import type { MetodoPagoVista } from "@/modules/metodos-pago/domain/metodo-pago.repository";
 import { actualizarMovimientoAction, registrarMovimientoAction } from "../actions";
 import { esquemaRegistrarMovimiento } from "../schemas";
 
@@ -42,7 +42,7 @@ type SalidaFormulario = z.output<typeof esquemaRegistrarMovimiento>;
 type Props = {
   proyectos: OpcionProyecto[];
   categorias: CategoriaConRuta[];
-  metodosPago: MetodoPago[];
+  metodosPago: MetodoPagoVista[];
   hoy: string;
   proyectoFijo?: string;
   movimiento?: {
@@ -75,7 +75,6 @@ export function FormularioMovimiento({
   const editando = !!movimiento;
 
   const [tipo, setTipo] = useState<TipoMovimiento>(movimiento?.tipo ?? "egreso");
-  const [estado, setEstado] = useState<"pendiente" | "pagado">(editando ? "pendiente" : "pagado");
   const [categoriaId, setCategoriaId] = useState(movimiento?.categoriaId ?? "");
   const [naturalezaManual, setNaturalezaManual] = useState<Naturaleza | undefined>(
     movimiento?.naturaleza,
@@ -111,13 +110,21 @@ export function FormularioMovimiento({
   const esFinanciacion = naturalezaEfectiva === "financiacion";
   const naturalezasPermitidas = NATURALEZAS_POR_TIPO[tipo];
 
+  /**
+   * `estado` se lee del formulario y no de un `useState` aparte. Cuando vivia
+   * fuera, el resolver de Zod validaba el valor por omision («pagado») aunque el
+   * interruptor estuviera apagado, y era imposible registrar un movimiento
+   * pendiente: exigia metodo de pago para algo que aun no se ha pagado.
+   */
+  const estado = formulario.watch("estado") ?? "pagado";
+
   async function enviar(datos: SalidaFormulario) {
     const carga = {
       ...datos,
       naturaleza: naturalezaManual,
       abonoCapital: esFinanciacion ? datos.abonoCapital : null,
       abonoInteres: esFinanciacion ? datos.abonoInteres : null,
-      ...(editando ? { id: movimiento.id } : { estado }),
+      ...(editando ? { id: movimiento.id } : {}),
     };
 
     const resultado = editando
@@ -373,7 +380,14 @@ export function FormularioMovimiento({
           <Switch
             id="estado"
             checked={estado === "pagado"}
-            onCheckedChange={(marcado) => setEstado(marcado ? "pagado" : "pendiente")}
+            onCheckedChange={(marcado) =>
+              formulario.setValue("estado", marcado ? "pagado" : "pendiente", {
+                // Revalidar al cambiar: apagar el interruptor debe retirar en el
+                // acto el error de «falta el método de pago», no dejarlo puesto.
+                shouldValidate: true,
+                shouldDirty: true,
+              })
+            }
           />
         </div>
       ) : null}

@@ -2,7 +2,14 @@
 
 > **Documento fuente de verdad del proyecto.** Toda decisión de implementación debe poder rastrearse a una sección de este archivo. Si algo no está aquí, se define aquí antes de codificarse.
 
-**Versión:** 1.0 · **Fecha:** 2026-07-29 · **Estado:** aprobado para iniciar Fase 0
+**Versión:** 1.1 · **Fecha:** 2026-07-30 · **Estado:** Fase 1 implementada y verificada
+
+> **Cambios de la 1.1** (auditoría de integridad del sistema): [§8.1](#81-stack) refleja
+> el stack real (Base UI en lugar de Radix, capa propia de gráficas en lugar de Recharts);
+> RNF-08 deja de exigir un actor que [§6.3](#63-esquema) había eliminado; RF-101 documenta
+> dónde vive cada preferencia; [§8.8](#88-pruebas) incorpora el nivel E2E con Playwright;
+> [§15.3](#153-scripts) documenta los ganchos de git y la ausencia deliberada de `db:types`;
+> [§6.8](#68-migraciones) explica por qué corregir un texto sembrado exige migración.
 
 ---
 
@@ -61,24 +68,24 @@ _¿cuánto he puesto?_, _¿cuánto me ha devuelto?_, _¿qué debo pagar este mes
 
 ## 2. Glosario del dominio
 
-| Término | Definición operativa |
-|---|---|
-| **Proyecto** | Unidad financiera independiente con tipo, fechas y estado. Agrupa todos los movimientos, documentos y obligaciones. |
-| **Tipo de proyecto** | Clasificación extensible (Inmueble, Vehículo, Negocio, Inversión, Otro) que determina categorías sugeridas, indicadores visibles y atributos propios. |
-| **Movimiento** | Hecho económico fechado asociado a un proyecto: ingreso o egreso. Es el único registro que afecta cifras. |
-| **Inversión (CAPEX)** | Egreso que **incrementa el capital aportado** al activo: separación, cuota inicial, notariales, escrituración, remodelación, muebles, valor de compra, matrícula, accesorios. |
-| **Gasto operativo (OPEX)** | Egreso recurrente de sostenimiento que **no capitaliza**: administración, predial, servicios, seguros, mantenimiento, combustible. |
-| **Financiación** | Movimiento asociado a deuda: desembolso de crédito (ingreso de financiación) y cuota de crédito (egreso de financiación, con parte capital y parte interés). |
-| **Ingreso** | Entrada de dinero generada por el proyecto: canon de arrendamiento, otros ingresos. |
-| **Obligación / Recordatorio** | Compromiso futuro con fecha de vencimiento, valor estimado y frecuencia. Al pagarse produce un movimiento. |
-| **Ocurrencia** | Instancia concreta de una obligación recurrente en una fecha específica (ej. SOAT 2027-03-14). Es lo que se ve en el calendario. |
-| **Soporte** | Archivo que respalda un movimiento o pertenece al proyecto. |
-| **Pasivo** | Deuda vigente del proyecto (crédito hipotecario, crédito de vehículo) con saldo, tasa y plazo. |
-| **Valoración** | Valor comercial estimado del activo en una fecha, para calcular patrimonio y plusvalía. |
-| **Estado del movimiento** | `pendiente` (comprometido, no pagado), `pagado` (con salida/entrada real de dinero), `vencido` (pendiente con fecha de vencimiento superada), `anulado`. |
-| **Token de acceso** | Cadena secreta configurada en `TOKEN_ACCESO` que abre la aplicación. No identifica a nadie: es la llave de la casa, no un carné. Sustituye por completo a las cuentas de usuario ([ADR-14](#16-decisiones-técnicas-adr)). |
-| **Ajustes** | Fila única con las preferencias de la instalación (moneda y zona horaria de negocio). Ocupa el lugar del antiguo perfil de usuario, pero no describe a una persona: configura el sistema. |
-| **Fila del sistema** | Registro del catálogo sembrado por `seed.sql` (`es_sistema = true`). No se puede modificar ni eliminar; solo ocultar. Lo garantiza un trigger, no una convención ([§6.6](#66-triggers)). |
+| Término                       | Definición operativa                                                                                                                                                                                                      |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Proyecto**                  | Unidad financiera independiente con tipo, fechas y estado. Agrupa todos los movimientos, documentos y obligaciones.                                                                                                       |
+| **Tipo de proyecto**          | Clasificación extensible (Inmueble, Vehículo, Negocio, Inversión, Otro) que determina categorías sugeridas, indicadores visibles y atributos propios.                                                                     |
+| **Movimiento**                | Hecho económico fechado asociado a un proyecto: ingreso o egreso. Es el único registro que afecta cifras.                                                                                                                 |
+| **Inversión (CAPEX)**         | Egreso que **incrementa el capital aportado** al activo: separación, cuota inicial, notariales, escrituración, remodelación, muebles, valor de compra, matrícula, accesorios.                                             |
+| **Gasto operativo (OPEX)**    | Egreso recurrente de sostenimiento que **no capitaliza**: administración, predial, servicios, seguros, mantenimiento, combustible.                                                                                        |
+| **Financiación**              | Movimiento asociado a deuda: desembolso de crédito (ingreso de financiación) y cuota de crédito (egreso de financiación, con parte capital y parte interés).                                                              |
+| **Ingreso**                   | Entrada de dinero generada por el proyecto: canon de arrendamiento, otros ingresos.                                                                                                                                       |
+| **Obligación / Recordatorio** | Compromiso futuro con fecha de vencimiento, valor estimado y frecuencia. Al pagarse produce un movimiento.                                                                                                                |
+| **Ocurrencia**                | Instancia concreta de una obligación recurrente en una fecha específica (ej. SOAT 2027-03-14). Es lo que se ve en el calendario.                                                                                          |
+| **Soporte**                   | Archivo que respalda un movimiento o pertenece al proyecto.                                                                                                                                                               |
+| **Pasivo**                    | Deuda vigente del proyecto (crédito hipotecario, crédito de vehículo) con saldo, tasa y plazo.                                                                                                                            |
+| **Valoración**                | Valor comercial estimado del activo en una fecha, para calcular patrimonio y plusvalía.                                                                                                                                   |
+| **Estado del movimiento**     | `pendiente` (comprometido, no pagado), `pagado` (con salida/entrada real de dinero), `vencido` (pendiente con fecha de vencimiento superada), `anulado`.                                                                  |
+| **Token de acceso**           | Cadena secreta configurada en `TOKEN_ACCESO` que abre la aplicación. No identifica a nadie: es la llave de la casa, no un carné. Sustituye por completo a las cuentas de usuario ([ADR-14](#16-decisiones-técnicas-adr)). |
+| **Ajustes**                   | Fila única con las preferencias de la instalación (moneda y zona horaria de negocio). Ocupa el lugar del antiguo perfil de usuario, pero no describe a una persona: configura el sistema.                                 |
+| **Fila del sistema**          | Registro del catálogo sembrado por `seed.sql` (`es_sistema = true`). No se puede modificar ni eliminar; solo ocultar. Lo garantiza un trigger, no una convención ([§6.6](#66-triggers)).                                  |
 
 **Regla de oro de las cifras:** los indicadores de caja usan solo movimientos en estado `pagado`. Los movimientos `pendiente` / `vencido` alimentan proyecciones, alertas y calendario, nunca el flujo de caja ejecutado.
 
@@ -92,22 +99,22 @@ Estos dos escenarios son la prueba de aceptación funcional del sistema. Deben p
 
 **Genera ingresos. Tiene pasivo. Se valoriza.**
 
-| Concepto | Naturaleza | Recurrencia |
-|---|---|---|
-| Valor de separación | CAPEX | única |
-| Cuota inicial | CAPEX | única (o pagos parciales) |
-| Gastos notariales | CAPEX | única |
-| Gastos de escrituración | CAPEX | única |
-| Remodelación | CAPEX | única / por hitos |
-| Muebles y adecuaciones | CAPEX | única |
-| Administración | OPEX | mensual |
-| Impuesto predial | OPEX | anual |
-| Servicios públicos | OPEX | mensual |
-| Cuotas extraordinarias | OPEX | eventual |
-| Seguros | OPEX | anual |
-| Cuota crédito hipotecario | Financiación | mensual |
-| Canon de arrendamiento | Ingreso | mensual |
-| Otros ingresos | Ingreso | eventual |
+| Concepto                  | Naturaleza   | Recurrencia               |
+| ------------------------- | ------------ | ------------------------- |
+| Valor de separación       | CAPEX        | única                     |
+| Cuota inicial             | CAPEX        | única (o pagos parciales) |
+| Gastos notariales         | CAPEX        | única                     |
+| Gastos de escrituración   | CAPEX        | única                     |
+| Remodelación              | CAPEX        | única / por hitos         |
+| Muebles y adecuaciones    | CAPEX        | única                     |
+| Administración            | OPEX         | mensual                   |
+| Impuesto predial          | OPEX         | anual                     |
+| Servicios públicos        | OPEX         | mensual                   |
+| Cuotas extraordinarias    | OPEX         | eventual                  |
+| Seguros                   | OPEX         | anual                     |
+| Cuota crédito hipotecario | Financiación | mensual                   |
+| Canon de arrendamiento    | Ingreso      | mensual                   |
+| Otros ingresos            | Ingreso      | eventual                  |
 
 **Indicadores exigidos:** total invertido, total de gastos, total de ingresos, flujo de caja, rentabilidad, estado financiero del proyecto.
 
@@ -115,19 +122,19 @@ Estos dos escenarios son la prueba de aceptación funcional del sistema. Deben p
 
 **No genera ingresos. Se deprecia. El eje es el control de obligaciones.**
 
-| Concepto | Naturaleza | Recurrencia |
-|---|---|---|
-| Valor de compra | CAPEX | única |
-| Matrícula | CAPEX | única |
-| Accesorios | CAPEX | eventual |
-| Mantenimiento preventivo | OPEX | periódica |
-| Reparaciones | OPEX | eventual |
-| Combustible (opcional) | OPEX | eventual |
-| SOAT | OPEX | anual |
-| Revisión técnico-mecánica | OPEX | anual |
-| Impuesto vehicular | OPEX | anual |
-| Cambio de aceite / llantas | OPEX | periódica |
-| Renovación de documentos | OPEX | anual |
+| Concepto                   | Naturaleza | Recurrencia |
+| -------------------------- | ---------- | ----------- |
+| Valor de compra            | CAPEX      | única       |
+| Matrícula                  | CAPEX      | única       |
+| Accesorios                 | CAPEX      | eventual    |
+| Mantenimiento preventivo   | OPEX       | periódica   |
+| Reparaciones               | OPEX       | eventual    |
+| Combustible (opcional)     | OPEX       | eventual    |
+| SOAT                       | OPEX       | anual       |
+| Revisión técnico-mecánica  | OPEX       | anual       |
+| Impuesto vehicular         | OPEX       | anual       |
+| Cambio de aceite / llantas | OPEX       | periódica   |
+| Renovación de documentos   | OPEX       | anual       |
 
 **Indicadores exigidos:** costo total de propiedad (TCO), costo mensual promedio, próximas obligaciones, obligaciones vencidas. No se muestra rentabilidad (proyecto sin ingresos → ver [§5.4](#54-visibilidad-de-indicadores-por-tipo)).
 
@@ -139,12 +146,12 @@ Cada requerimiento tiene ID estable (`RF-xx`), módulo y criterios de aceptació
 
 ### 4.1 Módulo: Acceso y ajustes
 
-| ID | Requerimiento | Fase |
-|---|---|---|
-| RF-01 | Ingreso con el token configurado en `TOKEN_ACCESO`. Una sola pantalla, un solo campo. Sin registro ni cuentas. | 1 |
-| RF-02 | Freno a la fuerza bruta: tras 5 intentos fallidos desde el mismo origen, el acceso queda bloqueado 5 minutos. | 1 |
-| RF-03 | Ajustes editables de la instalación: moneda y zona horaria de negocio. | 1 |
-| RF-04 | Salir y protección de todas las rutas privadas. | 1 |
+| ID    | Requerimiento                                                                                                  | Fase |
+| ----- | -------------------------------------------------------------------------------------------------------------- | ---- |
+| RF-01 | Ingreso con el token configurado en `TOKEN_ACCESO`. Una sola pantalla, un solo campo. Sin registro ni cuentas. | 1    |
+| RF-02 | Freno a la fuerza bruta: tras 5 intentos fallidos desde el mismo origen, el acceso queda bloqueado 5 minutos.  | 1    |
+| RF-03 | Ajustes editables de la instalación: moneda y zona horaria de negocio.                                         | 1    |
+| RF-04 | Salir y protección de todas las rutas privadas.                                                                | 1    |
 
 **Criterios de aceptación (RF-01/04):**
 
@@ -158,127 +165,135 @@ Cada requerimiento tiene ID estable (`RF-xx`), módulo y criterios de aceptació
 
 ### 4.2 Módulo: Proyectos
 
-| ID | Requerimiento | Fase |
-|---|---|---|
-| RF-10 | Crear, editar, listar y archivar proyectos. | 1 |
-| RF-11 | Definir tipo de proyecto (Inmueble, Vehículo, Negocio, Inversión, Otro). | 1 |
-| RF-12 | Campos: nombre, descripción, tipo, fecha de inicio, fecha de cierre, estado, moneda. | 1 |
-| RF-13 | Estados: `activo`, `pausado`, `finalizado`, `archivado`. | 1 |
-| RF-14 | Atributos específicos por tipo, sin cambio de esquema (dirección y matrícula inmobiliaria para inmueble; placa, marca, modelo, cilindraje para vehículo). | 1 |
-| RF-15 | Vista de detalle con resumen financiero, movimientos, obligaciones y documentos del proyecto. | 1 |
-| RF-16 | Registrar valoraciones del activo en el tiempo (valor comercial estimado). | 4 |
-| RF-17 | Registrar pasivos del proyecto (crédito, tasa, plazo, saldo, cuota). | 4 |
-| RF-18 | Eliminar proyecto solo si no tiene movimientos; en caso contrario, únicamente archivar. | 1 |
+| ID    | Requerimiento                                                                                                                                             | Fase |
+| ----- | --------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
+| RF-10 | Crear, editar, listar y archivar proyectos.                                                                                                               | 1    |
+| RF-11 | Definir tipo de proyecto (Inmueble, Vehículo, Negocio, Inversión, Otro).                                                                                  | 1    |
+| RF-12 | Campos: nombre, descripción, tipo, fecha de inicio, fecha de cierre, estado, moneda.                                                                      | 1    |
+| RF-13 | Estados: `activo`, `pausado`, `finalizado`, `archivado`.                                                                                                  | 1    |
+| RF-14 | Atributos específicos por tipo, sin cambio de esquema (dirección y matrícula inmobiliaria para inmueble; placa, marca, modelo, cilindraje para vehículo). | 1    |
+| RF-15 | Vista de detalle con resumen financiero, movimientos, obligaciones y documentos del proyecto.                                                             | 1    |
+| RF-16 | Registrar valoraciones del activo en el tiempo (valor comercial estimado).                                                                                | 4    |
+| RF-17 | Registrar pasivos del proyecto (crédito, tasa, plazo, saldo, cuota).                                                                                      | 4    |
+| RF-18 | Eliminar proyecto solo si no tiene movimientos; en caso contrario, únicamente archivar.                                                                   | 1    |
 
 **Criterios de aceptación (RF-14):** agregar el campo "cilindraje" a proyectos de tipo Vehículo no requiere migración de base de datos ni afecta la validación de otros tipos.
 
 ### 4.3 Módulo: Movimientos financieros
 
-| ID | Requerimiento | Fase |
-|---|---|---|
-| RF-20 | Registrar movimiento con: fecha, tipo (ingreso/egreso), categoría, subcategoría, valor, método de pago, descripción, observaciones, estado. | 1 |
-| RF-21 | Marcar el egreso como capitalizable (inversión) u operativo; se propone automáticamente según la categoría y es sobreescribible. | 1 |
-| RF-22 | Editar y anular movimientos. La anulación conserva el registro (nunca borrado físico) y lo excluye de las cifras. | 1 |
-| RF-23 | Listado con filtros combinables: proyecto, rango de fechas, tipo, categoría, estado, método de pago, texto libre en descripción. | 1 |
-| RF-24 | Paginación y orden por fecha, valor o categoría. | 1 |
-| RF-25 | Fecha de vencimiento opcional; si el estado es `pendiente` y la fecha ya pasó, el sistema lo presenta como `vencido`. | 2 |
-| RF-26 | Marcar como pagado registrando fecha de pago y método. | 1 |
-| RF-27 | Carga de movimientos en lote por CSV con previsualización y validación fila por fila. | 5 |
-| RF-28 | Duplicar un movimiento existente como plantilla. | 3 |
-| RF-29 | En cuotas de crédito, desglosar abono a capital e intereses. | 4 |
+| ID    | Requerimiento                                                                                                                               | Fase |
+| ----- | ------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
+| RF-20 | Registrar movimiento con: fecha, tipo (ingreso/egreso), categoría, subcategoría, valor, método de pago, descripción, observaciones, estado. | 1    |
+| RF-21 | Marcar el egreso como capitalizable (inversión) u operativo; se propone automáticamente según la categoría y es sobreescribible.            | 1    |
+| RF-22 | Editar y anular movimientos. La anulación conserva el registro (nunca borrado físico) y lo excluye de las cifras.                           | 1    |
+| RF-23 | Listado con filtros combinables: proyecto, rango de fechas, tipo, categoría, estado, método de pago, texto libre en descripción.            | 1    |
+| RF-24 | Paginación y orden por fecha, valor o categoría.                                                                                            | 1    |
+| RF-25 | Fecha de vencimiento opcional; si el estado es `pendiente` y la fecha ya pasó, el sistema lo presenta como `vencido`.                       | 2    |
+| RF-26 | Marcar como pagado registrando fecha de pago y método.                                                                                      | 1    |
+| RF-27 | Carga de movimientos en lote por CSV con previsualización y validación fila por fila.                                                       | 5    |
+| RF-28 | Duplicar un movimiento existente como plantilla.                                                                                            | 3    |
+| RF-29 | En cuotas de crédito, desglosar abono a capital e intereses.                                                                                | 4    |
 
 **Criterios de aceptación (RF-22):** anular un movimiento pagado de $10.000.000 reduce el total invertido en exactamente ese valor y el registro sigue siendo consultable con su motivo de anulación.
 
 ### 4.4 Módulo: Categorías y catálogos
 
-| ID | Requerimiento | Fase |
-|---|---|---|
-| RF-30 | Catálogo de categorías y subcategorías precargado por tipo de proyecto. | 1 |
-| RF-31 | El usuario puede crear, renombrar y desactivar sus propias categorías. | 1 |
-| RF-32 | Cada categoría declara su naturaleza: `capex`, `opex`, `ingreso`, `financiacion`. | 1 |
-| RF-33 | Catálogo de métodos de pago administrable (efectivo, transferencia, tarjeta de crédito, débito automático, otro). | 1 |
-| RF-34 | Las categorías del sistema no se pueden eliminar; solo ocultar. | 1 |
+| ID    | Requerimiento                                                                                                     | Fase |
+| ----- | ----------------------------------------------------------------------------------------------------------------- | ---- |
+| RF-30 | Catálogo de categorías y subcategorías precargado por tipo de proyecto.                                           | 1    |
+| RF-31 | El usuario puede crear, renombrar y desactivar sus propias categorías.                                            | 1    |
+| RF-32 | Cada categoría declara su naturaleza: `capex`, `opex`, `ingreso`, `financiacion`.                                 | 1    |
+| RF-33 | Catálogo de métodos de pago administrable (efectivo, transferencia, tarjeta de crédito, débito automático, otro). | 1    |
+| RF-34 | Las categorías del sistema no se pueden eliminar; solo ocultar.                                                   | 1    |
 
 ### 4.5 Módulo: Gestión documental
 
-| ID | Requerimiento | Fase |
-|---|---|---|
-| RF-40 | Adjuntar uno o varios soportes a un movimiento. | 2 |
-| RF-41 | Adjuntar documentos a nivel de proyecto sin movimiento asociado (escritura, contrato, tarjeta de propiedad). | 2 |
-| RF-42 | Tipos soportados: PDF, JPG, PNG, WEBP, XLSX, DOCX. Máximo 10 MB por archivo. | 2 |
-| RF-43 | Metadatos por soporte: nombre del archivo, fecha de carga, usuario que cargó, tipo de documento, ruta de almacenamiento, tamaño, MIME. | 2 |
-| RF-44 | Previsualización en línea de imágenes y PDF. | 2 |
-| RF-45 | Descarga mediante URL firmada temporal; los archivos nunca son públicos. | 2 |
-| RF-46 | Eliminar soporte (borrado lógico en base de datos + borrado del objeto en Storage). | 2 |
-| RF-47 | Buscar documentos por proyecto, tipo, rango de fechas y nombre. | 3 |
+| ID    | Requerimiento                                                                                                                          | Fase |
+| ----- | -------------------------------------------------------------------------------------------------------------------------------------- | ---- |
+| RF-40 | Adjuntar uno o varios soportes a un movimiento.                                                                                        | 2    |
+| RF-41 | Adjuntar documentos a nivel de proyecto sin movimiento asociado (escritura, contrato, tarjeta de propiedad).                           | 2    |
+| RF-42 | Tipos soportados: PDF, JPG, PNG, WEBP, XLSX, DOCX. Máximo 10 MB por archivo.                                                           | 2    |
+| RF-43 | Metadatos por soporte: nombre del archivo, fecha de carga, usuario que cargó, tipo de documento, ruta de almacenamiento, tamaño, MIME. | 2    |
+| RF-44 | Previsualización en línea de imágenes y PDF.                                                                                           | 2    |
+| RF-45 | Descarga mediante URL firmada temporal; los archivos nunca son públicos.                                                               | 2    |
+| RF-46 | Eliminar soporte (borrado lógico en base de datos + borrado del objeto en Storage).                                                    | 2    |
+| RF-47 | Buscar documentos por proyecto, tipo, rango de fechas y nombre.                                                                        | 3    |
 
 **Criterios de aceptación (RF-45):** copiar la URL de un soporte y abrirla sin sesión funciona durante la vigencia de la firma (60 minutos) y falla después; la ruta directa del bucket sin firma devuelve 403.
 
 ### 4.6 Módulo: Obligaciones y recordatorios
 
-| ID | Requerimiento | Fase |
-|---|---|---|
-| RF-50 | Crear obligación con: proyecto, concepto, categoría, fecha de vencimiento, valor estimado, frecuencia, estado. | 2 |
-| RF-51 | Frecuencias: `unica`, `mensual`, `bimestral`, `trimestral`, `semestral`, `anual`, y personalizada cada N meses. | 2 |
-| RF-52 | Generación automática de las próximas ocurrencias (horizonte configurable, por defecto 12 meses). | 2 |
-| RF-53 | Notificar N días antes del vencimiento; N configurable por obligación (por defecto 5 y 1). | 4 |
-| RF-54 | Registrar el pago de una ocurrencia creando el movimiento asociado y precargando categoría, proyecto y valor. | 2 |
-| RF-55 | Estados de ocurrencia: `pendiente`, `pagada`, `vencida`, `omitida`. | 2 |
-| RF-56 | Marcar una ocurrencia como omitida sin afectar las siguientes. | 2 |
-| RF-57 | Suspender o reactivar una obligación recurrente. | 2 |
-| RF-58 | Vista de obligaciones vencidas y próximas a vencer (7, 30 y 90 días). | 2 |
+| ID    | Requerimiento                                                                                                   | Fase |
+| ----- | --------------------------------------------------------------------------------------------------------------- | ---- |
+| RF-50 | Crear obligación con: proyecto, concepto, categoría, fecha de vencimiento, valor estimado, frecuencia, estado.  | 2    |
+| RF-51 | Frecuencias: `unica`, `mensual`, `bimestral`, `trimestral`, `semestral`, `anual`, y personalizada cada N meses. | 2    |
+| RF-52 | Generación automática de las próximas ocurrencias (horizonte configurable, por defecto 12 meses).               | 2    |
+| RF-53 | Notificar N días antes del vencimiento; N configurable por obligación (por defecto 5 y 1).                      | 4    |
+| RF-54 | Registrar el pago de una ocurrencia creando el movimiento asociado y precargando categoría, proyecto y valor.   | 2    |
+| RF-55 | Estados de ocurrencia: `pendiente`, `pagada`, `vencida`, `omitida`.                                             | 2    |
+| RF-56 | Marcar una ocurrencia como omitida sin afectar las siguientes.                                                  | 2    |
+| RF-57 | Suspender o reactivar una obligación recurrente.                                                                | 2    |
+| RF-58 | Vista de obligaciones vencidas y próximas a vencer (7, 30 y 90 días).                                           | 2    |
 
 ### 4.7 Módulo: Calendario financiero
 
-| ID | Requerimiento | Fase |
-|---|---|---|
-| RF-60 | Vista mensual con todas las ocurrencias y movimientos pendientes en su fecha. | 3 |
-| RF-61 | Código de color por estado (pendiente, vencido, pagado) y por tipo (ingreso/egreso). | 3 |
-| RF-62 | Filtro por proyecto y por tipo de movimiento. | 3 |
-| RF-63 | Total comprometido del mes visible en el encabezado del calendario. | 3 |
-| RF-64 | Clic en un evento abre el registro de pago o el detalle del movimiento. | 3 |
+| ID    | Requerimiento                                                                        | Fase |
+| ----- | ------------------------------------------------------------------------------------ | ---- |
+| RF-60 | Vista mensual con todas las ocurrencias y movimientos pendientes en su fecha.        | 3    |
+| RF-61 | Código de color por estado (pendiente, vencido, pagado) y por tipo (ingreso/egreso). | 3    |
+| RF-62 | Filtro por proyecto y por tipo de movimiento.                                        | 3    |
+| RF-63 | Total comprometido del mes visible en el encabezado del calendario.                  | 3    |
+| RF-64 | Clic en un evento abre el registro de pago o el detalle del movimiento.              | 3    |
 
 ### 4.8 Módulo: Dashboard
 
-| ID | Requerimiento | Fase |
-|---|---|---|
-| RF-70 | Tarjetas globales: total invertido, total de ingresos, total de egresos, balance general. | 3 |
-| RF-71 | Flujo de caja mensual (ejecutado) de los últimos 12 meses. | 3 |
-| RF-72 | Flujo de caja proyectado de los próximos 12 meses a partir de obligaciones y recurrencias. | 4 |
-| RF-73 | Próximos pagos (30 días) y obligaciones vencidas. | 3 |
-| RF-74 | Rentabilidad por proyecto (solo proyectos con ingresos). | 3 |
-| RF-75 | Evolución de gastos en el tiempo. | 3 |
-| RF-76 | Distribución de gastos por categoría. | 3 |
-| RF-77 | Resumen por proyecto: invertido, ingresos, egresos, resultado, estado. | 3 |
-| RF-78 | Dashboard de patrimonio: activos (valoraciones), pasivos (saldos), patrimonio neto y retorno por proyecto. | 4 |
-| RF-79 | Selector de rango de fechas y de proyecto aplicable a todo el panel. | 3 |
+| ID    | Requerimiento                                                                                              | Fase |
+| ----- | ---------------------------------------------------------------------------------------------------------- | ---- |
+| RF-70 | Tarjetas globales: total invertido, total de ingresos, total de egresos, balance general.                  | 3    |
+| RF-71 | Flujo de caja mensual (ejecutado) de los últimos 12 meses.                                                 | 3    |
+| RF-72 | Flujo de caja proyectado de los próximos 12 meses a partir de obligaciones y recurrencias.                 | 4    |
+| RF-73 | Próximos pagos (30 días) y obligaciones vencidas.                                                          | 3    |
+| RF-74 | Rentabilidad por proyecto (solo proyectos con ingresos).                                                   | 3    |
+| RF-75 | Evolución de gastos en el tiempo.                                                                          | 3    |
+| RF-76 | Distribución de gastos por categoría.                                                                      | 3    |
+| RF-77 | Resumen por proyecto: invertido, ingresos, egresos, resultado, estado.                                     | 3    |
+| RF-78 | Dashboard de patrimonio: activos (valoraciones), pasivos (saldos), patrimonio neto y retorno por proyecto. | 4    |
+| RF-79 | Selector de rango de fechas y de proyecto aplicable a todo el panel.                                       | 3    |
 
 ### 4.9 Módulo: Presupuestos
 
-| ID | Requerimiento | Fase |
-|---|---|---|
-| RF-80 | Definir presupuesto por proyecto, categoría y período (mes o año). | 4 |
-| RF-81 | Comparativo planificado vs. real vs. desviación (valor y porcentaje). | 4 |
-| RF-82 | Alerta visual al superar el 80 % y el 100 % del presupuesto. | 4 |
-| RF-83 | Copiar el presupuesto de un período al siguiente. | 4 |
+| ID    | Requerimiento                                                         | Fase |
+| ----- | --------------------------------------------------------------------- | ---- |
+| RF-80 | Definir presupuesto por proyecto, categoría y período (mes o año).    | 4    |
+| RF-81 | Comparativo planificado vs. real vs. desviación (valor y porcentaje). | 4    |
+| RF-82 | Alerta visual al superar el 80 % y el 100 % del presupuesto.          | 4    |
+| RF-83 | Copiar el presupuesto de un período al siguiente.                     | 4    |
 
 ### 4.10 Módulo: Reportes
 
-| ID | Requerimiento | Fase |
-|---|---|---|
-| RF-90 | Reporte de movimientos filtrable por proyecto, rango de fechas, tipo, categoría y estado. | 3 |
-| RF-91 | Reporte de estado financiero por proyecto. | 3 |
-| RF-92 | Reporte de flujo de caja mensual. | 3 |
-| RF-93 | Reporte de obligaciones (vencidas, pendientes, pagadas). | 3 |
-| RF-94 | Exportación a Excel (.xlsx) conservando los filtros aplicados. | 3 |
-| RF-95 | Exportación a PDF con encabezado, filtros aplicados, totales y fecha de generación. | 3 |
+| ID    | Requerimiento                                                                             | Fase |
+| ----- | ----------------------------------------------------------------------------------------- | ---- |
+| RF-90 | Reporte de movimientos filtrable por proyecto, rango de fechas, tipo, categoría y estado. | 3    |
+| RF-91 | Reporte de estado financiero por proyecto.                                                | 3    |
+| RF-92 | Reporte de flujo de caja mensual.                                                         | 3    |
+| RF-93 | Reporte de obligaciones (vencidas, pendientes, pagadas).                                  | 3    |
+| RF-94 | Exportación a Excel (.xlsx) conservando los filtros aplicados.                            | 3    |
+| RF-95 | Exportación a PDF con encabezado, filtros aplicados, totales y fecha de generación.       | 3    |
 
 ### 4.11 Módulo: Configuración
 
-| ID | Requerimiento | Fase |
-|---|---|---|
-| RF-100 | Administrar tipos de proyecto propios, categorías y métodos de pago. | 3 |
-| RF-101 | Preferencias: moneda, formato de fecha, tema claro/oscuro/sistema, horizonte de proyección. | 1 |
+| ID     | Requerimiento                                                                               | Fase |
+| ------ | ------------------------------------------------------------------------------------------- | ---- |
+| RF-100 | Administrar tipos de proyecto propios, categorías y métodos de pago.                        | 3    |
+| RF-101 | Preferencias: moneda, formato de fecha, tema claro/oscuro/sistema, horizonte de proyección. | 1    |
+
+**Dónde vive cada preferencia de RF-101:** moneda y zona horaria son columnas de
+`ajustes` porque el dominio las necesita para calcular ([§8.5](#85-fechas)); formato
+de fecha y horizonte de proyección van en `ajustes.preferencias` (JSONB), porque son
+preferencias de presentación y agregar una más no debe costar una migración. El tema
+no se persiste en la base: vive en el navegador vía `next-themes`, que es lo que
+evita el parpadeo del tema equivocado en la primera pintura. El horizonte alimenta
+`generar_ocurrencias(p_horizonte_meses)` ([§5.6](#56-recurrencias), [§10.1](#101-tareas-vercel-cron)).
 | RF-102 | Canales de notificación y días de anticipación por defecto. | 4 |
 | RF-103 | Exportación completa de los datos en JSON. | 5 |
 
@@ -331,15 +346,15 @@ costo_mensual    = total_egresos / meses_desde_inicio
 
 ### 5.4 Visibilidad de indicadores por tipo
 
-| Indicador | Inmueble | Vehículo | Negocio | Inversión | Otro |
-|---|---|---|---|---|---|
-| Total invertido | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Total ingresos | ✅ | — | ✅ | ✅ | opcional |
-| Flujo de caja | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Yield / Cap rate | ✅ | — | — | ✅ | — |
-| ROI / Payback | ✅ | — | ✅ | ✅ | opcional |
-| TCO / costo mensual | opcional | ✅ | opcional | — | opcional |
-| Plusvalía | ✅ | ✅ (depreciación) | — | ✅ | opcional |
+| Indicador           | Inmueble | Vehículo          | Negocio  | Inversión | Otro     |
+| ------------------- | -------- | ----------------- | -------- | --------- | -------- |
+| Total invertido     | ✅       | ✅                | ✅       | ✅        | ✅       |
+| Total ingresos      | ✅       | —                 | ✅       | ✅        | opcional |
+| Flujo de caja       | ✅       | ✅                | ✅       | ✅        | ✅       |
+| Yield / Cap rate    | ✅       | —                 | —        | ✅        | —        |
+| ROI / Payback       | ✅       | —                 | ✅       | ✅        | opcional |
+| TCO / costo mensual | opcional | ✅                | opcional | —         | opcional |
+| Plusvalía           | ✅       | ✅ (depreciación) | —        | ✅        | opcional |
 
 La visibilidad se resuelve por configuración del tipo de proyecto, no con condicionales dispersos en la interfaz.
 
@@ -729,7 +744,7 @@ alter default privileges in schema public revoke all on tables from anon, authen
 
 Dos detalles que se rompen en silencio y por eso están cubiertos por pruebas:
 
-- **`alter default privileges ... in schema public revoke execute on functions from public` no hace nada.** El `EXECUTE` a `PUBLIC` sobre funciones es un valor por omisión *global* de PostgreSQL; solo la variante sin `in schema` lo revoca. La acotada se ejecuta sin error y deja la puerta abierta.
+- **`alter default privileges ... in schema public revoke execute on functions from public` no hace nada.** El `EXECUTE` a `PUBLIC` sobre funciones es un valor por omisión _global_ de PostgreSQL; solo la variante sin `in schema` lo revoca. La acotada se ejecuta sin error y deja la puerta abierta.
 - **`anon` sigue teniendo `USAGE` sobre el esquema** aunque se le revoque, porque PostgreSQL también se lo concede al pseudo-rol `PUBLIC`, del que todo rol hereda. No se revoca de `PUBLIC` porque rompería el panel de Supabase, y no hace falta: `USAGE` sobre el esquema no concede nada sobre los objetos que contiene.
 
 Lo que hay que vigilar tras cada migración es que no aparezcan permisos nuevos: `npm run db:inspect` lo comprueba y falla si los encuentra.
@@ -757,6 +772,7 @@ Lo que hay que vigilar tras cada migración es que no aparezcan permisos nuevos:
 - Carpeta `supabase/migrations/`, archivos `YYYYMMDDHHMMSS_descripcion.sql`, versionados y aplicados con Supabase CLI.
 - Nunca se edita una migración ya aplicada: se crea una nueva. **Única excepción admitida hasta ahora:** el paso a monousuario ([ADR-14](#16-decisiones-técnicas-adr)) reescribió el juego completo de migraciones en lugar de encadenar cuatro migraciones de deshacer. Se hizo porque la base no tenía ningún dato, las migraciones originales llevaban horas aplicadas y el esquema anterior queda en el historial de git. La regla vuelve a estar en vigor: de aquí en adelante, migración nueva.
 - Datos semilla (ajustes, tipos de proyecto, categorías del sistema y métodos de pago) en `supabase/seed.sql`, idempotentes.
+- **Corregir un texto ya sembrado exige migración, no editar el seed.** El seed inserta con `on conflict do nothing` / `do update` sobre `(tipo_proyecto_id, padre_id, nombre)`: cambiar un `nombre` allí no renombra la fila existente, la duplica. Así se hizo con `20260730130000_acentos_del_catalogo.sql`, que puso las tildes que faltaban en el catálogo (RNF-13) con `set local app.sembrando = 'on'` —única vía legítima para escribir sobre las filas del sistema ([§6.6](#66-triggers))— y además se actualizó el seed para que una instalación nueva nazca correcta.
 - **`supabase db push --include-seed` no reejecuta una semilla cuyo hash ya conoce:** informa «hash update» y sigue, dejando un esquema recién creado y vacío sin ningún error a la vista. Por eso `scripts/reiniciar-base.mjs` borra también `supabase_migrations.seed_files`.
 - Los tipos TypeScript de `src/shared/infrastructure/supabase/database.types.ts` están escritos a mano, pero **verificados**: `npm run db:verify-types` contrasta cada columna y su nulabilidad contra la base real. Ejecutarlo después de cada migración.
 
@@ -854,30 +870,32 @@ src/
 - Los métodos de pago viven en su propio módulo (`metodos-pago/`) aunque comparten pantalla de configuración con las categorías: son dos catálogos con ciclos de vida distintos.
 - Las reglas de frontera de §7.1 están codificadas como reglas `no-restricted-imports` en `eslint.config.mjs`: violarlas rompe el lint, no solo la convención.
 - Los componentes de `shared/ui` provienen de shadcn/ui sobre **Base UI**, que compone con la prop `render` en lugar de `asChild`. Para enlaces con apariencia de botón se usa el helper `EnlaceBoton`.
+- **`metodos-pago/` tiene las cuatro capas, aunque comparta pantalla con las categorías.** Nació con solo `domain/` e `infrastructure/`, y la consecuencia fue que las Server Actions llamaban al repositorio y la regla «no eliminar un método en uso» vivía en la acción, justo donde §7.4 dice que no debe estar. Es el ejemplo de por qué la frontera se codifica en el lint y no en la costumbre.
+- **El contenedor expone casos de uso, nunca repositorios ni el cliente de Supabase.** Alcanzar `contenedor.<modulo>.repositorio` desde una página salta la capa de aplicación sin que ningún `import` lo delate; por eso hay además una regla `no-restricted-syntax` que lo prohíbe.
 - Hay un solo cliente de Supabase (`cliente-servidor.ts`) y usa `service_role`. Lleva `import "server-only"`, así que si un componente con `"use client"` lo importara, **la compilación falla** en vez de enviar la clave al navegador. Ya no existen `cliente-navegador.ts` ni `admin.ts`: sin clave anónima no hay cliente de navegador, y el administrativo dejó de ser un caso especial.
 - `acceso/domain/sesion-firmada.ts` **no importa nada**, a propósito: solo usa Web Crypto y globales de codificación. Así el middleware —que corre en Edge y no puede cargar `node:crypto`— reutiliza exactamente la misma verificación que el servidor, sin riesgo de que dos implementaciones divergan.
 
 ### 7.3 Puertos definidos
 
-| Puerto | Responsabilidad | Adaptador v1 |
-|---|---|---|
-| `ProyectoRepository` | Persistencia de proyectos | Supabase (PostgREST) |
-| `MovimientoRepository` | Persistencia y consulta filtrada de movimientos | Supabase |
-| `CategoriaRepository` | Catálogo de categorías | Supabase |
-| `ObligacionRepository` | Obligaciones y ocurrencias | Supabase |
-| `DocumentoRepository` | Metadatos de soportes | Supabase |
-| `PresupuestoRepository` | Presupuestos por período | Supabase |
-| `PasivoRepository` / `ValoracionRepository` | Patrimonio | Supabase |
-| `AlmacenamientoArchivos` | Subir, firmar URL, eliminar | Supabase Storage |
-| `NotificadorEmail` | Envío de correo | Resend |
-| `NotificadorWhatsApp` | Envío de WhatsApp | pendiente (fase 5) |
-| `GeneradorExcel` | Exportación .xlsx | ExcelJS |
-| `GeneradorPdf` | Exportación .pdf | @react-pdf/renderer |
-| `Reloj` | Fecha/hora actual (testeable) | implementación del sistema |
-| `ServicioAuditoria` | Registro de cambios | Supabase (triggers + repositorio) |
-| `CredencialAcceso` | Token y secreto de sesión configurados | variables de entorno |
-| `AlmacenSesion` | Leer, escribir y borrar la sesión del navegador | cookie `httpOnly` de Next |
-| `AjustesRepository` | Moneda y zona horaria de la instalación | Supabase (fila única) |
+| Puerto                                      | Responsabilidad                                 | Adaptador v1                      |
+| ------------------------------------------- | ----------------------------------------------- | --------------------------------- |
+| `ProyectoRepository`                        | Persistencia de proyectos                       | Supabase (PostgREST)              |
+| `MovimientoRepository`                      | Persistencia y consulta filtrada de movimientos | Supabase                          |
+| `CategoriaRepository`                       | Catálogo de categorías                          | Supabase                          |
+| `ObligacionRepository`                      | Obligaciones y ocurrencias                      | Supabase                          |
+| `DocumentoRepository`                       | Metadatos de soportes                           | Supabase                          |
+| `PresupuestoRepository`                     | Presupuestos por período                        | Supabase                          |
+| `PasivoRepository` / `ValoracionRepository` | Patrimonio                                      | Supabase                          |
+| `AlmacenamientoArchivos`                    | Subir, firmar URL, eliminar                     | Supabase Storage                  |
+| `NotificadorEmail`                          | Envío de correo                                 | Resend                            |
+| `NotificadorWhatsApp`                       | Envío de WhatsApp                               | pendiente (fase 5)                |
+| `GeneradorExcel`                            | Exportación .xlsx                               | ExcelJS                           |
+| `GeneradorPdf`                              | Exportación .pdf                                | @react-pdf/renderer               |
+| `Reloj`                                     | Fecha/hora actual (testeable)                   | implementación del sistema        |
+| `ServicioAuditoria`                         | Registro de cambios                             | Supabase (triggers + repositorio) |
+| `CredencialAcceso`                          | Token y secreto de sesión configurados          | variables de entorno              |
+| `AlmacenSesion`                             | Leer, escribir y borrar la sesión del navegador | cookie `httpOnly` de Next         |
+| `AjustesRepository`                         | Moneda y zona horaria de la instalación         | Supabase (fila única)             |
 
 ### 7.4 Anatomía de un caso de uso
 
@@ -901,7 +919,12 @@ export class RegistrarMovimiento {
     const categoria = await this.categorias.buscarPorId(input.categoriaId);
     if (!categoria) throw new CategoriaNoEncontrada(input.categoriaId);
 
-    const movimiento = Movimiento.crear({ ...input, categoria, moneda: proyecto.moneda, ahora: this.reloj.ahora() });
+    const movimiento = Movimiento.crear({
+      ...input,
+      categoria,
+      moneda: proyecto.moneda,
+      ahora: this.reloj.ahora(),
+    });
     return this.movimientos.guardar(movimiento);
   }
 }
@@ -935,26 +958,38 @@ Formulario (React Hook Form + Zod)
 
 ### 8.1 Stack
 
-| Capa | Tecnología |
-|---|---|
-| Framework | Next.js 15 (App Router, React 19) |
-| Lenguaje | TypeScript en modo `strict` |
-| Estilos | Tailwind CSS |
-| Componentes | shadcn/ui + Radix |
-| Formularios | React Hook Form |
-| Validación | Zod (compartida cliente/servidor) |
-| Estado de servidor | TanStack Query |
-| Gráficas | Recharts |
-| Tablas | TanStack Table |
-| Fechas | date-fns (locale `es`) |
-| Base de datos | Supabase (PostgreSQL) |
-| Archivos | Supabase Storage |
-| Acceso | Token en variable de entorno + cookie firmada con HMAC-SHA256 (Web Crypto) |
-| Correo | Resend |
-| Excel / PDF | ExcelJS / @react-pdf/renderer |
-| Pruebas | Vitest + Testing Library + Playwright |
-| Calidad | ESLint, Prettier, Husky, lint-staged |
-| Despliegue | Vercel (app) + Supabase (datos y archivos) |
+| Capa               | Tecnología                                                                                    |
+| ------------------ | --------------------------------------------------------------------------------------------- |
+| Framework          | Next.js 15 (App Router, React 19)                                                             |
+| Lenguaje           | TypeScript en modo `strict`                                                                   |
+| Estilos            | Tailwind CSS 4                                                                                |
+| Componentes        | shadcn/ui sobre **Base UI** (`@base-ui/react`), no Radix ([§7.2](#72-estructura-de-carpetas)) |
+| Formularios        | React Hook Form                                                                               |
+| Validación         | Zod (compartida cliente/servidor)                                                             |
+| Estado de servidor | TanStack Query                                                                                |
+| Gráficas           | **Capa propia en `shared/ui/viz/`** (SVG + CSS), sin Recharts                                 |
+| Tablas             | TanStack Table                                                                                |
+| Fechas             | date-fns (locale `es`)                                                                        |
+| Base de datos      | Supabase (PostgreSQL)                                                                         |
+| Archivos           | Supabase Storage                                                                              |
+| Acceso             | Token en variable de entorno + cookie firmada con HMAC-SHA256 (Web Crypto)                    |
+| Correo             | Resend                                                                                        |
+| Excel / PDF        | ExcelJS / @react-pdf/renderer                                                                 |
+| Pruebas            | Vitest + Testing Library + Playwright                                                         |
+| Calidad            | ESLint, Prettier, Husky, lint-staged                                                          |
+| Despliegue         | Vercel (app) + Supabase (datos y archivos)                                                    |
+
+**Por qué Base UI y no Radix:** shadcn/ui migró a Base UI, que compone con la prop
+`render` en lugar de `asChild`. La consecuencia práctica está anotada en
+[§7.2](#72-estructura-de-carpetas): para enlaces con apariencia de botón se usa el
+helper `EnlaceBoton`, y los `Select` no son `<select>` nativos, lo que cambia cómo
+se los localiza en las pruebas.
+
+**Por qué una capa de gráficas propia:** las visualizaciones de v1 son medidores,
+barras y una serie de flujo. Recharts añade ~90 kB de JavaScript de cliente para
+eso, y obliga a marcar como `"use client"` páginas que hoy son Server Components.
+`shared/ui/viz/` las dibuja con SVG y CSS desde el servidor. Si aparece una gráfica
+genuinamente interactiva (zoom, tooltip con cruz, pincel de rango), se reevalúa.
 
 ### 8.2 Restricciones tecnológicas
 
@@ -965,17 +1000,17 @@ Formulario (React Hook Form + Zod)
 
 ### 8.3 Nomenclatura
 
-| Elemento | Convención | Ejemplo |
-|---|---|---|
-| Carpetas y archivos | `kebab-case` | `registrar-movimiento.use-case.ts` |
-| Componentes React | `PascalCase` | `TarjetaResumenProyecto.tsx` |
-| Clases y tipos | `PascalCase` | `MovimientoRepository` |
-| Funciones y variables | `camelCase` | `calcularFlujoMensual` |
-| Constantes | `SCREAMING_SNAKE_CASE` | `HORIZONTE_PROYECCION_MESES` |
-| Tablas y columnas SQL | `snake_case` en español | `ocurrencias_obligacion` |
-| Rutas | español, `kebab-case` | `/proyectos/[id]/obligaciones` |
-| Casos de uso | verbo infinitivo + sufijo | `ArchivarProyecto` |
-| Server Actions | verbo + `Action` | `registrarMovimientoAction` |
+| Elemento              | Convención                | Ejemplo                            |
+| --------------------- | ------------------------- | ---------------------------------- |
+| Carpetas y archivos   | `kebab-case`              | `registrar-movimiento.use-case.ts` |
+| Componentes React     | `PascalCase`              | `TarjetaResumenProyecto.tsx`       |
+| Clases y tipos        | `PascalCase`              | `MovimientoRepository`             |
+| Funciones y variables | `camelCase`               | `calcularFlujoMensual`             |
+| Constantes            | `SCREAMING_SNAKE_CASE`    | `HORIZONTE_PROYECCION_MESES`       |
+| Tablas y columnas SQL | `snake_case` en español   | `ocurrencias_obligacion`           |
+| Rutas                 | español, `kebab-case`     | `/proyectos/[id]/obligaciones`     |
+| Casos de uso          | verbo infinitivo + sufijo | `ArchivarProyecto`                 |
+| Server Actions        | verbo + `Action`          | `registrarMovimientoAction`        |
 
 Sufijos obligatorios: `.entity.ts`, `.repository.ts` (puerto), `.use-case.ts`, `.mapper.ts`, `.schemas.ts`, `.dto.ts`.
 
@@ -1005,13 +1040,13 @@ Sufijos obligatorios: `.entity.ts`, `.repository.ts` (puerto), `.use-case.ts`, `
 
 ### 8.8 Pruebas
 
-| Nivel | Alcance | Cobertura objetivo |
-|---|---|---|
-| Unitarias | Entidades, value objects, cálculos de [§5](#5-reglas-de-negocio-y-fórmulas), recurrencias | ≥ 90 % en `domain/` |
-| Casos de uso | Con repositorios en memoria | todos los casos de uso |
-| Esquema | Migraciones y seed reales contra PostgreSQL embebido (PGlite): restricciones, triggers, vistas, recurrencias, Storage y blindaje de permisos | esquema completo |
-| Humo remoto | Las comprobaciones críticas contra el Supabase real (`npm run db:smoke`) | cifras, invariantes, blindaje |
-| E2E (Playwright) | Los dos escenarios de [§3](#3-escenarios-de-referencia) de punta a punta | flujos críticos |
+| Nivel            | Alcance                                                                                                                                      | Cobertura objetivo            |
+| ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------- |
+| Unitarias        | Entidades, value objects, cálculos de [§5](#5-reglas-de-negocio-y-fórmulas), recurrencias                                                    | ≥ 90 % en `domain/`           |
+| Casos de uso     | Con repositorios en memoria                                                                                                                  | todos los casos de uso        |
+| Esquema          | Migraciones y seed reales contra PostgreSQL embebido (PGlite): restricciones, triggers, vistas, recurrencias, Storage y blindaje de permisos | esquema completo              |
+| Humo remoto      | Las comprobaciones críticas contra el Supabase real (`npm run db:smoke`)                                                                     | cifras, invariantes, blindaje |
+| E2E (Playwright) | Los dos escenarios de [§3](#3-escenarios-de-referencia) de punta a punta                                                                     | flujos críticos               |
 
 **Pruebas de seguridad obligatorias**, en lugar de las de aislamiento entre usuarios que ya no aplican:
 
@@ -1025,6 +1060,30 @@ Sufijos obligatorios: `.entity.ts`, `.repository.ts` (puerto), `.use-case.ts`, `
 El harness **concede a los roles públicos los permisos que Supabase les da por omisión** antes de aplicar las migraciones. Sin eso, las pruebas de blindaje pasarían por ausencia de permisos en lugar de por haberlos quitado, que no es lo mismo.
 
 **Lo que PGlite no cubre:** todo lo que vive fuera del esquema `public` en el Supabase real — los triggers de `storage`, el historial de migraciones de la CLI, el pooler. Por eso existe `npm run db:smoke`. La experiencia manda: el bug del borrado en cascada del esquema anterior solo apareció allí.
+
+**Nivel E2E (`tests/e2e/`):** Playwright contra el proyecto Supabase de desarrollo
+([§15.4](#154-entornos)), porque sin Docker no hay base local. De ahí tres decisiones:
+
+- **Los E2E crean sus propios proyectos con el prefijo `[e2e]`** y un
+  `globalTeardown` los borra por SQL al terminar. Nunca tocan datos reales. Se borran
+  por SQL y no por la interfaz porque RF-18 impide eliminar un proyecto con
+  movimientos y anular no borra la fila: por diseño el sistema no ofrece un camino de
+  borrado total, y hace bien ([ADR-12](#16-decisiones-técnicas-adr)).
+- **Sin paralelismo** (`workers: 1`): comparten una sola base y en paralelo se
+  pisarían los totales que verifican.
+- **Un proyecto de navegador a 375 px** que comprueba RNF-01 en las rutas del shell.
+
+Los `Select` son de Base UI, no `<select>` nativos: el disparador es un `combobox` y
+las opciones se montan en un `listbox` flotante fuera del contenedor. Los helpers de
+`tests/e2e/utils/acciones.ts` encapsulan eso y el hecho de que los campos
+obligatorios llevan un asterisco dentro del `<label>`, así que el nombre accesible es
+«Valor \*» y no «Valor».
+
+**Lo que estos E2E ya encontraron**, para que conste por qué valen su coste: el
+formulario de movimientos guardaba `estado` fuera de React Hook Form, de modo que el
+resolver validaba siempre «pagado» y era **imposible registrar un movimiento
+pendiente**; la tarjeta de proyecto estiraba la página a lo ancho con nombres largos
+(RNF-01); y el catálogo del sistema estaba sembrado sin tildes (RNF-13).
 
 ### 8.9 Git
 
@@ -1049,10 +1108,10 @@ El harness **concede a los roles públicos los permisos que Supabase les da por 
 
 Dos superficies, ninguna cubre a la otra:
 
-| Superficie | Quién la protege |
-|---|---|
-| Navegaciones (`GET` de páginas) | `middleware.ts`, en el runtime Edge |
-| Server Actions (`POST`) | `contenedorPrivado()` en `di/container.ts` |
+| Superficie                      | Quién la protege                           |
+| ------------------------------- | ------------------------------------------ |
+| Navegaciones (`GET` de páginas) | `middleware.ts`, en el runtime Edge        |
+| Server Actions (`POST`)         | `contenedorPrivado()` en `di/container.ts` |
 
 El shell privado (`(privado)/layout.tsx`) vuelve a comprobar antes de renderizar. Es baratísimo y evita que un fallo de configuración del matcher del middleware exponga datos.
 
@@ -1084,12 +1143,12 @@ Lo que sigue protegido pase lo que pase, incluso con el token comprometido: nada
 
 ### 10.1 Tareas (Vercel Cron)
 
-| Tarea | Frecuencia | Endpoint | Responsabilidad |
-|---|---|---|---|
-| Generar ocurrencias | diaria 05:00 COT | `/api/cron/obligaciones` | Materializar ocurrencias faltantes en el horizonte de 12 meses. |
-| Actualizar vencidos | diaria 05:10 COT | `/api/cron/estados` | Pasar a `vencido` movimientos y ocurrencias `pendiente` con vencimiento anterior a hoy. |
-| Programar avisos | diaria 05:20 COT | `/api/cron/notificaciones` | Crear notificaciones según `dias_aviso`. |
-| Enviar notificaciones | cada hora | `/api/cron/notificaciones?enviar=1` | Enviar pendientes, marcar enviadas, reintentar fallidas (máx. 3). |
+| Tarea                 | Frecuencia       | Endpoint                            | Responsabilidad                                                                         |
+| --------------------- | ---------------- | ----------------------------------- | --------------------------------------------------------------------------------------- |
+| Generar ocurrencias   | diaria 05:00 COT | `/api/cron/obligaciones`            | Materializar ocurrencias faltantes en el horizonte de 12 meses.                         |
+| Actualizar vencidos   | diaria 05:10 COT | `/api/cron/estados`                 | Pasar a `vencido` movimientos y ocurrencias `pendiente` con vencimiento anterior a hoy. |
+| Programar avisos      | diaria 05:20 COT | `/api/cron/notificaciones`          | Crear notificaciones según `dias_aviso`.                                                |
+| Enviar notificaciones | cada hora        | `/api/cron/notificaciones?enviar=1` | Enviar pendientes, marcar enviadas, reintentar fallidas (máx. 3).                       |
 
 Todas las tareas son **idempotentes**: ejecutarlas dos veces el mismo día no duplica ocurrencias ni correos (garantizado por los índices únicos de [§6.3](#63-esquema)).
 
@@ -1118,23 +1177,23 @@ Resumen semanal (lunes), aviso individual N días antes, y aviso de obligación 
 
 ## 12. Requerimientos no funcionales
 
-| ID | Requerimiento | Verificación |
-|---|---|---|
-| RNF-01 | Diseño responsive en escritorio, tablet y móvil. | Sin scroll horizontal a 375 px; tablas colapsan a tarjetas. |
-| RNF-02 | Interfaz moderna e intuitiva, consistente con shadcn/ui. | Un usuario nuevo registra un movimiento sin instrucciones. |
-| RNF-03 | Modo claro y oscuro con preferencia persistida. | Ambos temas legibles en todas las vistas y gráficas. |
-| RNF-04 | Accesibilidad: navegación por teclado, foco visible, contraste AA, etiquetas en formularios. | Auditoría axe sin errores críticos. |
-| RNF-05 | Rendimiento: LCP < 2,5 s y TTI < 3 s en 4G. | Lighthouse ≥ 90 en rendimiento. |
-| RNF-06 | Listados de 5.000 movimientos con filtros en menos de 1 s. | Paginación en servidor e índices de [§6.3](#63-esquema). |
-| RNF-07 | Validación en cliente y servidor con esquema único. | Deshabilitar JavaScript no permite datos inválidos. |
-| RNF-08 | Auditoría de creación y modificación de todos los registros. | `registro_auditoria` con actor y diferencias. |
-| RNF-09 | Búsquedas rápidas y filtros avanzados combinables. | Filtros persistidos en la URL (compartibles). |
-| RNF-10 | Escalabilidad: nuevos tipos de proyecto sin tocar la lógica existente. | Checklist de [§13](#13-extensibilidad-agregar-un-tipo-de-proyecto) sin migraciones. |
-| RNF-11 | La base no expone nada a los roles públicos de Supabase, ni hoy ni tras la próxima migración. | Pruebas de blindaje de [§8.8](#88-pruebas) y `npm run db:inspect`. |
-| RNF-12 | Estados vacíos, de carga y de error en cada vista. | Skeletons y mensajes con acción sugerida. |
-| RNF-13 | Idioma español (es-CO) en toda la interfaz, incluidos errores y exportaciones. | Sin cadenas en inglés visibles. |
-| RNF-14 | Cero errores de tipos y de lint en `main`. | CI bloqueante. |
-| RNF-15 | Respaldo diario de la base y recuperación puntual. | Backups de Supabase habilitados. |
+| ID     | Requerimiento                                                                                 | Verificación                                                                                                                                                                                                         |
+| ------ | --------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| RNF-01 | Diseño responsive en escritorio, tablet y móvil.                                              | Sin scroll horizontal a 375 px; tablas colapsan a tarjetas.                                                                                                                                                          |
+| RNF-02 | Interfaz moderna e intuitiva, consistente con shadcn/ui.                                      | Un usuario nuevo registra un movimiento sin instrucciones.                                                                                                                                                           |
+| RNF-03 | Modo claro y oscuro con preferencia persistida.                                               | Ambos temas legibles en todas las vistas y gráficas.                                                                                                                                                                 |
+| RNF-04 | Accesibilidad: navegación por teclado, foco visible, contraste AA, etiquetas en formularios.  | Auditoría axe sin errores críticos.                                                                                                                                                                                  |
+| RNF-05 | Rendimiento: LCP < 2,5 s y TTI < 3 s en 4G.                                                   | Lighthouse ≥ 90 en rendimiento.                                                                                                                                                                                      |
+| RNF-06 | Listados de 5.000 movimientos con filtros en menos de 1 s.                                    | Paginación en servidor e índices de [§6.3](#63-esquema).                                                                                                                                                             |
+| RNF-07 | Validación en cliente y servidor con esquema único.                                           | Deshabilitar JavaScript no permite datos inválidos.                                                                                                                                                                  |
+| RNF-08 | Auditoría de creación y modificación de todos los registros.                                  | `registro_auditoria` con entidad, acción y diferencias. **Sin actor:** hay un solo operador, así que la pregunta que responde es «qué cambió y cuándo» ([§6.3](#63-esquema), [ADR-14](#16-decisiones-técnicas-adr)). |
+| RNF-09 | Búsquedas rápidas y filtros avanzados combinables.                                            | Filtros persistidos en la URL (compartibles).                                                                                                                                                                        |
+| RNF-10 | Escalabilidad: nuevos tipos de proyecto sin tocar la lógica existente.                        | Checklist de [§13](#13-extensibilidad-agregar-un-tipo-de-proyecto) sin migraciones.                                                                                                                                  |
+| RNF-11 | La base no expone nada a los roles públicos de Supabase, ni hoy ni tras la próxima migración. | Pruebas de blindaje de [§8.8](#88-pruebas) y `npm run db:inspect`.                                                                                                                                                   |
+| RNF-12 | Estados vacíos, de carga y de error en cada vista.                                            | Skeletons y mensajes con acción sugerida.                                                                                                                                                                            |
+| RNF-13 | Idioma español (es-CO) en toda la interfaz, incluidos errores y exportaciones.                | Sin cadenas en inglés visibles.                                                                                                                                                                                      |
+| RNF-14 | Cero errores de tipos y de lint en `main`.                                                    | CI bloqueante.                                                                                                                                                                                                       |
+| RNF-15 | Respaldo diario de la base y recuperación puntual.                                            | Backups de Supabase habilitados.                                                                                                                                                                                     |
 
 ---
 
@@ -1147,13 +1206,26 @@ Mecanismo: `tipos_proyecto.configuracion` (JSONB) declara los atributos propios 
 ```json
 {
   "atributos": [
-    { "clave": "placa",     "etiqueta": "Placa",     "tipo": "text",   "requerido": true },
-    { "clave": "marca",     "etiqueta": "Marca",     "tipo": "text",   "requerido": true },
-    { "clave": "modelo",    "etiqueta": "Modelo",    "tipo": "number", "requerido": false },
-    { "clave": "cilindraje","etiqueta": "Cilindraje","tipo": "number",  "requerido": false }
+    { "clave": "placa", "etiqueta": "Placa", "tipo": "text", "requerido": true },
+    { "clave": "marca", "etiqueta": "Marca", "tipo": "text", "requerido": true },
+    { "clave": "modelo", "etiqueta": "Modelo", "tipo": "number", "requerido": false },
+    { "clave": "cilindraje", "etiqueta": "Cilindraje", "tipo": "number", "requerido": false }
   ],
-  "indicadores": ["total_invertido", "total_egresos", "tco", "costo_mensual", "proximas_obligaciones"],
-  "categorias_sugeridas": ["compra", "matricula", "accesorios", "mantenimiento", "soat", "impuesto_vehicular"],
+  "indicadores": [
+    "total_invertido",
+    "total_egresos",
+    "tco",
+    "costo_mensual",
+    "proximas_obligaciones"
+  ],
+  "categorias_sugeridas": [
+    "compra",
+    "matricula",
+    "accesorios",
+    "mantenimiento",
+    "soat",
+    "impuesto_vehicular"
+  ],
   "genera_ingresos": false,
   "se_valoriza": true
 }
@@ -1163,8 +1235,9 @@ Mecanismo: `tipos_proyecto.configuracion` (JSONB) declara los atributos propios 
 
 1. Insertar el registro en `tipos_proyecto` con su `configuracion` (semilla o pantalla de configuración).
 2. Sembrar sus categorías en `categorias` con la naturaleza correcta.
-3. Verificar que los indicadores declarados existan en el registro de indicadores del dominio.
-4. Sin cambios en esquema, casos de uso ni componentes: el formulario dinámico y el panel de indicadores lo resuelven.
+3. Verificar que los indicadores declarados existan en el registro de indicadores del dominio: el catálogo `CATALOGO` de `panel-indicadores.tsx`. Una clave que no esté allí no rompe nada, simplemente no se dibuja, y ese silencio es peor que un error.
+4. Escribir las etiquetas de los atributos **con tildes**: son texto de interfaz (RNF-13). Las `clave` sí van sin acentos ni espacios, porque son identificadores.
+5. Sin cambios en esquema, casos de uso ni componentes: el formulario dinámico y el panel de indicadores lo resuelven.
 
 Si un tipo requiere un cálculo genuinamente nuevo (por ejemplo TIR para fondos de inversión), se agrega un indicador al registro de dominio y se declara en la configuración: extensión, no modificación.
 
@@ -1183,6 +1256,16 @@ Cada fase termina desplegada en Vercel y usable. No se inicia una fase sin cerra
 - Despliegue en Vercel con variables de entorno y pipeline de CI.
 
 **Entregable:** aplicación vacía desplegada, con CI verde y migraciones aplicadas.
+
+**Verificación del cierre de Fase 0**, porque «tener las herramientas» y «tenerlas
+puestas» no es lo mismo y aquí se dieron por cerradas antes de estarlo:
+
+| Entregable             | Cómo se comprueba                                                                                  |
+| ---------------------- | -------------------------------------------------------------------------------------------------- |
+| Ganchos de git         | `.husky/pre-commit` y `.husky/pre-push` existen y `lint-staged` está configurado en `package.json` |
+| Playwright             | `playwright.config.ts` y `tests/e2e/`; `npm run test:e2e` pasa                                     |
+| CI bloqueante (RNF-14) | `.github/workflows/ci.yml` corre typecheck, lint, `format:check`, pruebas y build en cada PR       |
+| Migraciones aplicadas  | `npm run db:inspect` y `npm run db:verify-types`                                                   |
 
 ### Fase 1 — Núcleo transaccional (MVP)
 
@@ -1278,51 +1361,63 @@ Sin Docker: las migraciones se aplican contra el proyecto Supabase en la nube.
 
 ### 15.3 Scripts
 
-| Script | Acción |
-|---|---|
-| `dev` | Servidor de desarrollo |
-| `build` / `start` | Compilación y ejecución de producción |
-| `lint` / `format` | ESLint / Prettier |
-| `typecheck` | `tsc --noEmit` |
-| `test` / `test:e2e` | Vitest / Playwright |
-| `verify` | typecheck + lint + pruebas (lo que debe pasar antes de subir) |
-| `db:push` / `db:seed` | Migraciones y semillas |
-| `db:reset` | Borra el esquema y lo reconstruye desde cero (se niega si hay datos) |
-| `db:inspect` | Tablas, RLS, vistas, triggers, semillas y **blindaje de permisos** |
-| `db:verify-types` | Contrasta `database.types.ts` con el esquema real; falla si difieren |
-| `db:smoke` | Prueba end-to-end contra la base remota; se niega a correr si hay datos |
+| Script                     | Acción                                                                  |
+| -------------------------- | ----------------------------------------------------------------------- |
+| `dev`                      | Servidor de desarrollo                                                  |
+| `build` / `start`          | Compilación y ejecución de producción                                   |
+| `lint` / `lint:fix`        | ESLint (incluye las reglas de frontera de [§7.1](#71-principios))       |
+| `format` / `format:check`  | Prettier                                                                |
+| `typecheck`                | `tsc --noEmit`                                                          |
+| `test` / `test:watch`      | Vitest: unitarias, casos de uso y esquema en PGlite                     |
+| `test:e2e` / `test:e2e:ui` | Playwright: los escenarios de [§3](#3-escenarios-de-referencia)         |
+| `verify`                   | typecheck + lint + pruebas (lo que debe pasar antes de subir)           |
+| `db:push` / `db:seed`      | Migraciones y semillas                                                  |
+| `db:reset`                 | Borra el esquema y lo reconstruye desde cero (se niega si hay datos)    |
+| `db:inspect`               | Tablas, RLS, vistas, triggers, semillas y **blindaje de permisos**      |
+| `db:verify-types`          | Contrasta `database.types.ts` con el esquema real; falla si difieren    |
+| `db:smoke`                 | Prueba end-to-end contra la base remota; se niega a correr si hay datos |
 
 Los scripts de base leen `SUPABASE_DB_URL` con `node --env-file=.env`, así que la contraseña no aparece en `package.json` ni en el historial del shell.
 
+**No hay script `db:types`.** Un `supabase gen types` sobreescribiría
+`database.types.ts`, que se escribe a mano y se verifica con `db:verify-types`
+([§6.8](#68-migraciones)); tenerlo a mano era una invitación a perder las
+anotaciones del archivo de un tirón.
+
+**Ganchos de git ([§8.9](#89-git)):** `pre-commit` corre `lint-staged` (Prettier +
+ESLint sobre lo que se comitea) y `typecheck` sobre el proyecto entero, porque un
+cambio de tipos rompe archivos que no están en el commit. `pre-push` corre `test`.
+Los E2E no van en un gancho: necesitan navegador y base con datos, y su sitio es CI.
+
 ### 15.4 Entornos
 
-| Entorno | App | Base de datos |
-|---|---|---|
-| Local | `localhost:3000` | Supabase (proyecto dev) |
-| Preview | Vercel por PR | Supabase (proyecto dev) |
-| Producción | Vercel `main` | Supabase (proyecto prod) |
+| Entorno    | App              | Base de datos            |
+| ---------- | ---------------- | ------------------------ |
+| Local      | `localhost:3000` | Supabase (proyecto dev)  |
+| Preview    | Vercel por PR    | Supabase (proyecto dev)  |
+| Producción | Vercel `main`    | Supabase (proyecto prod) |
 
 ---
 
 ## 16. Decisiones técnicas (ADR)
 
-| # | Decisión | Motivo | Consecuencia |
-|---|---|---|---|
-| 01 | Next.js 15 full-stack (App Router + Server Actions) | Un solo despliegue, menos superficie, Server Components para rendimiento | La lógica de dominio debe aislarse deliberadamente del framework |
-| 02 | Arquitectura hexagonal | Reemplazar Supabase, correo o exportadores sin tocar el dominio; casos de uso testeables | Más archivos y ceremonia inicial |
-| 03 | Sin Prisma: `supabase-js` + SQL en migraciones | Restricción del proyecto; RLS y SQL explícito | Sin ORM: mapeo manual en adaptadores, tipos generados desde la base |
-| 04 | Sin Docker | Restricción del proyecto | Desarrollo local contra Supabase en la nube; se requiere proyecto dev separado |
-| 05 | ~~RLS como segunda barrera obligatoria~~ · **Superada por ADR-15** | Tenía sentido con usuarios; sin ellos no hay a quién aislar | Ver ADR-15: el aislamiento se sustituye por cierre total a los roles públicos |
-| 06 | `naturaleza` (capex/opex/ingreso/financiación) en categoría y movimiento | Distinguir "invertido" de "gastado" es el corazón de los indicadores | Al crear una categoría se debe declarar su naturaleza |
-| 07 | Atributos dinámicos por tipo en JSONB | Cumple RNF-10 sin migraciones por cada tipo nuevo | La validación de esos atributos ocurre en aplicación, no en el esquema |
-| 08 | Ocurrencias materializadas de obligaciones | Calendario, notificaciones y proyección consultables y filtrables por SQL | Requiere tarea diaria idempotente |
-| 09 | Solo movimientos `pagado` en cifras de caja | Evita cifras infladas por compromisos no ejecutados | Se necesitan dos vistas: ejecutado y proyectado |
-| 10 | `numeric(18,2)` + value object `Dinero` | Precisión exacta y aritmética segura | Prohibido operar montos como `number` sueltos |
-| 11 | Vistas SQL para agregados | Una sola definición de cada cifra, reutilizada por dashboard y reportes | Cambiar una fórmula implica migración |
-| 12 | Borrado lógico en movimientos y documentos | Trazabilidad y auditoría | Todas las consultas deben excluir `anulado`/`eliminado_en` |
-| 13 | Nomenclatura de dominio en español | El lenguaje del modelo coincide con el del usuario | Se mantiene consistencia en tablas, rutas y clases |
-| 14 | **Sistema monousuario con acceso por token** | Es una instalación personal de un solo dueño. Mantener cuentas, registro, recuperación de contraseña y `propietario_id` en catorce tablas era pagar la complejidad del multiusuario sin recibir nada a cambio | Desaparecen `auth.users`, `perfiles` y `propietario_id`; el proyecto pasa a ser la raíz del grafo. **No hay ruta de vuelta al multiusuario sin migración**: reintroducirlo exige añadir la columna a todas las tablas y volver a poblarla |
-| 15 | **Cierre total a los roles públicos en lugar de RLS por propietario** | Sin usuarios, las políticas `propietario_id = auth.uid()` no pueden escribirse. La alternativa es más simple y más estricta: RLS activo sin políticas, y `anon` / `authenticated` sin ningún permiso | La aplicación accede con `service_role`, que omite RLS. **La barrera real pasa a ser el token, no la base** ([§9.4](#94-modelo-de-amenaza-dicho-sin-adornos)). A cambio, la clave publicable de Supabase deja de servir para nada y `RF-34` gana una garantía más fuerte: un trigger que ni `postgres` puede saltarse |
+| #   | Decisión                                                                 | Motivo                                                                                                                                                                                                        | Consecuencia                                                                                                                                                                                                                                                                                                          |
+| --- | ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 01  | Next.js 15 full-stack (App Router + Server Actions)                      | Un solo despliegue, menos superficie, Server Components para rendimiento                                                                                                                                      | La lógica de dominio debe aislarse deliberadamente del framework                                                                                                                                                                                                                                                      |
+| 02  | Arquitectura hexagonal                                                   | Reemplazar Supabase, correo o exportadores sin tocar el dominio; casos de uso testeables                                                                                                                      | Más archivos y ceremonia inicial                                                                                                                                                                                                                                                                                      |
+| 03  | Sin Prisma: `supabase-js` + SQL en migraciones                           | Restricción del proyecto; RLS y SQL explícito                                                                                                                                                                 | Sin ORM: mapeo manual en adaptadores, tipos generados desde la base                                                                                                                                                                                                                                                   |
+| 04  | Sin Docker                                                               | Restricción del proyecto                                                                                                                                                                                      | Desarrollo local contra Supabase en la nube; se requiere proyecto dev separado                                                                                                                                                                                                                                        |
+| 05  | ~~RLS como segunda barrera obligatoria~~ · **Superada por ADR-15**       | Tenía sentido con usuarios; sin ellos no hay a quién aislar                                                                                                                                                   | Ver ADR-15: el aislamiento se sustituye por cierre total a los roles públicos                                                                                                                                                                                                                                         |
+| 06  | `naturaleza` (capex/opex/ingreso/financiación) en categoría y movimiento | Distinguir "invertido" de "gastado" es el corazón de los indicadores                                                                                                                                          | Al crear una categoría se debe declarar su naturaleza                                                                                                                                                                                                                                                                 |
+| 07  | Atributos dinámicos por tipo en JSONB                                    | Cumple RNF-10 sin migraciones por cada tipo nuevo                                                                                                                                                             | La validación de esos atributos ocurre en aplicación, no en el esquema                                                                                                                                                                                                                                                |
+| 08  | Ocurrencias materializadas de obligaciones                               | Calendario, notificaciones y proyección consultables y filtrables por SQL                                                                                                                                     | Requiere tarea diaria idempotente                                                                                                                                                                                                                                                                                     |
+| 09  | Solo movimientos `pagado` en cifras de caja                              | Evita cifras infladas por compromisos no ejecutados                                                                                                                                                           | Se necesitan dos vistas: ejecutado y proyectado                                                                                                                                                                                                                                                                       |
+| 10  | `numeric(18,2)` + value object `Dinero`                                  | Precisión exacta y aritmética segura                                                                                                                                                                          | Prohibido operar montos como `number` sueltos                                                                                                                                                                                                                                                                         |
+| 11  | Vistas SQL para agregados                                                | Una sola definición de cada cifra, reutilizada por dashboard y reportes                                                                                                                                       | Cambiar una fórmula implica migración                                                                                                                                                                                                                                                                                 |
+| 12  | Borrado lógico en movimientos y documentos                               | Trazabilidad y auditoría                                                                                                                                                                                      | Todas las consultas deben excluir `anulado`/`eliminado_en`                                                                                                                                                                                                                                                            |
+| 13  | Nomenclatura de dominio en español                                       | El lenguaje del modelo coincide con el del usuario                                                                                                                                                            | Se mantiene consistencia en tablas, rutas y clases                                                                                                                                                                                                                                                                    |
+| 14  | **Sistema monousuario con acceso por token**                             | Es una instalación personal de un solo dueño. Mantener cuentas, registro, recuperación de contraseña y `propietario_id` en catorce tablas era pagar la complejidad del multiusuario sin recibir nada a cambio | Desaparecen `auth.users`, `perfiles` y `propietario_id`; el proyecto pasa a ser la raíz del grafo. **No hay ruta de vuelta al multiusuario sin migración**: reintroducirlo exige añadir la columna a todas las tablas y volver a poblarla                                                                             |
+| 15  | **Cierre total a los roles públicos en lugar de RLS por propietario**    | Sin usuarios, las políticas `propietario_id = auth.uid()` no pueden escribirse. La alternativa es más simple y más estricta: RLS activo sin políticas, y `anon` / `authenticated` sin ningún permiso          | La aplicación accede con `service_role`, que omite RLS. **La barrera real pasa a ser el token, no la base** ([§9.4](#94-modelo-de-amenaza-dicho-sin-adornos)). A cambio, la clave publicable de Supabase deja de servir para nada y `RF-34` gana una garantía más fuerte: un trigger que ni `postgres` puede saltarse |
 
 ---
 
@@ -1334,14 +1429,14 @@ Los scripts de base leen `SUPABASE_DB_URL` con `node --env-file=.env`, así que 
 - **Moneda única COP** por usuario y proyecto. El campo `moneda` existe para habilitar multimoneda después, sin conversión automática en v1.
 - **Sin manejo fiscal explícito** (IVA, retenciones). El valor registrado es el total pagado; si se requiere desglose se agrega en `metadatos`.
 - **Combustible y consumos opcionales** se registran como OPEX normales; no hay módulo de consumo por kilómetro.
-- **Horizonte de proyección por defecto: 12 meses**, configurable en los ajustes.
+- **Horizonte de proyección por defecto: 12 meses**, configurable en los ajustes entre 1 y 60 (RF-101).
 - **Zona horaria por defecto: `America/Bogota`.**
 - **Depreciación no automática:** el valor del vehículo baja registrando valoraciones manuales.
 
 ### Pendientes por confirmar
 
 1. ¿Se descarta de forma definitiva compartir proyectos con otra persona (pareja, socio)? Si aparece esa necesidad, la vuelta al multiusuario cuesta una migración de las catorce tablas, no un ajuste ([ADR-14](#16-decisiones-técnicas-adr)).
-2. ¿Se cambia `TOKEN_ACCESO` por una cadena aleatoria larga? Con el valor actual, la única barrera del sistema sigue un patrón que los ataques por diccionario prueban de primeras ([§9.4](#94-modelo-de-amenaza-dicho-sin-adornos)).
+2. **¿Se cambia `TOKEN_ACCESO` por una cadena aleatoria larga?** Sigue pendiente y sigue siendo el punto más débil del sistema: el valor actual tiene 9 caracteres y forma de contraseña común, y es la **única** barrera entre internet y todo el historial financiero ([§9.4](#94-modelo-de-amenaza-dicho-sin-adornos)). Rotarlo es gratis —cambiar la variable de entorno y volver a entrar— y cierra las sesiones abiertas por diseño ([§9.1](#91-cómo-se-entra)).
 3. ¿Notificaciones por WhatsApp con proveedor propio (Twilio, API oficial de Meta) o basta el correo en v1?
 4. ¿Se necesita registrar el detalle de la tabla de amortización del crédito hipotecario, o basta el saldo y la cuota?
 5. ¿Los presupuestos son mensuales, anuales o ambos desde el inicio?

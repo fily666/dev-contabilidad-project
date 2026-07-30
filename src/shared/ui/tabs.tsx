@@ -31,18 +31,27 @@ const tabsListVariants = cva(
   },
 );
 
+/**
+ * RNF-01: con tres o mas pestanas de texto largo la lista no cabe a 375 px y
+ * empujaba el ancho de la pagina entera. Se envuelve en un contenedor con
+ * `overflow-x-auto` para que el desborde se resuelva dentro de la lista: el
+ * documento no gana scroll horizontal y las pestanas siguen alcanzables.
+ * `min-w-0` es imprescindible; sin el, el flex padre no deja encogerse al hijo.
+ */
 function TabsList({
   className,
   variant = "default",
   ...props
 }: TabsPrimitive.List.Props & VariantProps<typeof tabsListVariants>) {
   return (
-    <TabsPrimitive.List
-      data-slot="tabs-list"
-      data-variant={variant}
-      className={cn(tabsListVariants({ variant }), className)}
-      {...props}
-    />
+    <div className="-mx-1 max-w-full min-w-0 [scrollbar-width:none] overflow-x-auto px-1 group-data-vertical/tabs:overflow-visible [&::-webkit-scrollbar]:hidden">
+      <TabsPrimitive.List
+        data-slot="tabs-list"
+        data-variant={variant}
+        className={cn(tabsListVariants({ variant }), className)}
+        {...props}
+      />
+    </div>
   );
 }
 

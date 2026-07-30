@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/shared/ui/switch";
 import { TIPOS_METODO_PAGO, type TipoMetodoPago } from "@/shared/domain/enumeraciones";
 import { ETIQUETA_TIPO_METODO_PAGO } from "@/shared/utils/etiquetas";
-import type { MetodoPago } from "@/modules/metodos-pago/domain/metodo-pago.repository";
+import type { MetodoPagoVista } from "../../domain/metodo-pago.repository";
 import {
   actualizarMetodoPagoAction,
   crearMetodoPagoAction,
@@ -20,7 +20,7 @@ import {
 } from "../actions";
 
 /** RF-33. */
-export function GestorMetodosPago({ metodos }: { metodos: MetodoPago[] }) {
+export function GestorMetodosPago({ metodos }: { metodos: MetodoPagoVista[] }) {
   const router = useRouter();
   const [pendiente, iniciarTransicion] = useTransition();
   const [nombre, setNombre] = useState("");
@@ -41,7 +41,7 @@ export function GestorMetodosPago({ metodos }: { metodos: MetodoPago[] }) {
     });
   }
 
-  function alternar(metodo: MetodoPago) {
+  function alternar(metodo: MetodoPagoVista) {
     iniciarTransicion(async () => {
       const resultado = await actualizarMetodoPagoAction({
         id: metodo.id,

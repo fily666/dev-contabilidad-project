@@ -1,0 +1,6 @@
+# Contexto.md §8.9: pre-push = pruebas unitarias.
+#
+# Incluye las de esquema (PGlite), que no necesitan credenciales ni contenedores
+# y corren en segundos (§8.8). Los E2E de Playwright no van aqui: necesitan
+# navegador y base con datos, y su sitio es CI (RNF-14).
+npm run test

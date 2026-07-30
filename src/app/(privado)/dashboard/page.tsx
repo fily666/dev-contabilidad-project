@@ -32,7 +32,7 @@ export default async function PaginaDashboard() {
     contenedor.movimientos.listar.ejecutar({
       paginacion: { pagina: 1, porPagina: 8 },
     }),
-    contenedor.metodosPago.listar(),
+    contenedor.metodosPago.listar.ejecutar(),
   ]);
 
   const moneda = proyectos[0]?.moneda ?? ajustes.moneda;
@@ -254,7 +254,11 @@ export default async function PaginaDashboard() {
             </div>
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
               {proyectos.slice(0, 6).map((proyecto) => (
-                <TarjetaProyecto key={proyecto.proyectoId} proyecto={proyecto} />
+                <TarjetaProyecto
+                  key={proyecto.proyectoId}
+                  proyecto={proyecto}
+                  formatoFecha={ajustes.formatoFecha}
+                />
               ))}
             </div>
           </section>
@@ -267,7 +271,12 @@ export default async function PaginaDashboard() {
                   Ver todos
                 </EnlaceBoton>
               </div>
-              <TablaMovimientos filas={ultimos.filas} metodosPago={metodosPago} hoy={hoy} />
+              <TablaMovimientos
+                filas={ultimos.filas}
+                metodosPago={metodosPago}
+                hoy={hoy}
+                formatoFecha={ajustes.formatoFecha}
+              />
             </section>
           ) : null}
         </>

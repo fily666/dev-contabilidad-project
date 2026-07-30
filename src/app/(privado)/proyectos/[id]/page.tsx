@@ -27,7 +27,7 @@ type Props = { params: Promise<{ id: string }> };
 /** RF-15, RF-77 y fórmulas de §5. */
 export default async function PaginaProyecto({ params }: Props) {
   const { id } = await params;
-  const { contenedor } = await contenedorPrivado();
+  const { contenedor, ajustes } = await contenedorPrivado();
 
   const resumen = await contenedor.proyectos.resumen.ejecutar({ proyectoId: id }).catch(() => null);
 
@@ -43,7 +43,7 @@ export default async function PaginaProyecto({ params }: Props) {
     contenedor.categorias.listar.ejecutar({
       filtro: { tipoProyectoId: proyecto.tipoProyectoId },
     }),
-    contenedor.metodosPago.listar(),
+    contenedor.metodosPago.listar.ejecutar(),
   ]);
 
   const hoy = contenedor.reloj.hoy();
@@ -65,8 +65,10 @@ export default async function PaginaProyecto({ params }: Props) {
               <InsigniaEstadoProyecto estado={proyecto.estado} />
             </div>
             <p className="mt-1 text-sm text-muted-foreground">
-              Inicio {formatearFecha(proyecto.fechaInicio)}
-              {proyecto.fechaFin ? ` · Cierre ${formatearFecha(proyecto.fechaFin)}` : ""}
+              Inicio {formatearFecha(proyecto.fechaInicio, ajustes.formatoFecha)}
+              {proyecto.fechaFin
+                ? ` · Cierre ${formatearFecha(proyecto.fechaFin, ajustes.formatoFecha)}`
+                : ""}
             </p>
             {proyecto.descripcion ? (
               <p className="mt-2 max-w-2xl text-sm">{proyecto.descripcion}</p>
@@ -185,6 +187,7 @@ export default async function PaginaProyecto({ params }: Props) {
             filas={ultimos.filas}
             metodosPago={metodosPago}
             hoy={hoy}
+            formatoFecha={ajustes.formatoFecha}
             ocultarProyecto
           />
         )}

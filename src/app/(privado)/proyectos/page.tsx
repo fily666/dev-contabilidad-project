@@ -17,7 +17,7 @@ type Props = { searchParams: Promise<{ estado?: string }> };
 /** RF-10, RF-77. */
 export default async function PaginaProyectos({ searchParams }: Props) {
   const { estado } = await searchParams;
-  const { contenedor } = await contenedorPrivado();
+  const { contenedor, ajustes } = await contenedorPrivado();
 
   const estadoFiltro = ESTADOS_PROYECTO.includes(estado as EstadoProyecto)
     ? (estado as EstadoProyecto)
@@ -75,7 +75,11 @@ export default async function PaginaProyectos({ searchParams }: Props) {
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {proyectos.map((proyecto) => (
-            <TarjetaProyecto key={proyecto.proyectoId} proyecto={proyecto} />
+            <TarjetaProyecto
+              key={proyecto.proyectoId}
+              proyecto={proyecto}
+              formatoFecha={ajustes.formatoFecha}
+            />
           ))}
         </div>
       )}

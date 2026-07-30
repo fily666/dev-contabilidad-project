@@ -4,8 +4,14 @@ import type { Reloj } from "@/shared/domain/reloj";
 
 import { ControlDeIntentos } from "../domain/control-intentos";
 import { verificarSesion } from "../domain/sesion-firmada";
-import type { AlmacenSesion, CredencialAcceso } from "../domain/sesion";
-import { CerrarSesion, IniciarSesion, VerificarSesion } from "./casos-de-uso";
+import {
+  AJUSTES_POR_OMISION,
+  type Ajustes,
+  type AjustesRepository,
+  type AlmacenSesion,
+  type CredencialAcceso,
+} from "../domain/sesion";
+import { ActualizarAjustes, CerrarSesion, IniciarSesion, VerificarSesion } from "./casos-de-uso";
 
 const TOKEN = "Admin123!";
 const SECRETO = "un-secreto-de-al-menos-32-caracteres-aqui";
@@ -161,5 +167,74 @@ describe("CerrarSesion", () => {
 
     expect(almacen.valor).toBeNull();
     await expect(new VerificarSesion(credencial, almacen, reloj).haySesion()).resolves.toBe(false);
+  });
+});
+
+function ajustesEnMemoria(inicial: Ajustes = AJUSTES_POR_OMISION): AjustesRepository & {
+  guardados: Ajustes;
+} {
+  return {
+    guardados: { ...inicial },
+    async obtener() {
+      return this.guardados;
+    },
+    async actualizar(datos: Partial<Ajustes>) {
+      this.guardados = { ...this.guardados, ...datos };
+      return this.guardados;
+    },
+  };
+}
+
+describe("ActualizarAjustes (RF-03, RF-101)", () => {
+  it("guarda moneda, zona horaria, formato de fecha y horizonte", async () => {
+    const repositorio = ajustesEnMemoria();
+
+    const ajustes = await new ActualizarAjustes(repositorio).ejecutar({
+      moneda: "usd",
+      zonaHoraria: "America/Lima",
+      formatoFecha: "dd/MM/yyyy",
+      horizonteProyeccionMeses: 24,
+    });
+
+    expect(ajustes).toEqual({
+      moneda: "USD", // se normaliza a mayusculas
+      zonaHoraria: "America/Lima",
+      formatoFecha: "dd/MM/yyyy",
+      horizonteProyeccionMeses: 24,
+    });
+  });
+
+  it("rechaza una moneda que no es codigo ISO de tres letras", async () => {
+    const caso = new ActualizarAjustes(ajustesEnMemoria());
+    await expect(caso.ejecutar({ moneda: "PESOS" })).rejects.toMatchObject({
+      codigo: "MONEDA_INVALIDA",
+      campo: "moneda",
+    });
+  });
+
+  it("rechaza un formato de fecha que no esta en el catalogo", async () => {
+    const caso = new ActualizarAjustes(ajustesEnMemoria());
+    await expect(
+      caso.ejecutar({ formatoFecha: "MM-DD-YY" as Ajustes["formatoFecha"] }),
+    ).rejects.toMatchObject({ codigo: "FORMATO_FECHA_INVALIDO", campo: "formatoFecha" });
+  });
+
+  it.each([0, -3, 61, 12.5])("rechaza el horizonte %s meses", async (horizonte) => {
+    const caso = new ActualizarAjustes(ajustesEnMemoria());
+    await expect(caso.ejecutar({ horizonteProyeccionMeses: horizonte })).rejects.toMatchObject({
+      codigo: "HORIZONTE_INVALIDO",
+      campo: "horizonteProyeccionMeses",
+    });
+  });
+
+  it("una actualizacion parcial no pisa las demas preferencias", async () => {
+    const repositorio = ajustesEnMemoria();
+
+    await new ActualizarAjustes(repositorio).ejecutar({ horizonteProyeccionMeses: 36 });
+
+    expect(repositorio.guardados).toEqual({
+      ...AJUSTES_POR_OMISION,
+      horizonteProyeccionMeses: 36,
+    });
   });
 });

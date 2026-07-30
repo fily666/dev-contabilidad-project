@@ -30,6 +30,16 @@ describe("esquema de base de datos", () => {
       expect(r.rows[0]).toEqual({ moneda: "COP", zona_horaria: "America/Bogota" });
     });
 
+    it("siembra las preferencias de RF-101", async () => {
+      const r = await base.db.query<{ preferencias: Record<string, unknown> }>(
+        `select preferencias from ajustes`,
+      );
+      expect(r.rows[0]?.preferencias).toEqual({
+        formato_fecha: "d MMM yyyy",
+        horizonte_proyeccion_meses: 12,
+      });
+    });
+
     it("no admite una segunda fila", async () => {
       await expect(base.db.query(`insert into ajustes (id) values (false)`)).rejects.toThrow(
         /ajustes_id_check|check constraint/i,
@@ -74,30 +84,30 @@ describe("esquema de base de datos", () => {
 
     it("cubre los conceptos de los escenarios de referencia (§3)", async () => {
       const esperados = [
-        "Separacion",
+        "Separación",
         "Cuota inicial",
         "Gastos notariales",
-        "Escrituracion",
-        "Remodelacion",
+        "Escrituración",
+        "Remodelación",
         "Muebles",
-        "Administracion",
+        "Administración",
         "Impuesto predial",
-        "Servicios publicos",
+        "Servicios públicos",
         "Cuotas extraordinarias",
         "Canon de arrendamiento",
         "Valor de compra",
-        "Matricula",
+        "Matrícula",
         "Accesorios",
         "Mantenimiento preventivo",
         "Reparaciones",
         "Combustible",
         "SOAT",
-        "Revision tecnicomecanica",
+        "Revisión tecnicomecánica",
         "Impuesto vehicular",
         "Cambio de aceite",
         "Cambio de llantas",
-        "Renovacion de documentos",
-        "Cuota de credito",
+        "Renovación de documentos",
+        "Cuota de crédito",
       ];
       const r = await base.db.query<{ nombre: string }>(
         `select distinct nombre from categorias where es_sistema`,
@@ -257,7 +267,7 @@ describe("esquema de base de datos", () => {
         base.db.query(
           `insert into movimientos (proyecto_id, categoria_id, tipo, naturaleza, fecha, valor, abono_capital, abono_interes, descripcion)
            select $1, id, 'egreso', 'financiacion', '2026-02-01', 1000000, 400000, 400000, 'Cuota'
-             from categorias where nombre = 'Cuota de credito'`,
+             from categorias where nombre = 'Cuota de crédito'`,
           [proyecto],
         ),
       ).rejects.toThrow(/desglose_credito/);
@@ -285,7 +295,7 @@ describe("esquema de base de datos", () => {
 
         insert into movimientos (proyecto_id, categoria_id, tipo, naturaleza, fecha, fecha_pago, valor, descripcion, estado)
         select '${proyecto}', c.id, 'egreso', 'opex', '2026-02-05', '2026-02-05', 500000, 'Administracion febrero', 'pagado'
-          from categorias c where c.nombre = 'Administracion';
+          from categorias c where c.nombre = 'Administración';
 
         insert into movimientos (proyecto_id, categoria_id, tipo, naturaleza, fecha, fecha_pago, valor, descripcion, estado)
         select '${proyecto}', c.id, 'ingreso', 'ingreso', '2026-02-05', '2026-02-05', 2000000, 'Canon febrero', 'pagado'

@@ -4,7 +4,7 @@ import { contenedorPrivado } from "@/di/container";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/ui/tabs";
 import { FormularioAjustes } from "@/modules/acceso/presentation/components/formulario-ajustes";
 import { GestorCategorias } from "@/modules/categorias/presentation/components/gestor-categorias";
-import { GestorMetodosPago } from "@/modules/categorias/presentation/components/gestor-metodos-pago";
+import { GestorMetodosPago } from "@/modules/metodos-pago/presentation/components/gestor-metodos-pago";
 
 export const metadata: Metadata = { title: "Configuración" };
 
@@ -17,7 +17,7 @@ export default async function PaginaConfiguracion() {
       // Se muestran tambien las ocultas para poder reactivarlas.
       filtro: { soloActivas: false },
     }),
-    contenedor.metodosPago.listar(false),
+    contenedor.metodosPago.listar.ejecutar({ soloActivos: false }),
     contenedor.proyectos.listarTipos.ejecutar(),
   ]);
 

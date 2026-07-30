@@ -11,6 +11,9 @@ export default defineConfig({
     environment: "node",
     setupFiles: ["./vitest.setup.ts"],
     include: ["src/**/*.{test,spec}.{ts,tsx}", "tests/**/*.{test,spec}.ts"],
+    // Los E2E son de Playwright (`npm run test:e2e`): necesitan navegador y
+    // servidor, y Vitest no debe intentar ejecutarlos (§8.8).
+    exclude: ["node_modules/**", ".next/**", "tests/e2e/**"],
     testTimeout: 120_000,
     hookTimeout: 120_000,
     // Las pruebas de componentes declaran su entorno con

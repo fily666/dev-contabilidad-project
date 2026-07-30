@@ -86,11 +86,12 @@ const eslintConfig = [
     },
   },
   {
-    // Las paginas y rutas no instancian adaptadores: piden el contenedor (§7.5).
-    // El cliente de datos usa service_role, y quien lo importe queda obligado a
-    // ser codigo de servidor por el `import "server-only"` que lleva dentro; esta
-    // regla evita ademas que se cuele por la puerta de atras (§9).
-    files: ["src/app/**"],
+    // La presentacion (paginas, rutas, Server Actions y componentes) solo invoca
+    // casos de uso a traves del contenedor (§7.1.4, §7.5). No importa adaptadores
+    // ni el cliente de datos: ese cliente usa service_role, y aunque el
+    // `import "server-only"` que lleva dentro ya impide que llegue al navegador,
+    // esta regla evita que se cuele por la puerta de atras (§9).
+    files: ["src/app/**", "src/modules/*/presentation/**"],
     rules: {
       "no-restricted-imports": [
         "error",
@@ -99,9 +100,36 @@ const eslintConfig = [
             {
               name: "@/shared/infrastructure/supabase/cliente-servidor",
               message:
-                "Las paginas y rutas obtienen el acceso a datos del contenedor de @/di/container (Contexto.md §7.5, §9).",
+                "La presentacion obtiene el acceso a datos del contenedor de @/di/container (Contexto.md §7.5, §9).",
             },
           ],
+          patterns: [
+            {
+              group: ["**/infrastructure/**", "@/modules/*/infrastructure/**"],
+              message:
+                "La presentacion invoca casos de uso, nunca adaptadores (Contexto.md §7.1.4). Expon el caso de uso en @/di/container.",
+            },
+          ],
+        },
+      ],
+      /**
+       * El contenedor expone casos de uso. Alcanzar `.repositorio` o `.supabase`
+       * desde una pagina o una accion salta la capa de aplicacion sin que ningun
+       * import lo delate, que es exactamente como se colo antes en los metodos de
+       * pago. Se prohibe el acceso, no el import.
+       */
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector:
+            "MemberExpression[property.name=/^(repositorio|supabase)$/][object.object.name='contenedor']",
+          message:
+            "No alcances el repositorio ni el cliente desde la presentacion: usa un caso de uso del contenedor (Contexto.md §7.1.4, §7.5).",
+        },
+        {
+          selector: "MemberExpression[object.name='contenedor'][property.name='supabase']",
+          message:
+            "No uses el cliente de Supabase desde la presentacion: usa un caso de uso del contenedor (Contexto.md §7.1.4, §9).",
         },
       ],
     },

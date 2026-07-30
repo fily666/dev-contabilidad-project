@@ -1,0 +1,7 @@
+# Contexto.md §8.9: pre-commit = ESLint + Prettier + tsc --noEmit.
+#
+# lint-staged cubre ESLint y Prettier sobre lo que se va a comitear; `tsc` corre
+# sobre el proyecto completo porque un cambio de tipos rompe archivos que no
+# estan en el commit, y ese es justo el error que interesa atrapar aqui.
+npx lint-staged
+npm run typecheck

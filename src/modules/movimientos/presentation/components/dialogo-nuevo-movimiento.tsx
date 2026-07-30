@@ -13,13 +13,13 @@ import {
   DialogTrigger,
 } from "@/shared/ui/dialog";
 import type { CategoriaConRuta } from "@/modules/categorias/domain/categoria.repository";
-import type { MetodoPago } from "@/modules/metodos-pago/domain/metodo-pago.repository";
+import type { MetodoPagoVista } from "@/modules/metodos-pago/domain/metodo-pago.repository";
 import { FormularioMovimiento, type OpcionProyecto } from "./formulario-movimiento";
 
 type Props = {
   proyectos: OpcionProyecto[];
   categorias: CategoriaConRuta[];
-  metodosPago: MetodoPago[];
+  metodosPago: MetodoPagoVista[];
   hoy: string;
   proyectoFijo?: string;
   etiqueta?: string;
