@@ -17,14 +17,17 @@ import {
 import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/ui/select";
+import { Checkbox } from "@/shared/ui/checkbox";
 
 import { formatearFecha } from "@/shared/utils/formato";
 
 import {
+  CANALES_DISPONIBLES,
   FORMATOS_FECHA,
   HORIZONTE_PROYECCION_MAXIMO,
   HORIZONTE_PROYECCION_MINIMO,
   type Ajustes,
+  type CanalAviso,
   type FormatoFecha,
 } from "../../domain/sesion";
 import { actualizarAjustesAction } from "../actions";
@@ -44,7 +47,15 @@ const ZONAS = [
 /** Fecha de muestra para que la opcion se lea como se vera, no como patron. */
 const EJEMPLO = "2026-02-05";
 
-const CAMPOS = ["moneda", "zonaHoraria", "formatoFecha", "horizonteProyeccionMeses"] as const;
+const CAMPOS = [
+  "moneda",
+  "zonaHoraria",
+  "formatoFecha",
+  "horizonteProyeccionMeses",
+  "canalesNotificacion",
+  "diasAvisoPorOmision",
+  "emailDestino",
+] as const;
 
 export function FormularioAjustes({ ajustes }: { ajustes: Ajustes }) {
   const formulario = useForm<DatosAjustes, unknown, DatosAjustes>({
@@ -54,6 +65,9 @@ export function FormularioAjustes({ ajustes }: { ajustes: Ajustes }) {
       zonaHoraria: ajustes.zonaHoraria,
       formatoFecha: ajustes.formatoFecha,
       horizonteProyeccionMeses: ajustes.horizonteProyeccionMeses,
+      canalesNotificacion: ajustes.canalesNotificacion,
+      diasAvisoPorOmision: ajustes.diasAvisoPorOmision.join(", "),
+      emailDestino: ajustes.emailDestino ?? "",
     },
   });
 
@@ -171,6 +185,76 @@ export function FormularioAjustes({ ajustes }: { ajustes: Ajustes }) {
             {formulario.formState.errors.horizonteProyeccionMeses ? (
               <p className="text-sm text-destructive">
                 {formulario.formState.errors.horizonteProyeccionMeses.message}
+              </p>
+            ) : null}
+          </div>
+
+          {/* RF-102: canales y anticipación por omisión. */}
+          <div className="space-y-3 sm:col-span-2">
+            <div>
+              <Label>Canales de notificación</Label>
+              <p className="text-xs text-muted-foreground">
+                «En la aplicación» siempre funciona. El correo necesita además un destinatario y las
+                credenciales de envío configuradas en el entorno.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-4">
+              {CANALES_DISPONIBLES.map((canal) => {
+                const activos = (formulario.watch("canalesNotificacion") ?? []) as CanalAviso[];
+                return (
+                  <label key={canal} className="flex items-center gap-2 text-sm">
+                    <Checkbox
+                      checked={activos.includes(canal)}
+                      onCheckedChange={(marcado) =>
+                        formulario.setValue(
+                          "canalesNotificacion",
+                          marcado === true
+                            ? [...activos, canal]
+                            : activos.filter((c) => c !== canal),
+                          { shouldDirty: true },
+                        )
+                      }
+                    />
+                    {canal === "email" ? "Correo" : "En la aplicación"}
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="diasAvisoPorOmision">Días de aviso por omisión</Label>
+            <Input
+              id="diasAvisoPorOmision"
+              placeholder="5, 1"
+              aria-invalid={!!formulario.formState.errors.diasAvisoPorOmision}
+              {...formulario.register("diasAvisoPorOmision")}
+            />
+            <p className="text-xs text-muted-foreground">
+              Se usan cuando la obligación no declara los suyos (RF-53).
+            </p>
+            {formulario.formState.errors.diasAvisoPorOmision ? (
+              <p className="text-sm text-destructive">
+                {formulario.formState.errors.diasAvisoPorOmision.message}
+              </p>
+            ) : null}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="emailDestino">Correo para avisos</Label>
+            <Input
+              id="emailDestino"
+              type="email"
+              placeholder="tu@correo.com"
+              aria-invalid={!!formulario.formState.errors.emailDestino}
+              {...formulario.register("emailDestino")}
+            />
+            <p className="text-xs text-muted-foreground">
+              Vacío desactiva el correo aunque el canal esté marcado.
+            </p>
+            {formulario.formState.errors.emailDestino ? (
+              <p className="text-sm text-destructive">
+                {formulario.formState.errors.emailDestino.message}
               </p>
             ) : null}
           </div>

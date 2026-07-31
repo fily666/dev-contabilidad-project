@@ -146,6 +146,9 @@ export class SupabaseMovimientoRepository implements MovimientoRepository {
           descripcion: f.descripcion,
           observaciones: f.observaciones,
           estado: f.estado,
+          // El efectivo lo decide el caso de uso, que conoce la fecha de negocio
+          // de hoy (RF-25); aqui se refleja el persistido.
+          estadoEfectivo: f.estado,
           motivoAnulacion: f.motivo_anulacion,
         };
       }),

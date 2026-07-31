@@ -18,6 +18,13 @@ export const HORIZONTE_PROYECCION_MESES = 12;
 export const HORIZONTE_PROYECCION_MINIMO = 1;
 export const HORIZONTE_PROYECCION_MAXIMO = 60;
 
+/** RF-102: canales por los que se avisa. `in_app` no necesita configuracion. */
+export const CANALES_DISPONIBLES = ["email", "in_app"] as const;
+export type CanalAviso = (typeof CANALES_DISPONIBLES)[number];
+
+/** Dias de anticipacion por omision cuando la obligacion no los declara (RF-53). */
+export const DIAS_AVISO_POR_OMISION = [5, 1];
+
 /** Preferencias de la instalacion. Fila unica de la tabla `ajustes`. */
 export type Ajustes = {
   moneda: string;
@@ -26,6 +33,16 @@ export type Ajustes = {
   formatoFecha: FormatoFecha;
   /** RF-101: meses que abarcan las proyecciones y la generacion de ocurrencias. */
   horizonteProyeccionMeses: number;
+  /** RF-102: canales activos. Sin `email` no se programan correos. */
+  canalesNotificacion: CanalAviso[];
+  /** RF-102: dias de anticipacion por omision. */
+  diasAvisoPorOmision: number[];
+  /**
+   * RF-102: a donde llegan los correos. Es un ajuste y no una variable de
+   * entorno porque cambia sin desplegar, y porque en un sistema monousuario no
+   * hay a quien preguntarselo: se escribe una vez y se olvida.
+   */
+  emailDestino: string | null;
 };
 
 export const AJUSTES_POR_OMISION: Ajustes = {
@@ -33,6 +50,9 @@ export const AJUSTES_POR_OMISION: Ajustes = {
   zonaHoraria: "America/Bogota",
   formatoFecha: "d MMM yyyy",
   horizonteProyeccionMeses: HORIZONTE_PROYECCION_MESES,
+  canalesNotificacion: ["in_app"],
+  diasAvisoPorOmision: DIAS_AVISO_POR_OMISION,
+  emailDestino: null,
 };
 
 /** PUERTO: la credencial configurada en el entorno. */

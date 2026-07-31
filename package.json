@@ -24,11 +24,11 @@
     "db:smoke": "node --env-file=.env scripts/humo-remoto.mjs",
     "prepare": "husky"
   },
-  "//lint-staged": "Contexto.md §8.9. Prettier antes de ESLint: el formateo puede introducir un cambio que el lint deba revisar, no al contrario.",
+  "//lint-staged": "Contexto.md §8.9. Prettier antes de ESLint: el formateo puede introducir un cambio que el lint deba revisar, no al contrario. `--no-warn-ignored` porque lint-staged pasa los archivos ignorados de eslint.config.mjs (database.types.ts) y el aviso de «archivo ignorado» cuenta contra --max-warnings 0: el commit fallaba por un archivo que el lint no debe revisar.",
   "lint-staged": {
     "*.{ts,tsx,css}": [
       "prettier --write",
-      "eslint --fix --max-warnings 0"
+      "eslint --fix --max-warnings 0 --no-warn-ignored"
     ],
     "*.{json,md,mjs,yml,yaml}": [
       "prettier --write"
@@ -37,12 +37,12 @@
   "dependencies": {
     "@base-ui/react": "^1.6.0",
     "@hookform/resolvers": "^5.5.7",
+    "@react-pdf/renderer": "^4.5.1",
     "@supabase/supabase-js": "^2.111.0",
-    "@tanstack/react-query": "^5.101.4",
-    "@tanstack/react-table": "^8.21.3",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "date-fns": "^4.4.0",
+    "exceljs": "^4.4.0",
     "lucide-react": "^1.27.0",
     "next": "15.5.22",
     "next-themes": "^0.4.6",

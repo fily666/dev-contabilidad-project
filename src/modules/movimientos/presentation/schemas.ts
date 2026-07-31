@@ -142,6 +142,24 @@ export const esquemaAnularMovimiento = z.object({
     .transform((v) => v.trim()),
 });
 
+/** RF-27: carga en lote. El contenido llega como texto, no como archivo: el
+ * navegador ya lo leyo y asi la accion no depende de FormData. */
+export const esquemaImportacionCsv = z.object({
+  contenido: z
+    .string()
+    .min(1, "Pega el contenido del CSV o selecciona un archivo.")
+    .max(2_000_000, "El archivo es demasiado grande."),
+  proyectoId: z
+    .union([z.string().uuid(), z.literal(""), z.undefined()])
+    .transform((v) => (v === "" || v === undefined ? undefined : v)),
+});
+
+/** RF-28: duplicar como plantilla. */
+export const esquemaDuplicarMovimiento = z.object({
+  id: z.string().uuid(),
+  fecha: fechaOpcional,
+});
+
 /** RF-23: filtros que viajan en la URL para ser compartibles (RNF-09). */
 export const esquemaFiltroMovimientos = z.object({
   proyectoId: z.string().uuid().optional(),

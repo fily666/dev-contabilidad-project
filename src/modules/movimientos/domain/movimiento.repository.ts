@@ -44,6 +44,12 @@ export type MovimientoListado = {
   descripcion: string;
   observaciones: string | null;
   estado: EstadoMovimiento;
+  /**
+   * RF-25: `pendiente` con vencimiento pasado se presenta como `vencido` aunque
+   * la tarea diaria (§10.1) todavia no haya sincronizado el estado persistido.
+   * Lo calcula el caso de uso, que es quien conoce la fecha de negocio de hoy.
+   */
+  estadoEfectivo: EstadoMovimiento;
   motivoAnulacion: string | null;
 };
 

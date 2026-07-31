@@ -127,6 +127,20 @@ export class ActualizarAjustes {
       );
     }
 
+    // RF-102: el correo es la unica preferencia con formato que validar; los
+    // canales y los dias ya llegan acotados por el esquema y por el adaptador.
+    if (
+      datos.emailDestino !== undefined &&
+      datos.emailDestino !== null &&
+      !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(datos.emailDestino)
+    ) {
+      throw new ErrorDeDominio(
+        "EMAIL_INVALIDO",
+        "El correo de notificaciones no es válido.",
+        "emailDestino",
+      );
+    }
+
     const horizonte = datos.horizonteProyeccionMeses;
     if (
       horizonte !== undefined &&

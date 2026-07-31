@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Ban, CheckCircle2, MoreHorizontal } from "lucide-react";
+import { Ban, CheckCircle2, Copy, MoreHorizontal } from "lucide-react";
 
 import { Button } from "@/shared/ui/button";
 import {
@@ -26,7 +26,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/shared/ui/textarea";
 import type { EstadoMovimiento } from "@/shared/domain/enumeraciones";
 import type { MetodoPagoVista } from "@/modules/metodos-pago/domain/metodo-pago.repository";
-import { anularMovimientoAction, marcarPagadoAction } from "../actions";
+import { anularMovimientoAction, duplicarMovimientoAction, marcarPagadoAction } from "../actions";
 
 type Props = {
   id: string;
@@ -44,6 +44,19 @@ export function AccionesMovimiento({ id, estado, metodosPago, hoy }: Props) {
   const [fechaPago, setFechaPago] = useState(hoy);
   const [metodoPagoId, setMetodoPagoId] = useState(metodosPago[0]?.id ?? "");
   const [motivo, setMotivo] = useState("");
+
+  /** RF-28: la copia nace pendiente, para revisarla antes de darla por pagada. */
+  function duplicar() {
+    iniciarTransicion(async () => {
+      const resultado = await duplicarMovimientoAction({ id });
+      if (!resultado.ok) {
+        toast.error(resultado.mensaje);
+        return;
+      }
+      toast.success("Movimiento duplicado como pendiente.");
+      router.refresh();
+    });
+  }
 
   if (estado === "anulado") {
     return <span className="text-xs text-muted-foreground">Anulado</span>;
@@ -90,6 +103,9 @@ export function AccionesMovimiento({ id, estado, metodosPago, hoy }: Props) {
               <CheckCircle2 className="size-4" aria-hidden /> Registrar pago
             </DropdownMenuItem>
           ) : null}
+          <DropdownMenuItem onClick={duplicar} disabled={pendiente}>
+            <Copy className="size-4" aria-hidden /> Duplicar
+          </DropdownMenuItem>
           <DropdownMenuItem variant="destructive" onClick={() => setAnulacionAbierta(true)}>
             <Ban className="size-4" aria-hidden /> Anular
           </DropdownMenuItem>

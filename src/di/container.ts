@@ -40,8 +40,87 @@ import { CambiarEstadoProyecto } from "@/modules/proyectos/application/cambiar-e
 import { EliminarProyecto } from "@/modules/proyectos/application/eliminar-proyecto.use-case";
 import { ListarProyectos } from "@/modules/proyectos/application/listar-proyectos.use-case";
 import { ListarTiposProyecto } from "@/modules/proyectos/application/listar-tipos-proyecto.use-case";
+import {
+  ActualizarTipoProyecto,
+  CambiarEstadoTipoProyecto,
+  CrearTipoProyecto,
+  EliminarTipoProyecto,
+  ListarTodosLosTipos,
+} from "@/modules/proyectos/application/administrar-tipos-proyecto.use-case";
 import { ObtenerProyecto } from "@/modules/proyectos/application/obtener-proyecto.use-case";
 import { ObtenerResumenProyecto } from "@/modules/proyectos/application/obtener-resumen-proyecto.use-case";
+
+import { ObtenerCalendario } from "@/modules/calendario/application/obtener-calendario.use-case";
+
+import {
+  SupabasePasivoRepository,
+  SupabaseValoracionRepository,
+} from "@/modules/patrimonio/infrastructure/supabase-patrimonio.repository";
+import {
+  AbonarACapital,
+  ActualizarPasivo,
+  CambiarEstadoPasivo,
+  EliminarPasivo,
+  EliminarValoracion,
+  ListarPasivos,
+  ListarValoraciones,
+  ObtenerPatrimonio,
+  RegistrarPasivo,
+  RegistrarValoracion,
+} from "@/modules/patrimonio/application/casos-de-uso";
+
+import { SupabasePresupuestoRepository } from "@/modules/presupuestos/infrastructure/supabase-presupuesto.repository";
+import {
+  ActualizarPresupuesto,
+  CopiarPresupuestos,
+  CrearPresupuesto,
+  EliminarPresupuesto,
+  ListarEjecucionPresupuestos,
+} from "@/modules/presupuestos/application/casos-de-uso";
+
+import { SupabaseNotificacionRepository } from "@/modules/notificaciones/infrastructure/supabase-notificacion.repository";
+import {
+  EnviarNotificaciones,
+  ListarNotificaciones,
+  ProgramarAvisos,
+} from "@/modules/notificaciones/application/casos-de-uso";
+import { ResendNotificador } from "@/shared/infrastructure/email/resend";
+import { ExcelJsGenerador } from "@/shared/infrastructure/export/excel";
+import { ReactPdfGenerador } from "@/shared/infrastructure/export/pdf";
+import { ExportarDatos } from "@/modules/reportes/application/exportar-datos.use-case";
+import {
+  ExportarReporte,
+  ReporteEstadoFinanciero,
+  ReporteFlujoCaja,
+  ReporteMovimientos,
+  ReporteObligaciones,
+} from "@/modules/reportes/application/casos-de-uso";
+import { SupabaseDashboardRepository } from "@/modules/dashboard/infrastructure/supabase-dashboard.repository";
+import { ObtenerPanel } from "@/modules/dashboard/application/obtener-panel.use-case";
+
+import { SupabaseAlmacenamiento } from "@/shared/infrastructure/storage/supabase-almacenamiento";
+import { SupabaseDocumentoRepository } from "@/modules/documentos/infrastructure/supabase-documento.repository";
+import {
+  EliminarDocumento,
+  ListarDocumentos,
+  ObtenerUrlDocumento,
+  SubirDocumento,
+} from "@/modules/documentos/application/casos-de-uso";
+
+import { SupabaseObligacionRepository } from "@/modules/obligaciones/infrastructure/supabase-obligacion.repository";
+import {
+  ActualizarEstadosVencidos,
+  ActualizarObligacion,
+  CambiarEstadoObligacion,
+  CambiarEstadoOcurrencia,
+  CrearObligacion,
+  EliminarObligacion,
+  GenerarOcurrencias,
+  ListarAgenda,
+  ListarObligaciones,
+  ListarOcurrencias,
+  PagarOcurrencia,
+} from "@/modules/obligaciones/application/casos-de-uso";
 
 import { SupabaseMovimientoRepository } from "@/modules/movimientos/infrastructure/supabase-movimiento.repository";
 import { RegistrarMovimiento } from "@/modules/movimientos/application/registrar-movimiento.use-case";
@@ -49,6 +128,11 @@ import { ActualizarMovimiento } from "@/modules/movimientos/application/actualiz
 import { MarcarMovimientoPagado } from "@/modules/movimientos/application/marcar-pagado.use-case";
 import { AnularMovimiento } from "@/modules/movimientos/application/anular-movimiento.use-case";
 import { ListarMovimientos } from "@/modules/movimientos/application/listar-movimientos.use-case";
+import { DuplicarMovimiento } from "@/modules/movimientos/application/duplicar-movimiento.use-case";
+import {
+  ImportarMovimientos,
+  PrevisualizarImportacion,
+} from "@/modules/movimientos/application/importar-movimientos.use-case";
 
 /**
  * Contenedor de dependencias por request (Contexto.md §7.2, §7.5).
@@ -67,6 +151,27 @@ export function crearContenedor(zonaHoraria = AJUSTES_POR_OMISION.zonaHoraria) {
   const categorias = new SupabaseCategoriaRepository(supabase);
   const metodosPago = new SupabaseMetodoPagoRepository(supabase);
   const movimientos = new SupabaseMovimientoRepository(supabase);
+  const obligaciones = new SupabaseObligacionRepository(supabase);
+  const documentos = new SupabaseDocumentoRepository(supabase);
+  const almacenamiento = new SupabaseAlmacenamiento(supabase);
+  const panel = new SupabaseDashboardRepository(supabase);
+  const pasivos = new SupabasePasivoRepository(supabase);
+  const valoraciones = new SupabaseValoracionRepository(supabase);
+  const presupuestos = new SupabasePresupuestoRepository(supabase);
+  const notificaciones = new SupabaseNotificacionRepository(supabase);
+
+  // Se instancia una vez y se comparte: `PagarOcurrencia` reutiliza el mismo caso
+  // de uso que el formulario de movimientos, para que las invariantes de §5.7 se
+  // apliquen una sola vez y en un solo sitio (RF-54).
+  const registrarMovimiento = new RegistrarMovimiento(
+    movimientos,
+    proyectos,
+    categorias,
+    reloj,
+    nuevoId,
+  );
+  const listarMovimientos = new ListarMovimientos(movimientos, reloj);
+  const previsualizarImportacion = new PrevisualizarImportacion(proyectos, categorias, metodosPago);
 
   return {
     // El cliente de datos NO se expone: la presentacion invoca casos de uso, no
@@ -94,6 +199,12 @@ export function crearContenedor(zonaHoraria = AJUSTES_POR_OMISION.zonaHoraria) {
       obtener: new ObtenerProyecto(proyectos),
       resumen: new ObtenerResumenProyecto(proyectos, tiposProyecto, reloj),
       listarTipos: new ListarTiposProyecto(tiposProyecto),
+      // RF-100: administracion del catalogo de tipos (§13).
+      listarTodosLosTipos: new ListarTodosLosTipos(tiposProyecto),
+      crearTipo: new CrearTipoProyecto(tiposProyecto, nuevoId),
+      actualizarTipo: new ActualizarTipoProyecto(tiposProyecto),
+      cambiarEstadoTipo: new CambiarEstadoTipoProyecto(tiposProyecto),
+      eliminarTipo: new EliminarTipoProyecto(tiposProyecto),
     },
 
     categorias: {
@@ -105,11 +216,101 @@ export function crearContenedor(zonaHoraria = AJUSTES_POR_OMISION.zonaHoraria) {
     },
 
     movimientos: {
-      registrar: new RegistrarMovimiento(movimientos, proyectos, categorias, reloj, nuevoId),
+      registrar: registrarMovimiento,
       actualizar: new ActualizarMovimiento(movimientos, categorias),
       marcarPagado: new MarcarMovimientoPagado(movimientos, metodosPago, reloj),
       anular: new AnularMovimiento(movimientos),
-      listar: new ListarMovimientos(movimientos),
+      duplicar: new DuplicarMovimiento(movimientos, reloj, nuevoId),
+      // RF-27: la importacion reutiliza `registrar`, para que el CSV no pueda
+      // saltarse las invariantes de §5.7.
+      previsualizarImportacion: previsualizarImportacion,
+      importar: new ImportarMovimientos(previsualizarImportacion, registrarMovimiento),
+      listar: listarMovimientos,
+    },
+
+    obligaciones: {
+      listar: new ListarObligaciones(obligaciones),
+      listarAgenda: new ListarAgenda(obligaciones),
+      listarOcurrencias: new ListarOcurrencias(obligaciones),
+      crear: new CrearObligacion(obligaciones, proyectos, categorias, nuevoId),
+      actualizar: new ActualizarObligacion(obligaciones, categorias),
+      cambiarEstado: new CambiarEstadoObligacion(obligaciones),
+      eliminar: new EliminarObligacion(obligaciones),
+      generarOcurrencias: new GenerarOcurrencias(obligaciones),
+      actualizarEstadosVencidos: new ActualizarEstadosVencidos(obligaciones),
+      pagarOcurrencia: new PagarOcurrencia(obligaciones, categorias, registrarMovimiento, reloj),
+      cambiarEstadoOcurrencia: new CambiarEstadoOcurrencia(obligaciones),
+    },
+
+    dashboard: {
+      panel: new ObtenerPanel(panel, proyectos, obligaciones, reloj),
+    },
+
+    calendario: {
+      obtener: new ObtenerCalendario(listarMovimientos, obligaciones, reloj),
+    },
+
+    reportes: {
+      // Un armador por tipo de reporte (RF-90 a RF-93) y un solo exportador
+      // (RF-94, RF-95): agregar un reporte no toca la infraestructura (§11).
+      movimientos: new ReporteMovimientos(listarMovimientos, reloj),
+      flujo: new ReporteFlujoCaja(panel, reloj),
+      obligaciones: new ReporteObligaciones(obligaciones, reloj),
+      estado: new ReporteEstadoFinanciero(proyectos, reloj),
+      exportar: new ExportarReporte(new ExcelJsGenerador(), new ReactPdfGenerador(), reloj),
+      // RF-103: los datos son del dueño; esta es la puerta de salida.
+      exportarDatos: new ExportarDatos({
+        ajustes: () => ajustes.obtener(),
+        tipos: tiposProyecto,
+        proyectos,
+        categorias,
+        metodosPago,
+        movimientos: listarMovimientos,
+        obligaciones,
+        documentos,
+        pasivos,
+        valoraciones,
+        presupuestos,
+        reloj,
+      }),
+    },
+
+    patrimonio: {
+      // RF-16, RF-17, RF-78.
+      listarPasivos: new ListarPasivos(pasivos),
+      registrarPasivo: new RegistrarPasivo(pasivos, proyectos, nuevoId),
+      actualizarPasivo: new ActualizarPasivo(pasivos),
+      abonarACapital: new AbonarACapital(pasivos),
+      cambiarEstadoPasivo: new CambiarEstadoPasivo(pasivos),
+      eliminarPasivo: new EliminarPasivo(pasivos),
+      listarValoraciones: new ListarValoraciones(valoraciones),
+      registrarValoracion: new RegistrarValoracion(valoraciones, proyectos, nuevoId),
+      eliminarValoracion: new EliminarValoracion(valoraciones),
+      obtener: new ObtenerPatrimonio(valoraciones),
+    },
+
+    presupuestos: {
+      // RF-80 a RF-83.
+      listarEjecucion: new ListarEjecucionPresupuestos(presupuestos),
+      crear: new CrearPresupuesto(presupuestos, categorias, nuevoId),
+      actualizar: new ActualizarPresupuesto(presupuestos),
+      eliminar: new EliminarPresupuesto(presupuestos),
+      copiar: new CopiarPresupuestos(presupuestos, nuevoId),
+    },
+
+    notificaciones: {
+      // §10, RF-53, RF-102. El notificador de WhatsApp no se inyecta: el puerto
+      // existe y el adaptador es de Fase 5 (§10.2).
+      listar: new ListarNotificaciones(notificaciones),
+      programar: new ProgramarAvisos(notificaciones, obligaciones, reloj, nuevoId),
+      enviar: new EnviarNotificaciones(notificaciones, new ResendNotificador(), reloj),
+    },
+
+    documentos: {
+      listar: new ListarDocumentos(documentos),
+      subir: new SubirDocumento(documentos, proyectos, almacenamiento, reloj, nuevoId),
+      url: new ObtenerUrlDocumento(documentos, almacenamiento),
+      eliminar: new EliminarDocumento(documentos, almacenamiento, reloj),
     },
   };
 }

@@ -201,6 +201,10 @@ describe("ActualizarAjustes (RF-03, RF-101)", () => {
       zonaHoraria: "America/Lima",
       formatoFecha: "dd/MM/yyyy",
       horizonteProyeccionMeses: 24,
+      // RF-102: lo que no viaja en la actualizacion conserva su valor.
+      canalesNotificacion: ["in_app"],
+      diasAvisoPorOmision: [5, 1],
+      emailDestino: null,
     });
   });
 

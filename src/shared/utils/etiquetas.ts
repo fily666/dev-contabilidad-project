@@ -92,6 +92,11 @@ export const MENSAJE_ERROR: Record<string, string> = {
   PROYECTO_CON_MOVIMIENTOS:
     "El proyecto tiene movimientos registrados: solo puede archivarse, no eliminarse.",
   CATEGORIA_NO_ENCONTRADA: "La categoría no existe.",
+  // `NoEncontrado` deriva el codigo del nombre de la entidad, en masculino.
+  CATEGORIA_NO_ENCONTRADO: "La categoría no existe.",
+  CATEGORIA_PADRE_NO_ENCONTRADO: "La categoría padre no existe.",
+  METODO_DE_PAGO_NO_ENCONTRADO: "El método de pago no existe.",
+  TIPO_DE_PROYECTO_NO_ENCONTRADO: "El tipo de proyecto no existe.",
   CATEGORIA_INCOMPATIBLE:
     "La categoría no corresponde al tipo de movimiento seleccionado (ingreso o egreso).",
   CATEGORIA_DEL_SISTEMA: "Las categorías del sistema no se pueden modificar; puedes ocultarlas.",
@@ -116,6 +121,21 @@ export const MENSAJE_ERROR: Record<string, string> = {
   ATRIBUTO_REQUERIDO: "Faltan atributos obligatorios del tipo de proyecto.",
   TIPO_PROYECTO_NO_ENCONTRADO: "El tipo de proyecto no existe.",
   DATOS_INVALIDOS: "Revisa los datos del formulario.",
+  EXPORTACION_DEMASIADO_GRANDE:
+    "El reporte tiene más filas de las que admite una exportación. Refina los filtros.",
+  OBLIGACION_NO_ENCONTRADO: "La obligación no existe.",
+  OCURRENCIA_NO_ENCONTRADO: "La ocurrencia no existe.",
+  OBLIGACION_CON_PAGOS:
+    "La obligación tiene ocurrencias pagadas: solo puede suspenderse, no eliminarse.",
+  OBLIGACION_YA_SUSPENDIDA: "La obligación ya está suspendida.",
+  OCURRENCIA_YA_PAGADA: "La ocurrencia ya está pagada.",
+  OCURRENCIA_OMITIDA: "La ocurrencia ya está omitida.",
+  INTERVALO_INVALIDO: "Una frecuencia personalizada requiere un intervalo entre 1 y 60 meses.",
+  CONCEPTO_INVALIDO: "El concepto debe tener entre 1 y 150 caracteres.",
+  DOCUMENTO_NO_ENCONTRADO: "El soporte no existe o ya fue eliminado.",
+  TIPO_ARCHIVO_NO_PERMITIDO: "Solo se admiten PDF, JPG, PNG, WEBP, XLSX y DOCX.",
+  ARCHIVO_DEMASIADO_GRANDE: "El archivo supera el máximo de 10 MB.",
+  ARCHIVO_VACIO: "El archivo está vacío o no se pudo leer.",
   ERROR_INESPERADO: "Ocurrió un error inesperado. Intenta de nuevo.",
 };
 

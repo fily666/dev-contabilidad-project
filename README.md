@@ -10,18 +10,24 @@ La especificación funcional y técnica completa está en **[Contexto.md](Contex
 
 ## Estado actual
 
-| Fase | Alcance | Estado |
-|---|---|---|
-| 0 | Andamiaje, tooling, esquema de base de datos, blindaje, contenedor de dependencias | ✅ completa |
-| 1 | Acceso por token, ajustes, proyectos, catálogos, movimientos, resumen financiero | ✅ completa |
-| 2 | Documentos y obligaciones con recurrencia | pendiente |
-| 3 | Dashboard con gráficas, calendario, reportes PDF/Excel | pendiente |
-| 4 | Pasivos, valoraciones, presupuestos, patrimonio, notificaciones | pendiente |
-| 5 | Importación CSV, WhatsApp, nuevos tipos de proyecto | pendiente |
+| Fase | Alcance                                                                            | Estado      |
+| ---- | ---------------------------------------------------------------------------------- | ----------- |
+| 0    | Andamiaje, tooling, esquema de base de datos, blindaje, contenedor de dependencias | ✅ completa |
+| 1    | Acceso por token, ajustes, proyectos, catálogos, movimientos, resumen financiero   | ✅ completa |
+| 2    | Documentos y obligaciones con recurrencia, tareas programadas                      | ✅ completa |
+| 3    | Dashboard sobre las vistas, calendario, reportes con Excel y PDF                   | ✅ completa |
+| 4    | Pasivos, valoraciones, presupuestos, patrimonio, notificaciones por correo         | ✅ completa |
+| 5    | Importación CSV, exportación JSON, tipos de proyecto nuevos                        | ✅ completa |
 
-Las tablas, funciones y vistas de **todas** las fases ya existen en la base de datos: las fases siguientes agregan interfaz y casos de uso, no esquema.
+Falta, y no es alcance: decidir el proveedor de WhatsApp (§17.3), habilitar los backups
+diarios de Supabase (RNF-15) y correr la auditoría de accesibilidad y de Lighthouse
+(RNF-04, RNF-05), que se miden fuera del repositorio.
 
-En la navegación lateral, los módulos de fases posteriores aparecen deshabilitados con la etiqueta «pronto».
+Las tablas, funciones y vistas de **todas** las fases existen en la base de datos. Las
+únicas migraciones posteriores al esquema inicial agregan vistas de agregación
+(`v_movimientos_mensual`, `v_gastos_mensual_categoria`, `v_presupuesto_ejecucion`), para
+que el rango de fechas del panel y el comparativo de presupuestos se calculen en SQL una
+sola vez (ADR-11).
 
 ---
 
@@ -102,22 +108,22 @@ La contrapartida, dicha sin adornos: la barrera real es el token, no la base de 
 
 ## Scripts
 
-| Script | Qué hace |
-|---|---|
-| `npm run dev` | Servidor de desarrollo (Turbopack) |
-| `npm run build` / `start` | Compilación y ejecución de producción |
-| `npm run lint` / `lint:fix` | ESLint (incluye las reglas de frontera hexagonal) |
-| `npm run format` / `format:check` | Prettier |
-| `npm run typecheck` | `tsc --noEmit` |
-| `npm test` / `test:watch` | Vitest |
-| `npm run verify` | typecheck + lint + pruebas (lo que debe pasar antes de subir) |
-| `npm run db:push` | Aplica las migraciones pendientes a `SUPABASE_DB_URL` |
-| `npm run db:seed` | Aplica migraciones y `seed.sql` |
-| `npm run db:reset` | Borra el esquema y lo reconstruye desde cero; se niega si hay datos propios |
-| `npm run db:inspect` | Tablas, RLS, vistas, triggers, semillas y blindaje de permisos |
-| `npm run db:verify-types` | Contrasta `database.types.ts` con el esquema real (falla si difieren) |
-| `npm run db:smoke` | Prueba de humo end-to-end contra la base remota; se niega a correr si hay datos |
-| `npm run db:types` | Regenera `database.types.ts` vía la API de Supabase (requiere `supabase login` + `link`) |
+| Script                            | Qué hace                                                                                 |
+| --------------------------------- | ---------------------------------------------------------------------------------------- |
+| `npm run dev`                     | Servidor de desarrollo (Turbopack)                                                       |
+| `npm run build` / `start`         | Compilación y ejecución de producción                                                    |
+| `npm run lint` / `lint:fix`       | ESLint (incluye las reglas de frontera hexagonal)                                        |
+| `npm run format` / `format:check` | Prettier                                                                                 |
+| `npm run typecheck`               | `tsc --noEmit`                                                                           |
+| `npm test` / `test:watch`         | Vitest                                                                                   |
+| `npm run verify`                  | typecheck + lint + pruebas (lo que debe pasar antes de subir)                            |
+| `npm run db:push`                 | Aplica las migraciones pendientes a `SUPABASE_DB_URL`                                    |
+| `npm run db:seed`                 | Aplica migraciones y `seed.sql`                                                          |
+| `npm run db:reset`                | Borra el esquema y lo reconstruye desde cero; se niega si hay datos propios              |
+| `npm run db:inspect`              | Tablas, RLS, vistas, triggers, semillas y blindaje de permisos                           |
+| `npm run db:verify-types`         | Contrasta `database.types.ts` con el esquema real (falla si difieren)                    |
+| `npm run db:smoke`                | Prueba de humo end-to-end contra la base remota; se niega a correr si hay datos          |
+| `npm run db:types`                | Regenera `database.types.ts` vía la API de Supabase (requiere `supabase login` + `link`) |
 
 Los scripts de base leen `SUPABASE_DB_URL` desde `.env` con `node --env-file`, así que la contraseña no aparece en `package.json` ni en el historial del shell.
 
@@ -196,25 +202,25 @@ El producto es un **tablero de control oscuro**: fondo azul profundo con rejilla
 
 Todo vive en `src/app/globals.css`: los tokens por tema y un puñado de clases que se reutilizan en lugar de repetir combinaciones de utilidades.
 
-| Clase | Para qué |
-| --- | --- |
-| `.fondo-tablero` | Fondo fijo de la aplicación: rejilla de 44 px y tres halos radiales. |
-| `.panel` | Superficie estándar: borde de un píxel, fondo translúcido y desenfoque. Sustituye a `rounded-lg border bg-card`. |
-| `.panel-acento` | Añade la línea de acento superior de los paneles de datos. |
-| `.panel-enlace` | Estado *hover* de las tarjetas que son enlaces. |
-| `.etiqueta-dato` | Versalitas espaciadas de las etiquetas de dato y de los títulos de sección. |
-| `.cifra` / `.cifra-heroe` | Cifra de un indicador / número protagonista de la vista (uno solo por pantalla). |
-| `.brillo-neon` | Halo suave alrededor de un elemento destacado. |
+| Clase                     | Para qué                                                                                                         |
+| ------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `.fondo-tablero`          | Fondo fijo de la aplicación: rejilla de 44 px y tres halos radiales.                                             |
+| `.panel`                  | Superficie estándar: borde de un píxel, fondo translúcido y desenfoque. Sustituye a `rounded-lg border bg-card`. |
+| `.panel-acento`           | Añade la línea de acento superior de los paneles de datos.                                                       |
+| `.panel-enlace`           | Estado _hover_ de las tarjetas que son enlaces.                                                                  |
+| `.etiqueta-dato`          | Versalitas espaciadas de las etiquetas de dato y de los títulos de sección.                                      |
+| `.cifra` / `.cifra-heroe` | Cifra de un indicador / número protagonista de la vista (uno solo por pantalla).                                 |
+| `.brillo-neon`            | Halo suave alrededor de un elemento destacado.                                                                   |
 
 ### Tipografía
 
 Tres cortes, cada uno con un trabajo. Se cargan con `next/font/google` (subconjunto latino, `display: swap`) y las variables se declaran en `<html>`, no en `<body>`: la regla base `html { font-family: … }` vive por encima del body y no las vería.
 
-| Rol | Familia | Dónde |
-| --- | --- | --- |
-| `font-sans` | **Inter** | Texto de interfaz, formularios, tablas y **todas las cifras**, incluida la protagonista. |
-| `font-heading` | **Space Grotesk** | `h1`–`h4` y títulos de tarjeta. Da el carácter técnico sin tocar los números. |
-| `font-mono` | **JetBrains Mono** | Etiquetas de dato (`.etiqueta-dato`), cabeceras de tabla, insignias y marcas de eje. |
+| Rol            | Familia            | Dónde                                                                                    |
+| -------------- | ------------------ | ---------------------------------------------------------------------------------------- |
+| `font-sans`    | **Inter**          | Texto de interfaz, formularios, tablas y **todas las cifras**, incluida la protagonista. |
+| `font-heading` | **Space Grotesk**  | `h1`–`h4` y títulos de tarjeta. Da el carácter técnico sin tocar los números.            |
+| `font-mono`    | **JetBrains Mono** | Etiquetas de dato (`.etiqueta-dato`), cabeceras de tabla, insignias y marcas de eje.     |
 
 Dos reglas que conviene no romper:
 
@@ -240,13 +246,13 @@ En el tema anterior, `@theme inline { --font-sans: var(--font-sans) }` era autor
 
 Orden fijo, asignado por serie y **nunca ciclado**: 1 verdemar (ingresos), 2 azul (egresos), 3 ámbar (inversión), 4 rosa, 5 violeta. Las tres primeras ranuras son las que se pueden usar cuando cualquier par de marcas puede quedar contiguo.
 
-| Ranura | Claro | Oscuro |
-| --- | --- | --- |
-| 1 | `#0a8e7c` | `#0aa791` |
-| 2 | `#3560e0` | `#4f7ff5` |
-| 3 | `#9a6a15` | `#c1841e` |
-| 4 | `#c93a6d` | `#e04f85` |
-| 5 | `#6b56d6` | `#8b78ee` |
+| Ranura | Claro     | Oscuro    |
+| ------ | --------- | --------- |
+| 1      | `#0a8e7c` | `#0aa791` |
+| 2      | `#3560e0` | `#4f7ff5` |
+| 3      | `#9a6a15` | `#c1841e` |
+| 4      | `#c93a6d` | `#e04f85` |
+| 5      | `#6b56d6` | `#8b78ee` |
 
 Ambas columnas pasan las comprobaciones de banda de luminosidad, croma mínimo, separación bajo daltonismo (ΔE ≥ 8 en OKLab ×100), umbral de visión normal (ΔE ≥ 15) y contraste ≥ 3:1 contra su superficie. Si cambias un tono, vuelve a validarlo antes de subirlo; no se ajusta «a ojo».
 

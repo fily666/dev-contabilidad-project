@@ -561,6 +561,50 @@ export type Database = {
           estado: EstadoOcurrencia;
           movimiento_id: string | null;
           dias_restantes: number;
+          categoria_id: string;
+          moneda: string;
+        };
+        Relationships: [];
+      };
+      v_presupuesto_ejecucion: {
+        Row: {
+          presupuesto_id: string;
+          proyecto_id: string | null;
+          proyecto: string | null;
+          categoria_id: string;
+          categoria: string;
+          naturaleza: NaturalezaCategoria;
+          periodo_inicio: string;
+          periodo_fin: string;
+          valor_planeado: number;
+          valor_real: number;
+          desviacion: number;
+          /** null cuando el planeado es cero: no hay porcentaje (guarda §5.3). */
+          ejecucion: number | null;
+          movimientos: number;
+        };
+        Relationships: [];
+      };
+      v_movimientos_mensual: {
+        Row: {
+          proyecto_id: string;
+          mes: string;
+          tipo: TipoMovimiento;
+          naturaleza: NaturalezaCategoria;
+          total: number;
+          cantidad: number;
+        };
+        Relationships: [];
+      };
+      v_gastos_mensual_categoria: {
+        Row: {
+          proyecto_id: string;
+          mes: string;
+          categoria_id: string;
+          categoria_raiz: string;
+          naturaleza: NaturalezaCategoria;
+          total: number;
+          cantidad: number;
         };
         Relationships: [];
       };

@@ -20,7 +20,7 @@ set app.sembrando = 'on';
 insert into ajustes (id, moneda, zona_horaria, preferencias)
 values (
   true, 'COP', 'America/Bogota',
-  '{"formato_fecha": "d MMM yyyy", "horizonte_proyeccion_meses": 12}'::jsonb
+  '{"formato_fecha": "d MMM yyyy", "horizonte_proyeccion_meses": 12, "canales_notificacion": ["in_app"], "dias_aviso_por_omision": [5, 1], "email_destino": null}'::jsonb
 )
 on conflict (id) do nothing;
 
@@ -80,6 +80,47 @@ insert into tipos_proyecto (codigo, nombre, icono, es_sistema, configuracion) va
     "indicadores": ["total_invertido","total_ingresos","balance","yield_bruto","roi_acumulado","plusvalia"],
     "genera_ingresos": true,
     "se_valoriza": true
+  }'::jsonb
+),
+(
+  'construccion', 'Construcción de vivienda', 'hard-hat', true,
+  '{
+    "atributos": [
+      { "clave": "direccion",        "etiqueta": "Dirección del lote",     "tipo": "text",   "requerido": true },
+      { "clave": "area_lote_m2",     "etiqueta": "Área del lote (m²)",     "tipo": "number", "requerido": false },
+      { "clave": "area_construida",  "etiqueta": "Área construida (m²)",   "tipo": "number", "requerido": false },
+      { "clave": "licencia",         "etiqueta": "Licencia de construcción","tipo": "text",  "requerido": false },
+      { "clave": "fecha_entrega",    "etiqueta": "Entrega estimada",       "tipo": "date",   "requerido": false }
+    ],
+    "indicadores": ["total_invertido","total_egresos","balance","capital_aportado","costo_mensual","plusvalia","patrimonio_neto"],
+    "genera_ingresos": false,
+    "se_valoriza": true
+  }'::jsonb
+),
+(
+  'cripto', 'Criptomonedas', 'bitcoin', true,
+  '{
+    "atributos": [
+      { "clave": "activo",     "etiqueta": "Activo",           "tipo": "text", "requerido": true },
+      { "clave": "exchange",   "etiqueta": "Exchange o wallet", "tipo": "text", "requerido": false },
+      { "clave": "red",        "etiqueta": "Red",               "tipo": "text", "requerido": false }
+    ],
+    "indicadores": ["total_invertido","total_ingresos","balance","roi_acumulado","plusvalia","retorno_total"],
+    "genera_ingresos": true,
+    "se_valoriza": true
+  }'::jsonb
+),
+(
+  'viaje', 'Viaje', 'plane', true,
+  '{
+    "atributos": [
+      { "clave": "destino",       "etiqueta": "Destino",        "tipo": "text",   "requerido": true },
+      { "clave": "fecha_salida",  "etiqueta": "Fecha de salida","tipo": "date",   "requerido": false },
+      { "clave": "viajeros",      "etiqueta": "Viajeros",       "tipo": "number", "requerido": false }
+    ],
+    "indicadores": ["total_egresos","tco","costo_mensual","balance"],
+    "genera_ingresos": false,
+    "se_valoriza": false
   }'::jsonb
 ),
 (
@@ -236,6 +277,38 @@ select pg_temp.sembrar_categoria('inversion', 'Rendimientos', 'Dividendos',     
 select pg_temp.sembrar_categoria('inversion', 'Rendimientos', 'Intereses',             'ingreso', 2);
 select pg_temp.sembrar_categoria('inversion', 'Rendimientos', 'Valorización realizada','ingreso', 3);
 select pg_temp.sembrar_categoria('inversion', 'Rendimientos', 'Retiro de capital',     'ingreso', 4);
+
+-- 2.6 Construccion de vivienda (Fase 5)
+select pg_temp.sembrar_categoria('construccion', null, 'Terreno',        'capex', 1);
+select pg_temp.sembrar_categoria('construccion', 'Terreno', 'Compra del lote',       'capex', 1);
+select pg_temp.sembrar_categoria('construccion', 'Terreno', 'Estudios y licencias',  'capex', 2);
+select pg_temp.sembrar_categoria('construccion', null, 'Obra',           'capex', 2);
+select pg_temp.sembrar_categoria('construccion', 'Obra', 'Materiales',              'capex', 1);
+select pg_temp.sembrar_categoria('construccion', 'Obra', 'Mano de obra',            'capex', 2);
+select pg_temp.sembrar_categoria('construccion', 'Obra', 'Diseño y honorarios',     'capex', 3);
+select pg_temp.sembrar_categoria('construccion', 'Obra', 'Acabados',                'capex', 4);
+select pg_temp.sembrar_categoria('construccion', null, 'Servicios de obra', 'opex', 3);
+select pg_temp.sembrar_categoria('construccion', 'Servicios de obra', 'Servicios públicos', 'opex', 1);
+select pg_temp.sembrar_categoria('construccion', 'Servicios de obra', 'Vigilancia',         'opex', 2);
+select pg_temp.sembrar_categoria('construccion', 'Servicios de obra', 'Impuestos y tasas',  'opex', 3);
+
+-- 2.7 Criptomonedas (Fase 5)
+select pg_temp.sembrar_categoria('cripto', null, 'Compras',      'capex', 1);
+select pg_temp.sembrar_categoria('cripto', null, 'Costos',       'opex', 2);
+select pg_temp.sembrar_categoria('cripto', 'Costos', 'Comisiones de transacción', 'opex', 1);
+select pg_temp.sembrar_categoria('cripto', 'Costos', 'Retiros y redes',           'opex', 2);
+select pg_temp.sembrar_categoria('cripto', null, 'Rendimientos', 'ingreso', 3);
+select pg_temp.sembrar_categoria('cripto', 'Rendimientos', 'Staking',            'ingreso', 1);
+select pg_temp.sembrar_categoria('cripto', 'Rendimientos', 'Venta realizada',    'ingreso', 2);
+
+-- 2.8 Viaje (Fase 5)
+select pg_temp.sembrar_categoria('viaje', null, 'Transporte',  'opex', 1);
+select pg_temp.sembrar_categoria('viaje', 'Transporte', 'Tiquetes',        'opex', 1);
+select pg_temp.sembrar_categoria('viaje', 'Transporte', 'Traslados',       'opex', 2);
+select pg_temp.sembrar_categoria('viaje', null, 'Alojamiento', 'opex', 2);
+select pg_temp.sembrar_categoria('viaje', null, 'Alimentación', 'opex', 3);
+select pg_temp.sembrar_categoria('viaje', null, 'Actividades',  'opex', 4);
+select pg_temp.sembrar_categoria('viaje', null, 'Seguros y visados', 'opex', 5);
 
 -- ─── 3. Metodos de pago iniciales (RF-33) ───────────────────────────────────
 -- Antes los creaba el trigger de alta de usuario; sin usuarios, se siembran aqui.

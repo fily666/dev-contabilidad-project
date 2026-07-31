@@ -30,13 +30,18 @@ describe("esquema de base de datos", () => {
       expect(r.rows[0]).toEqual({ moneda: "COP", zona_horaria: "America/Bogota" });
     });
 
-    it("siembra las preferencias de RF-101", async () => {
+    it("siembra las preferencias de RF-101 y RF-102", async () => {
       const r = await base.db.query<{ preferencias: Record<string, unknown> }>(
         `select preferencias from ajustes`,
       );
       expect(r.rows[0]?.preferencias).toEqual({
         formato_fecha: "d MMM yyyy",
         horizonte_proyeccion_meses: 12,
+        // RF-102: la instalacion nace avisando solo dentro de la aplicacion; el
+        // correo se activa cuando haya destinatario y credenciales (§15.1).
+        canales_notificacion: ["in_app"],
+        dias_aviso_por_omision: [5, 1],
+        email_destino: null,
       });
     });
 
@@ -51,16 +56,19 @@ describe("esquema de base de datos", () => {
   });
 
   describe("seed del catalogo (§6.8)", () => {
-    it("crea los cinco tipos de proyecto del sistema", async () => {
+    it("crea los tipos de proyecto del sistema, incluidos los de la Fase 5", async () => {
       const r = await base.db.query<{ codigo: string }>(
         `select codigo from tipos_proyecto where es_sistema order by codigo`,
       );
       expect(r.rows.map((f) => f.codigo)).toEqual([
+        "construccion",
+        "cripto",
         "inmueble",
         "inversion",
         "negocio",
         "otro",
         "vehiculo",
+        "viaje",
       ]);
     });
 

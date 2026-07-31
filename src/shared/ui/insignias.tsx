@@ -1,8 +1,14 @@
 import { Badge } from "@/shared/ui/badge";
 import { cn } from "@/shared/utils/cn";
-import type { EstadoMovimiento, EstadoProyecto, Naturaleza } from "@/shared/domain/enumeraciones";
+import type {
+  EstadoMovimiento,
+  EstadoOcurrencia,
+  EstadoProyecto,
+  Naturaleza,
+} from "@/shared/domain/enumeraciones";
 import {
   ETIQUETA_ESTADO_MOVIMIENTO,
+  ETIQUETA_ESTADO_OCURRENCIA,
   ETIQUETA_ESTADO_PROYECTO,
   ETIQUETA_NATURALEZA,
 } from "@/shared/utils/etiquetas";
@@ -19,6 +25,22 @@ export function InsigniaEstadoMovimiento({ estado }: { estado: EstadoMovimiento 
   return (
     <Badge variant="outline" className={cn("font-medium", CLASES_ESTADO_MOVIMIENTO[estado])}>
       {ETIQUETA_ESTADO_MOVIMIENTO[estado]}
+    </Badge>
+  );
+}
+
+/** RF-55, RF-61: el color dice el estado antes de leer la etiqueta. */
+const CLASES_ESTADO_OCURRENCIA: Record<EstadoOcurrencia, string> = {
+  pagada: "bg-success-soft text-success-foreground border-success/30",
+  pendiente: "bg-info-soft text-foreground border-info/30",
+  vencida: "bg-danger-soft text-destructive border-destructive/30",
+  omitida: "bg-muted text-muted-foreground border-border",
+};
+
+export function InsigniaEstadoOcurrencia({ estado }: { estado: EstadoOcurrencia }) {
+  return (
+    <Badge variant="outline" className={cn("font-medium", CLASES_ESTADO_OCURRENCIA[estado])}>
+      {ETIQUETA_ESTADO_OCURRENCIA[estado]}
     </Badge>
   );
 }

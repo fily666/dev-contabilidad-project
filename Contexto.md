@@ -799,8 +799,8 @@ src/
 │   ├── (privado)/
 │   │   ├── layout.tsx                    # shell: sidebar, topbar, guardia de sesión
 │   │   ├── dashboard/
-│   │   ├── proyectos/[id]/(resumen|movimientos|documentos|obligaciones|presupuesto)/
-│   │   ├── movimientos/
+│   │   ├── proyectos/[id]/(movimientos|obligaciones|documentos|patrimonio)/
+│   │   ├── movimientos/(importar)/         # RF-27 carga en lote
 │   │   ├── obligaciones/
 │   │   ├── calendario/
 │   │   ├── documentos/
@@ -834,7 +834,6 @@ src/
 │   │   │   └── proyecto.mapper.ts
 │   │   └── presentation/
 │   │       ├── components/
-│   │       ├── hooks/                     # TanStack Query
 │   │       ├── actions.ts                 # Server Actions → casos de uso
 │   │       └── schemas.ts                 # Zod (formulario y payload)
 │   ├── movimientos/
@@ -844,8 +843,10 @@ src/
 │   ├── obligaciones/
 │   ├── presupuestos/
 │   ├── patrimonio/
+│   ├── notificaciones/
 │   ├── reportes/
 │   ├── dashboard/
+│   ├── calendario/
 │   └── acceso/                            # token, sesión firmada y ajustes
 │
 ├── shared/
@@ -949,7 +950,7 @@ Formulario (React Hook Form + Zod)
 - **Server Components** por defecto: listados, detalle de proyecto, dashboard, reportes.
 - **Client Components** solo donde hay interacción: formularios, filtros, calendario, gráficas, subida de archivos.
 - **Server Actions** para toda mutación; API Routes reservadas para cron, exportaciones y webhooks.
-- Datos de lectura interactiva (filtros, paginación, refresco) con **TanStack Query** e hidratación inicial desde el servidor.
+- Datos de lectura interactiva (filtros, orden, paginación) **en los parámetros de la URL**, resueltos por el servidor en cada navegación. No hay caché de cliente ni hidratación de estado: los filtros quedan compartibles (RNF-09) y no hay dos copias de la verdad que sincronizar. TanStack Query se retiró después de comprobar que el proveedor llevaba montado sin un solo consumidor; si aparece una lectura que de verdad necesite refresco en vivo (una cola de notificaciones, por ejemplo), vuelve para ese caso y no para todo.
 - `revalidatePath` / `revalidateTag` tras cada mutación exitosa.
 
 ---
@@ -958,26 +959,26 @@ Formulario (React Hook Form + Zod)
 
 ### 8.1 Stack
 
-| Capa               | Tecnología                                                                                    |
-| ------------------ | --------------------------------------------------------------------------------------------- |
-| Framework          | Next.js 15 (App Router, React 19)                                                             |
-| Lenguaje           | TypeScript en modo `strict`                                                                   |
-| Estilos            | Tailwind CSS 4                                                                                |
-| Componentes        | shadcn/ui sobre **Base UI** (`@base-ui/react`), no Radix ([§7.2](#72-estructura-de-carpetas)) |
-| Formularios        | React Hook Form                                                                               |
-| Validación         | Zod (compartida cliente/servidor)                                                             |
-| Estado de servidor | TanStack Query                                                                                |
-| Gráficas           | **Capa propia en `shared/ui/viz/`** (SVG + CSS), sin Recharts                                 |
-| Tablas             | TanStack Table                                                                                |
-| Fechas             | date-fns (locale `es`)                                                                        |
-| Base de datos      | Supabase (PostgreSQL)                                                                         |
-| Archivos           | Supabase Storage                                                                              |
-| Acceso             | Token en variable de entorno + cookie firmada con HMAC-SHA256 (Web Crypto)                    |
-| Correo             | Resend                                                                                        |
-| Excel / PDF        | ExcelJS / @react-pdf/renderer                                                                 |
-| Pruebas            | Vitest + Testing Library + Playwright                                                         |
-| Calidad            | ESLint, Prettier, Husky, lint-staged                                                          |
-| Despliegue         | Vercel (app) + Supabase (datos y archivos)                                                    |
+| Capa               | Tecnología                                                                                        |
+| ------------------ | ------------------------------------------------------------------------------------------------- |
+| Framework          | Next.js 15 (App Router, React 19)                                                                 |
+| Lenguaje           | TypeScript en modo `strict`                                                                       |
+| Estilos            | Tailwind CSS 4                                                                                    |
+| Componentes        | shadcn/ui sobre **Base UI** (`@base-ui/react`), no Radix ([§7.2](#72-estructura-de-carpetas))     |
+| Formularios        | React Hook Form                                                                                   |
+| Validación         | Zod (compartida cliente/servidor)                                                                 |
+| Estado de servidor | Server Components + parámetros de URL (sin TanStack Query, [§7.6](#76-estrategia-de-renderizado)) |
+| Gráficas           | **Capa propia en `shared/ui/viz/`** (SVG + CSS), sin Recharts                                     |
+| Tablas             | Tabla propia en `shared/ui/table.tsx` (el orden y la paginación son del servidor)                 |
+| Fechas             | date-fns (locale `es`)                                                                            |
+| Base de datos      | Supabase (PostgreSQL)                                                                             |
+| Archivos           | Supabase Storage                                                                                  |
+| Acceso             | Token en variable de entorno + cookie firmada con HMAC-SHA256 (Web Crypto)                        |
+| Correo             | Resend por API REST, sin SDK (`shared/infrastructure/email/resend.ts`)                            |
+| Excel / PDF        | ExcelJS / @react-pdf/renderer (adaptadores en `shared/infrastructure/export/`)                    |
+| Pruebas            | Vitest + Testing Library + Playwright                                                             |
+| Calidad            | ESLint, Prettier, Husky, lint-staged                                                              |
+| Despliegue         | Vercel (app) + Supabase (datos y archivos)                                                        |
 
 **Por qué Base UI y no Radix:** shadcn/ui migró a Base UI, que compone con la prop
 `render` en lugar de `asChild`. La consecuencia práctica está anotada en
@@ -995,7 +996,7 @@ genuinamente interactiva (zoom, tooltip con cruz, pincel de rango), se reevalúa
 
 - **Prohibido Docker.** Desarrollo local contra Supabase en la nube o Supabase CLI sin contenedores.
 - **Prohibido Prisma.** Acceso a datos exclusivamente con `@supabase/supabase-js` y SQL en migraciones.
-- Sin ORMs adicionales ni librerías de estado global (Redux, Zustand) mientras TanStack Query y Server Components sean suficientes.
+- Sin ORMs adicionales ni librerías de estado global (Redux, Zustand) ni caché de cliente (TanStack Query) mientras los Server Components y los parámetros de URL sean suficientes: hoy lo son ([§7.6](#76-estrategia-de-renderizado)).
 - **Sin Supabase Auth.** El sistema es monousuario y entra por token ([ADR-14](#16-decisiones-técnicas-adr)); `@supabase/ssr` dejó de ser necesario y se retiró.
 
 ### 8.3 Nomenclatura
@@ -1043,7 +1044,7 @@ Sufijos obligatorios: `.entity.ts`, `.repository.ts` (puerto), `.use-case.ts`, `
 | Nivel            | Alcance                                                                                                                                      | Cobertura objetivo            |
 | ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------- |
 | Unitarias        | Entidades, value objects, cálculos de [§5](#5-reglas-de-negocio-y-fórmulas), recurrencias                                                    | ≥ 90 % en `domain/`           |
-| Casos de uso     | Con repositorios en memoria                                                                                                                  | todos los casos de uso        |
+| Casos de uso     | Con repositorios en memoria (`<modulo>/application/dobles.ts`)                                                                               | todos los casos de uso        |
 | Esquema          | Migraciones y seed reales contra PostgreSQL embebido (PGlite): restricciones, triggers, vistas, recurrencias, Storage y blindaje de permisos | esquema completo              |
 | Humo remoto      | Las comprobaciones críticas contra el Supabase real (`npm run db:smoke`)                                                                     | cifras, invariantes, blindaje |
 | E2E (Playwright) | Los dos escenarios de [§3](#3-escenarios-de-referencia) de punta a punta                                                                     | flujos críticos               |
@@ -1152,6 +1153,15 @@ Lo que sigue protegido pase lo que pase, incluso con el token comprometido: nada
 
 Todas las tareas son **idempotentes**: ejecutarlas dos veces el mismo día no duplica ocurrencias ni correos (garantizado por los índices únicos de [§6.3](#63-esquema)).
 
+**Los horarios de `vercel.json` van en UTC**, que es lo único que Vercel Cron entiende:
+las 05:00 COT de la tabla son `0 10 * * *`. Escribirlos en hora local es el error que
+hace que la tarea corra a mediodía y nadie lo note hasta que un aviso llega tarde.
+
+Los tres endpoints comparten guardia (`src/app/api/cron/autorizacion.ts`): comparan el
+digesto de `CRON_SECRET` en tiempo constante y **rechazan la petición si el secreto no
+está configurado**, en lugar de quedar abiertos. Un cron que no corre se nota; uno que
+cualquiera puede disparar, no.
+
 ### 10.2 Canales
 
 - **Email (Resend)** desde la Fase 4: resumen de próximos vencimientos y aviso individual.
@@ -1247,6 +1257,12 @@ Si un tipo requiere un cálculo genuinamente nuevo (por ejemplo TIR para fondos 
 
 Cada fase termina desplegada en Vercel y usable. No se inicia una fase sin cerrar la anterior.
 
+**Estado a 31 de julio de 2026: las cinco fases están implementadas.** Lo que queda
+pendiente no es alcance, son las decisiones de §17 y las verificaciones que solo se
+pueden hacer fuera del repositorio (backups de Supabase, auditoría de accesibilidad y
+medición de Lighthouse). El detalle de cada fase queda abajo como registro de lo
+acordado, no como plan por ejecutar.
+
 ### Fase 0 — Fundación
 
 - Proyecto Next.js 15 con TypeScript strict, Tailwind y shadcn/ui.
@@ -1331,7 +1347,8 @@ SUPABASE_DB_URL=                  # contraseña de postgres; solo migraciones y 
 NEXT_PUBLIC_APP_URL=
 CRON_SECRET=                      # protege /api/cron/*
 
-# Correo (Fase 4)
+# Correo. Sin estas dos, el canal de correo queda desactivado y las
+# notificaciones se quedan programadas en lugar de fallar (§10.2).
 RESEND_API_KEY=
 EMAIL_REMITENTE=
 ```
@@ -1436,8 +1453,8 @@ Los E2E no van en un gancho: necesitan navegador y base con datos, y su sitio es
 ### Pendientes por confirmar
 
 1. ¿Se descarta de forma definitiva compartir proyectos con otra persona (pareja, socio)? Si aparece esa necesidad, la vuelta al multiusuario cuesta una migración de las catorce tablas, no un ajuste ([ADR-14](#16-decisiones-técnicas-adr)).
-2. **¿Se cambia `TOKEN_ACCESO` por una cadena aleatoria larga?** Sigue pendiente y sigue siendo el punto más débil del sistema: el valor actual tiene 9 caracteres y forma de contraseña común, y es la **única** barrera entre internet y todo el historial financiero ([§9.4](#94-modelo-de-amenaza-dicho-sin-adornos)). Rotarlo es gratis —cambiar la variable de entorno y volver a entrar— y cierra las sesiones abiertas por diseño ([§9.1](#91-cómo-se-entra)).
-3. ¿Notificaciones por WhatsApp con proveedor propio (Twilio, API oficial de Meta) o basta el correo en v1?
+2. ~~¿Se cambia `TOKEN_ACCESO` por una cadena aleatoria larga?~~ **Resuelto.** El token es ahora una cadena aleatoria de 48 caracteres generada con `randomBytes(36).toString("base64url")`, sin forma de contraseña ni relación con el dueño. Sigue siendo la **única** barrera entre internet y todo el historial financiero ([§9.4](#94-modelo-de-amenaza-dicho-sin-adornos)), pero ya con la entropía que esa responsabilidad exige. Rotarlo sigue siendo gratis —cambiar la variable de entorno y volver a entrar— y cierra las sesiones abiertas por diseño ([§9.1](#91-cómo-se-entra)).
+3. ¿Notificaciones por WhatsApp con proveedor propio (Twilio, API oficial de Meta) o basta el correo en v1? **El puerto `NotificadorWhatsApp` ya existe y el caso de uso lo trata como canal opcional**: mientras no haya adaptador, esas notificaciones quedan programadas sin enviarse en lugar de marcarse fallidas. Decidir el proveedor es lo único que falta.
 4. ¿Se necesita registrar el detalle de la tabla de amortización del crédito hipotecario, o basta el saldo y la cuota?
-5. ¿Los presupuestos son mensuales, anuales o ambos desde el inicio?
-6. ¿Existe histórico previo que se deba importar (Excel), lo que adelantaría el RF-27 a la Fase 2?
+5. ~~¿Los presupuestos son mensuales, anuales o ambos desde el inicio?~~ **Resuelto: ambos.** El periodo se guarda como rango de fechas (`periodo_inicio`, `periodo_fin`), así que mensual y anual son el mismo registro con distinto rango y no hicieron falta ni una columna de tipo ni una segunda tabla ([RF-80](#49-módulo-presupuestos)).
+6. ~~¿Existe histórico previo que se deba importar (Excel)?~~ **La importación ya está disponible** (`/movimientos/importar`, RF-27): valida fila por fila, previsualiza y solo escribe lo válido. Si el histórico existe, ya hay por dónde entrarlo.

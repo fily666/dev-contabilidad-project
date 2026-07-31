@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { ArrowLeftRight, ArrowLeft } from "lucide-react";
+import { ArrowLeftRight, ArrowLeft, BellRing, FileText, Scale } from "lucide-react";
 
 import { contenedorPrivado } from "@/di/container";
 import { EnlaceBoton } from "@/shared/ui/enlace-boton";
@@ -17,6 +17,7 @@ import { PanelGrafica } from "@/shared/ui/viz/panel-grafica";
 import { razonAcotada } from "@/shared/ui/viz/escala";
 import { AccionesProyecto } from "@/modules/proyectos/presentation/components/acciones-proyecto";
 import { PanelIndicadores } from "@/modules/proyectos/presentation/components/panel-indicadores";
+import { PanelAgenda } from "@/modules/obligaciones/presentation/components/panel-agenda";
 import { DialogoNuevoMovimiento } from "@/modules/movimientos/presentation/components/dialogo-nuevo-movimiento";
 import { TablaMovimientos } from "@/modules/movimientos/presentation/components/tabla-movimientos";
 
@@ -35,7 +36,7 @@ export default async function PaginaProyecto({ params }: Props) {
 
   const { proyecto, tipo, indicadores, indicadoresVisibles, flujoMensual } = resumen;
 
-  const [ultimos, categorias, metodosPago] = await Promise.all([
+  const [ultimos, categorias, metodosPago, agenda] = await Promise.all([
     contenedor.movimientos.listar.ejecutar({
       filtro: { proyectoId: id },
       paginacion: { pagina: 1, porPagina: 8 },
@@ -44,6 +45,10 @@ export default async function PaginaProyecto({ params }: Props) {
       filtro: { tipoProyectoId: proyecto.tipoProyectoId },
     }),
     contenedor.metodosPago.listar.ejecutar(),
+    // RF-58, RF-73 en el ámbito del proyecto: lo vencido y lo que vence en 30 días.
+    contenedor.obligaciones.listarAgenda.ejecutar({
+      filtro: { proyectoId: id, dentroDeDias: 30, incluirVencidas: true },
+    }),
   ]);
 
   const hoy = contenedor.reloj.hoy();
@@ -88,6 +93,22 @@ export default async function PaginaProyecto({ params }: Props) {
           </div>
         </div>
       </div>
+
+      {/* Secciones del proyecto (§7.2): cada una con su ruta propia. */}
+      <nav aria-label="Secciones del proyecto" className="flex flex-wrap gap-2">
+        <EnlaceBoton href={`/proyectos/${proyecto.id}/movimientos`} variant="secondary" size="sm">
+          <ArrowLeftRight className="size-4" aria-hidden /> Movimientos
+        </EnlaceBoton>
+        <EnlaceBoton href={`/proyectos/${proyecto.id}/obligaciones`} variant="secondary" size="sm">
+          <BellRing className="size-4" aria-hidden /> Obligaciones
+        </EnlaceBoton>
+        <EnlaceBoton href={`/proyectos/${proyecto.id}/documentos`} variant="secondary" size="sm">
+          <FileText className="size-4" aria-hidden /> Documentos
+        </EnlaceBoton>
+        <EnlaceBoton href={`/proyectos/${proyecto.id}/patrimonio`} variant="secondary" size="sm">
+          <Scale className="size-4" aria-hidden /> Patrimonio
+        </EnlaceBoton>
+      </nav>
 
       {/* Cifra protagonista del proyecto y sus razones principales. */}
       <section
@@ -165,6 +186,19 @@ export default async function PaginaProyecto({ params }: Props) {
       </PanelGrafica>
 
       <PanelIndicadores indicadores={indicadores} visibles={indicadoresVisibles} />
+
+      <PanelAgenda
+        eventos={agenda}
+        metodosPago={metodosPago}
+        hoy={hoy}
+        formatoFecha={ajustes.formatoFecha}
+        titulo="Obligaciones próximas y vencidas"
+        ocultarProyecto
+        vacio={{
+          titulo: "Sin vencimientos en 30 días",
+          descripcion: "Registra las obligaciones del proyecto para verlas aquí.",
+        }}
+      />
 
       <section className="space-y-3">
         <div className="flex items-end justify-between gap-3">

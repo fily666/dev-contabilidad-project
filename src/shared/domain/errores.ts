@@ -18,7 +18,11 @@ export class ErrorDeDominio extends Error {
 
 export class NoEncontrado extends ErrorDeDominio {
   constructor(entidad: string, id: string) {
-    super(`${entidad.toUpperCase()}_NO_ENCONTRADO`, `No se encontro ${entidad} con id ${id}.`);
+    // Los nombres de entidad con espacios («metodo de pago») generaban codigos
+    // con espacios, que ninguna clave de MENSAJE_ERROR podia igualar: el usuario
+    // veia el texto crudo del dominio en lugar del mensaje traducido (§8.6).
+    const clave = entidad.trim().toUpperCase().replace(/\s+/g, "_");
+    super(`${clave}_NO_ENCONTRADO`, `No se encontro ${entidad} con id ${id}.`);
   }
 }
 

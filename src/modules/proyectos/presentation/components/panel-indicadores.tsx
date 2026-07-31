@@ -141,6 +141,16 @@ const CATALOGO: Record<string, Definicion> = {
   },
 };
 
+/**
+ * §13, punto 3 del checklist: el registro de indicadores del dominio. Un tipo de
+ * proyecto solo puede declarar claves que existan aqui, porque una clave que no
+ * este no rompe nada —simplemente no se dibuja— y ese silencio es peor que un
+ * error. El gestor de tipos (RF-100) ofrece exactamente esta lista.
+ */
+export const INDICADORES_DISPONIBLES: Array<{ clave: string; etiqueta: string }> = Object.entries(
+  CATALOGO,
+).map(([clave, definicion]) => ({ clave, etiqueta: definicion.etiqueta }));
+
 type Props = {
   indicadores: Indicadores;
   /** Claves declaradas por el tipo de proyecto. */

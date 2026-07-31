@@ -3,9 +3,11 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/shared/infrastructure/supabase/database.types";
 import {
   AJUSTES_POR_OMISION,
+  CANALES_DISPONIBLES,
   FORMATOS_FECHA,
   type Ajustes,
   type AjustesRepository,
+  type CanalAviso,
   type FormatoFecha,
 } from "../domain/sesion";
 
@@ -16,9 +18,19 @@ import {
 type Preferencias = {
   formato_fecha?: unknown;
   horizonte_proyeccion_meses?: unknown;
+  canales_notificacion?: unknown;
+  dias_aviso_por_omision?: unknown;
+  email_destino?: unknown;
 };
 
-type PreferenciasLeidas = Pick<Ajustes, "formatoFecha" | "horizonteProyeccionMeses">;
+type PreferenciasLeidas = Pick<
+  Ajustes,
+  | "formatoFecha"
+  | "horizonteProyeccionMeses"
+  | "canalesNotificacion"
+  | "diasAvisoPorOmision"
+  | "emailDestino"
+>;
 
 /**
  * RF-101 se guarda en `preferencias` y no en columnas propias a proposito: son
@@ -30,6 +42,18 @@ function leerPreferencias(crudo: unknown): PreferenciasLeidas {
   const formato = objeto.formato_fecha;
   const horizonte = objeto.horizonte_proyeccion_meses;
 
+  const canales = Array.isArray(objeto.canales_notificacion)
+    ? objeto.canales_notificacion.filter((c): c is CanalAviso =>
+        (CANALES_DISPONIBLES as readonly unknown[]).includes(c),
+      )
+    : [];
+  const dias = Array.isArray(objeto.dias_aviso_por_omision)
+    ? objeto.dias_aviso_por_omision.filter(
+        (d): d is number => typeof d === "number" && Number.isInteger(d) && d >= 0 && d <= 90,
+      )
+    : [];
+  const email = typeof objeto.email_destino === "string" ? objeto.email_destino.trim() : "";
+
   return {
     formatoFecha: FORMATOS_FECHA.includes(formato as FormatoFecha)
       ? (formato as FormatoFecha)
@@ -38,6 +62,9 @@ function leerPreferencias(crudo: unknown): PreferenciasLeidas {
       typeof horizonte === "number" && Number.isInteger(horizonte) && horizonte > 0
         ? horizonte
         : AJUSTES_POR_OMISION.horizonteProyeccionMeses,
+    canalesNotificacion: canales.length > 0 ? canales : AJUSTES_POR_OMISION.canalesNotificacion,
+    diasAvisoPorOmision: dias.length > 0 ? dias : AJUSTES_POR_OMISION.diasAvisoPorOmision,
+    emailDestino: email.includes("@") ? email : null,
   };
 }
 
@@ -79,6 +106,10 @@ export class SupabaseAjustesRepository implements AjustesRepository {
           formato_fecha: datos.formatoFecha ?? actuales.formatoFecha,
           horizonte_proyeccion_meses:
             datos.horizonteProyeccionMeses ?? actuales.horizonteProyeccionMeses,
+          canales_notificacion: datos.canalesNotificacion ?? actuales.canalesNotificacion,
+          dias_aviso_por_omision: datos.diasAvisoPorOmision ?? actuales.diasAvisoPorOmision,
+          email_destino:
+            datos.emailDestino === undefined ? actuales.emailDestino : datos.emailDestino,
         },
       })
       .select("moneda, zona_horaria, preferencias")

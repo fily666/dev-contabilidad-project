@@ -7,9 +7,12 @@ import type { Resultado } from "@/shared/domain/resultado";
 import {
   esquemaActualizarMovimiento,
   esquemaAnularMovimiento,
+  esquemaDuplicarMovimiento,
+  esquemaImportacionCsv,
   esquemaMarcarPagado,
   esquemaRegistrarMovimiento,
 } from "./schemas";
+import type { Previsualizacion } from "../application/importar-movimientos.use-case";
 
 function revalidar(proyectoId?: string) {
   revalidatePath("/movimientos");
@@ -70,5 +73,44 @@ export async function anularMovimientoAction(datos: unknown): Promise<Resultado<
     });
     revalidar(movimiento.proyectoId);
     return { id: movimiento.id };
+  });
+}
+
+/** RF-28: la copia nace pendiente y con la fecha de hoy. */
+export async function duplicarMovimientoAction(datos: unknown): Promise<Resultado<{ id: string }>> {
+  const { contenedor } = await contenedorPrivado();
+  return ejecutarAccion(esquemaDuplicarMovimiento, datos, async (entrada) => {
+    const copia = await contenedor.movimientos.duplicar.ejecutar({
+      id: entrada.id,
+      fecha: entrada.fecha ?? undefined,
+    });
+    revalidar(copia.proyectoId);
+    return { id: copia.id };
+  });
+}
+
+/** RF-27: previsualización. No escribe nada en la base. */
+export async function previsualizarImportacionAction(
+  datos: unknown,
+): Promise<Resultado<Previsualizacion>> {
+  const { contenedor } = await contenedorPrivado();
+  return ejecutarAccion(esquemaImportacionCsv, datos, async (entrada) =>
+    contenedor.movimientos.previsualizarImportacion.ejecutar(entrada),
+  );
+}
+
+/** RF-27: importa solo las filas válidas de la previsualización. */
+export async function importarMovimientosAction(datos: unknown): Promise<
+  Resultado<{
+    importados: number;
+    omitidos: number;
+    fallidos: Array<{ numero: number; motivo: string }>;
+  }>
+> {
+  const { contenedor } = await contenedorPrivado();
+  return ejecutarAccion(esquemaImportacionCsv, datos, async (entrada) => {
+    const resultado = await contenedor.movimientos.importar.ejecutar(entrada);
+    revalidar(entrada.proyectoId);
+    return resultado;
   });
 }

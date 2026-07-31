@@ -1,60 +1,58 @@
+import { Suspense } from "react";
 import type { Metadata } from "next";
-import { Banknote, FolderKanban, Landmark, Plus, Receipt, Scale } from "lucide-react";
+import { Banknote, FolderKanban, Landmark, Plus, Receipt, Scale, TrendingUp } from "lucide-react";
 
 import { contenedorPrivado } from "@/di/container";
 import { EnlaceBoton } from "@/shared/ui/enlace-boton";
 import { EstadoVacio } from "@/shared/ui/estado-vacio";
+import { Skeleton } from "@/shared/ui/skeleton";
 import { TarjetaIndicador } from "@/shared/ui/tarjeta-indicador";
-import { formatearDineroCompacto, formatearPorcentaje } from "@/shared/utils/formato";
+import {
+  formatearDineroCompacto,
+  formatearMesCorto,
+  formatearPorcentaje,
+} from "@/shared/utils/formato";
 import { BarrasComparativas } from "@/shared/ui/viz/barras-comparativas";
 import { BarrasRanking } from "@/shared/ui/viz/barras-ranking";
+import { GraficoFlujo } from "@/shared/ui/viz/grafico-flujo";
 import { MedidorAnillo } from "@/shared/ui/viz/medidor-anillo";
 import { MedidorLineal } from "@/shared/ui/viz/medidor-lineal";
-import { PanelGrafica } from "@/shared/ui/viz/panel-grafica";
+import { PanelGrafica, TablaDeDatos } from "@/shared/ui/viz/panel-grafica";
 import { razonAcotada } from "@/shared/ui/viz/escala";
 import { TarjetaProyecto } from "@/modules/proyectos/presentation/components/tarjeta-proyecto";
-import { TablaMovimientos } from "@/modules/movimientos/presentation/components/tabla-movimientos";
+import { PanelAgenda } from "@/modules/obligaciones/presentation/components/panel-agenda";
+import { FiltrosPanel } from "@/modules/dashboard/presentation/components/filtros-panel";
+import {
+  leerFiltroPanel,
+  type ParametrosBusqueda,
+} from "@/modules/dashboard/presentation/leer-filtros";
 
 export const metadata: Metadata = { title: "Dashboard" };
 
+type Props = { searchParams: Promise<ParametrosBusqueda> };
+
 /**
- * RF-70, RF-77 (Fase 1). Las graficas se calculan sobre los agregados completos
- * de cada proyecto; el calendario y el flujo proyectado llegan en la Fase 3 y 4
- * segun el roadmap de Contexto.md §14.
+ * RF-70 a RF-79.
+ *
+ * Todas las cifras vienen del caso de uso `ObtenerPanel`, que las lee de las
+ * vistas de §6.4. La pagina no suma nada por su cuenta: antes calculaba los
+ * totales recorriendo los proyectos, y eso era una segunda definicion de cada
+ * cifra esperando a discrepar de la del resumen de proyecto (ADR-11).
  */
-export default async function PaginaDashboard() {
+export default async function PaginaDashboard({ searchParams }: Props) {
+  const parametros = await searchParams;
   const { contenedor, ajustes } = await contenedorPrivado();
 
-  const [proyectos, ultimos, metodosPago] = await Promise.all([
-    contenedor.proyectos.listar.ejecutar({
-      filtro: { estados: ["activo", "pausado", "finalizado"] },
-    }),
-    contenedor.movimientos.listar.ejecutar({
-      paginacion: { pagina: 1, porPagina: 8 },
-    }),
+  const filtro = leerFiltroPanel(parametros, contenedor.dashboard.panel.rangoPorOmision());
+  const [panel, metodosPago] = await Promise.all([
+    contenedor.dashboard.panel.ejecutar({ filtro }),
     contenedor.metodosPago.listar.ejecutar(),
   ]);
 
-  const moneda = proyectos[0]?.moneda ?? ajustes.moneda;
+  const { totales, proyectos } = panel;
+  const moneda = totales.moneda;
+  const flujo = totales.totalIngresos + totales.totalEgresos;
   const hoy = contenedor.reloj.hoy();
-
-  const totales = proyectos.reduce(
-    (acc, p) => ({
-      invertido: acc.invertido + p.totalInvertido,
-      ingresos: acc.ingresos + p.totalIngresos,
-      egresos: acc.egresos + p.totalEgresos,
-      balance: acc.balance + p.balance,
-    }),
-    { invertido: 0, ingresos: 0, egresos: 0, balance: 0 },
-  );
-
-  const flujo = totales.ingresos + totales.egresos;
-  const activos = proyectos.filter((p) => p.estado === "activo").length;
-
-  // Cinco proyectos con mas movimiento economico, para que las columnas sean legibles.
-  const masMovidos = [...proyectos]
-    .sort((a, b) => b.totalIngresos + b.totalEgresos - (a.totalIngresos + a.totalEgresos))
-    .slice(0, 5);
 
   return (
     <div className="space-y-8">
@@ -63,13 +61,18 @@ export default async function PaginaDashboard() {
           <p className="etiqueta-dato">Panel general</p>
           <h1 className="mt-1 text-2xl font-semibold tracking-tight">Resumen</h1>
           <p className="text-sm text-muted-foreground">
-            Estado consolidado de {proyectos.length}{" "}
-            {proyectos.length === 1 ? "proyecto" : "proyectos"}.
+            Cifras ejecutadas del rango seleccionado: solo los movimientos pagados alimentan la
+            caja.
           </p>
         </div>
-        <EnlaceBoton href="/proyectos/nuevo">
-          <Plus className="size-4" aria-hidden /> Nuevo proyecto
-        </EnlaceBoton>
+        <div className="flex flex-wrap gap-2">
+          <EnlaceBoton href="/reportes" variant="secondary">
+            Reportes
+          </EnlaceBoton>
+          <EnlaceBoton href="/proyectos/nuevo">
+            <Plus className="size-4" aria-hidden /> Nuevo proyecto
+          </EnlaceBoton>
+        </div>
       </div>
 
       {proyectos.length === 0 ? (
@@ -85,6 +88,15 @@ export default async function PaginaDashboard() {
         />
       ) : (
         <>
+          {/* RF-79: un solo filtro para todo el panel. */}
+          <Suspense fallback={<Skeleton className="h-24 w-full" />}>
+            <FiltrosPanel
+              proyectos={proyectos.map((p) => ({ id: p.proyectoId, nombre: p.nombre }))}
+              desde={filtro.desde ?? hoy}
+              hasta={filtro.hasta ?? hoy}
+            />
+          </Suspense>
+
           {/* Cifra protagonista de la vista + razones clave. */}
           <section
             aria-label="Balance consolidado"
@@ -96,7 +108,7 @@ export default async function PaginaDashboard() {
                 {formatearDineroCompacto(totales.balance, moneda)}
               </p>
               <p className="mt-2 text-sm text-muted-foreground">
-                Ingresos − egresos de todos los proyectos vigentes. Flujo registrado:{" "}
+                Ingresos − egresos del rango. Flujo registrado:{" "}
                 <span className="font-medium text-foreground tabular-nums">
                   {formatearDineroCompacto(flujo, moneda)}
                 </span>
@@ -106,14 +118,14 @@ export default async function PaginaDashboard() {
               <div className="mt-6 grid gap-4 sm:grid-cols-2">
                 <MedidorLineal
                   etiqueta="Ingresos sobre el flujo"
-                  razon={razonAcotada(totales.ingresos, flujo)}
-                  valorTexto={formatearDineroCompacto(totales.ingresos, moneda)}
+                  razon={razonAcotada(totales.totalIngresos, flujo)}
+                  valorTexto={formatearDineroCompacto(totales.totalIngresos, moneda)}
                   serie={1}
                 />
                 <MedidorLineal
                   etiqueta="Egresos sobre el flujo"
-                  razon={razonAcotada(totales.egresos, flujo)}
-                  valorTexto={formatearDineroCompacto(totales.egresos, moneda)}
+                  razon={razonAcotada(totales.totalEgresos, flujo)}
+                  valorTexto={formatearDineroCompacto(totales.totalEgresos, moneda)}
                   serie={2}
                 />
               </div>
@@ -123,9 +135,9 @@ export default async function PaginaDashboard() {
               <MedidorAnillo
                 etiqueta="Cobertura"
                 detalle="Ingresos / egresos"
-                razon={razonAcotada(totales.ingresos, totales.egresos)}
+                razon={razonAcotada(totales.totalIngresos, totales.totalEgresos)}
                 valorTexto={formatearPorcentaje(
-                  totales.egresos > 0 ? totales.ingresos / totales.egresos : null,
+                  totales.totalEgresos > 0 ? totales.totalIngresos / totales.totalEgresos : null,
                   0,
                 )}
                 serie={1}
@@ -133,61 +145,62 @@ export default async function PaginaDashboard() {
               <MedidorAnillo
                 etiqueta="Capitalizado"
                 detalle="Inversión / egresos"
-                razon={razonAcotada(totales.invertido, totales.egresos)}
+                razon={razonAcotada(totales.totalInvertido, totales.totalEgresos)}
                 valorTexto={formatearPorcentaje(
-                  totales.egresos > 0 ? totales.invertido / totales.egresos : null,
+                  totales.totalEgresos > 0 ? totales.totalInvertido / totales.totalEgresos : null,
                   0,
                 )}
                 serie={2}
               />
               <MedidorAnillo
                 etiqueta="Activos"
-                detalle={`${activos} de ${proyectos.length}`}
-                razon={razonAcotada(activos, proyectos.length)}
-                valorTexto={String(activos)}
+                detalle={`${panel.proyectosActivos} de ${proyectos.length}`}
+                razon={razonAcotada(panel.proyectosActivos, proyectos.length)}
+                valorTexto={String(panel.proyectosActivos)}
                 serie={3}
               />
             </div>
           </section>
 
+          {/* RF-70 */}
           <section aria-label="Indicadores globales">
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               <TarjetaIndicador
                 etiqueta="Total invertido"
-                valor={formatearDineroCompacto(totales.invertido, moneda)}
+                valor={formatearDineroCompacto(totales.totalInvertido, moneda)}
                 detalle="Egresos que capitalizan"
                 icono={<Landmark className="size-4" />}
                 pie={
                   <MedidorLineal
                     etiqueta="Del total de egresos"
-                    razon={razonAcotada(totales.invertido, totales.egresos)}
+                    razon={razonAcotada(totales.totalInvertido, totales.totalEgresos)}
                     serie={2}
                   />
                 }
               />
               <TarjetaIndicador
                 etiqueta="Total de ingresos"
-                valor={formatearDineroCompacto(totales.ingresos, moneda)}
+                valor={formatearDineroCompacto(totales.totalIngresos, moneda)}
                 tono="positivo"
                 detalle="Dinero recibido"
                 icono={<Banknote className="size-4" />}
                 pie={
                   <MedidorLineal
                     etiqueta="Del flujo registrado"
-                    razon={razonAcotada(totales.ingresos, flujo)}
+                    razon={razonAcotada(totales.totalIngresos, flujo)}
                     serie={1}
                   />
                 }
               />
               <TarjetaIndicador
                 etiqueta="Total de egresos"
-                valor={formatearDineroCompacto(totales.egresos, moneda)}
+                valor={formatearDineroCompacto(totales.totalEgresos, moneda)}
                 detalle="Inversión + gastos + cuotas"
                 icono={<Receipt className="size-4" />}
                 pie={
                   <MedidorLineal
                     etiqueta="Del flujo registrado"
-                    razon={razonAcotada(totales.egresos, flujo)}
+                    razon={razonAcotada(totales.totalEgresos, flujo)}
                     serie={2}
                   />
                 }
@@ -201,7 +214,7 @@ export default async function PaginaDashboard() {
                 pie={
                   <MedidorLineal
                     etiqueta="Cobertura de egresos"
-                    razon={razonAcotada(totales.ingresos, totales.egresos)}
+                    razon={razonAcotada(totales.totalIngresos, totales.totalEgresos)}
                     serie={1}
                   />
                 }
@@ -209,47 +222,158 @@ export default async function PaginaDashboard() {
             </div>
           </section>
 
-          <div className="grid gap-4 xl:grid-cols-3">
+          {/* RF-73 */}
+          <div className="grid gap-4 xl:grid-cols-2">
+            <PanelAgenda
+              eventos={panel.obligacionesVencidas}
+              metodosPago={metodosPago}
+              hoy={hoy}
+              formatoFecha={ajustes.formatoFecha}
+              titulo="Obligaciones vencidas"
+              vacio={{
+                titulo: "Nada vencido",
+                descripcion: "No hay obligaciones con fecha pasada sin pagar.",
+              }}
+            />
+            <PanelAgenda
+              eventos={panel.proximosPagos}
+              metodosPago={metodosPago}
+              hoy={hoy}
+              formatoFecha={ajustes.formatoFecha}
+              titulo="Próximos pagos (30 días)"
+              vacio={{
+                titulo: "Sin pagos próximos",
+                descripcion: "No hay vencimientos en los próximos 30 días.",
+              }}
+            />
+          </div>
+
+          {/* RF-71 y RF-72 */}
+          <div className="grid gap-4 xl:grid-cols-2">
             <PanelGrafica
-              titulo="Ingresos y egresos por proyecto"
-              descripcion="Cinco proyectos con más movimiento económico registrado."
+              titulo="Flujo de caja ejecutado"
+              descripcion="Ingresos y egresos pagados, mes a mes."
               leyenda={[
                 { etiqueta: "Ingresos", serie: 1 },
                 { etiqueta: "Egresos", serie: 2 },
               ]}
-              className="xl:col-span-2"
             >
-              <BarrasComparativas
-                moneda={moneda}
-                tituloTabla="Ingresos y egresos por proyecto"
-                series={[
-                  { etiqueta: "Ingresos", serie: 1 },
-                  { etiqueta: "Egresos", serie: 2 },
-                ]}
-                categorias={masMovidos.map((p) => ({
-                  etiqueta: p.nombre,
-                  valores: [p.totalIngresos, p.totalEgresos],
-                }))}
-              />
+              {panel.flujoMensual.length === 0 ? (
+                <EstadoVacio
+                  titulo="Sin movimientos pagados en el rango"
+                  descripcion="Amplía el rango o registra movimientos."
+                />
+              ) : (
+                <GraficoFlujo puntos={panel.flujoMensual} moneda={moneda} />
+              )}
             </PanelGrafica>
 
             <PanelGrafica
-              titulo="Inversión acumulada"
-              descripcion="Capital que ha capitalizado cada proyecto."
+              titulo="Flujo proyectado"
+              descripcion="Obligaciones y movimientos comprometidos que aún no se han ejecutado."
+              leyenda={[
+                { etiqueta: "Esperado", serie: 1 },
+                { etiqueta: "Estimado", serie: 2 },
+              ]}
             >
-              <BarrasRanking
-                moneda={moneda}
-                serie={3}
-                filas={proyectos.map((p) => ({ etiqueta: p.nombre, valor: p.totalInvertido }))}
-              />
+              {panel.flujoProyectado.length === 0 ? (
+                <EstadoVacio
+                  titulo="Sin compromisos futuros"
+                  descripcion="Registra obligaciones para ver la proyección de los próximos meses."
+                />
+              ) : (
+                <GraficoFlujo puntos={panel.flujoProyectado} moneda={moneda} />
+              )}
             </PanelGrafica>
           </div>
 
+          {/* RF-75 y RF-76 */}
+          <div className="grid gap-4 xl:grid-cols-2">
+            <PanelGrafica
+              titulo="Evolución del gasto"
+              descripcion="Egreso de cada mes y su acumulado dentro del rango."
+              leyenda={[
+                { etiqueta: "Del mes", serie: 2 },
+                { etiqueta: "Acumulado", serie: 3 },
+              ]}
+            >
+              {panel.evolucionGastos.length === 0 ? (
+                <EstadoVacio
+                  titulo="Sin egresos en el rango"
+                  descripcion="Ajusta el rango de fechas o registra movimientos."
+                />
+              ) : (
+                <BarrasComparativas
+                  categorias={panel.evolucionGastos.map((punto) => ({
+                    etiqueta: formatearMesCorto(punto.mes),
+                    valores: [punto.egresos, punto.acumulado],
+                  }))}
+                  series={[
+                    { etiqueta: "Del mes", serie: 2 },
+                    { etiqueta: "Acumulado", serie: 3 },
+                  ]}
+                  moneda={moneda}
+                  tituloTabla="Evolución del gasto por mes"
+                />
+              )}
+            </PanelGrafica>
+
+            <PanelGrafica
+              titulo="Gasto por categoría"
+              descripcion="Distribución de los egresos del rango, agrupados por categoría raíz."
+            >
+              {panel.gastosPorCategoria.length === 0 ? (
+                <EstadoVacio
+                  titulo="Sin gastos en el rango"
+                  descripcion="Cuando registres egresos verás aquí en qué se va el dinero."
+                />
+              ) : (
+                <BarrasRanking
+                  filas={panel.gastosPorCategoria.map((g) => ({
+                    etiqueta: g.categoria,
+                    valor: g.total,
+                  }))}
+                  moneda={moneda}
+                  serie={2}
+                />
+              )}
+            </PanelGrafica>
+          </div>
+
+          {/* RF-74 */}
+          <PanelGrafica
+            titulo="Rentabilidad por proyecto"
+            descripcion="Solo proyectos con ingresos: el ROI de un vehículo y el de un arriendo no son comparables (§5.4)."
+          >
+            {panel.rentabilidad.length === 0 ? (
+              <EstadoVacio
+                icono={<TrendingUp className="size-6" />}
+                titulo="Sin proyectos con ingresos"
+                descripcion="La rentabilidad necesita ingresos para ser calculable (§5.3)."
+              />
+            ) : (
+              <TablaDeDatos
+                titulo="Rentabilidad por proyecto"
+                columnas={["Invertido", "Ingresos", "Balance", "ROI"]}
+                filas={panel.rentabilidad.map((fila) => ({
+                  etiqueta: fila.nombre,
+                  valores: [
+                    formatearDineroCompacto(fila.totalInvertido, fila.moneda),
+                    formatearDineroCompacto(fila.totalIngresos, fila.moneda),
+                    formatearDineroCompacto(fila.balance, fila.moneda),
+                    formatearPorcentaje(fila.roi, 1),
+                  ],
+                }))}
+              />
+            )}
+          </PanelGrafica>
+
+          {/* RF-77 */}
           <section className="space-y-3">
             <div className="flex items-end justify-between gap-3">
-              <h2 className="etiqueta-dato">Proyectos</h2>
+              <h2 className="etiqueta-dato">Resumen por proyecto</h2>
               <EnlaceBoton href="/proyectos" variant="ghost" size="sm">
-                Ver todos
+                Ver todos ({proyectos.length})
               </EnlaceBoton>
             </div>
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
@@ -262,23 +386,6 @@ export default async function PaginaDashboard() {
               ))}
             </div>
           </section>
-
-          {ultimos.filas.length > 0 ? (
-            <section className="space-y-3">
-              <div className="flex items-end justify-between gap-3">
-                <h2 className="etiqueta-dato">Movimientos recientes</h2>
-                <EnlaceBoton href="/movimientos" variant="ghost" size="sm">
-                  Ver todos
-                </EnlaceBoton>
-              </div>
-              <TablaMovimientos
-                filas={ultimos.filas}
-                metodosPago={metodosPago}
-                hoy={hoy}
-                formatoFecha={ajustes.formatoFecha}
-              />
-            </section>
-          ) : null}
         </>
       )}
     </div>

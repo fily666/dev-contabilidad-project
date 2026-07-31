@@ -79,7 +79,7 @@ export function TablaMovimientos({
                   </span>
                 </TableCell>
                 <TableCell>
-                  <InsigniaEstadoMovimiento estado={fila.estado} />
+                  <InsigniaEstadoMovimiento estado={fila.estadoEfectivo} />
                 </TableCell>
                 <TableCell>
                   <AccionesMovimiento
@@ -131,7 +131,7 @@ export function TablaMovimientos({
             </div>
 
             <div className="mt-3 flex flex-wrap gap-2">
-              <InsigniaEstadoMovimiento estado={fila.estado} />
+              <InsigniaEstadoMovimiento estado={fila.estadoEfectivo} />
               <InsigniaNaturaleza naturaleza={fila.naturaleza} />
             </div>
           </li>

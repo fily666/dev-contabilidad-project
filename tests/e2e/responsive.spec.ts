@@ -5,7 +5,21 @@ import { expect, test } from "@playwright/test";
  * Corre en el proyecto `movil` de la configuracion.
  */
 test.describe("RNF-01 responsive", () => {
-  for (const ruta of ["/dashboard", "/proyectos", "/movimientos", "/configuracion"]) {
+  // Todas las rutas del shell, no solo las de la Fase 1: una vista nueva que
+  // desborde a 375 px es exactamente lo que RNF-01 existe para no dejar pasar.
+  for (const ruta of [
+    "/dashboard",
+    "/proyectos",
+    "/movimientos",
+    "/movimientos/importar",
+    "/obligaciones",
+    "/calendario",
+    "/documentos",
+    "/presupuestos",
+    "/patrimonio",
+    "/reportes",
+    "/configuracion",
+  ]) {
     test(`${ruta} no desborda a lo ancho`, async ({ page }) => {
       await page.goto(ruta, { waitUntil: "networkidle" });
       await expect(page.getByRole("main")).toBeVisible();

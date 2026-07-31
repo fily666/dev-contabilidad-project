@@ -1,4 +1,4 @@
-import type { Tablas } from "@/shared/infrastructure/supabase/database.types";
+import type { Json, Tablas } from "@/shared/infrastructure/supabase/database.types";
 import { Proyecto, type DatosProyecto } from "../domain/proyecto.entity";
 import { leerConfiguracion, TipoProyecto } from "../domain/tipo-proyecto.entity";
 import type { ValorAtributo } from "../domain/tipo-proyecto.entity";
@@ -46,4 +46,23 @@ export function aTipoProyecto(fila: FilaTipoProyecto): TipoProyecto {
     fila.es_sistema,
     fila.activo,
   );
+}
+
+/** RF-100: la configuracion viaja como JSONB con las claves del esquema (§13). */
+export function aFilaTipoProyecto(tipo: TipoProyecto) {
+  return {
+    id: tipo.id,
+    codigo: tipo.codigo,
+    nombre: tipo.nombre,
+    icono: tipo.icono,
+    es_sistema: tipo.esSistema,
+    activo: tipo.activo,
+    // El JSONB se arma con las claves del esquema, no con las del dominio.
+    configuracion: {
+      atributos: tipo.configuracion.atributos.map((a) => ({ ...a })),
+      indicadores: [...tipo.configuracion.indicadores],
+      genera_ingresos: tipo.configuracion.generaIngresos,
+      se_valoriza: tipo.configuracion.seValoriza,
+    } as unknown as Json,
+  };
 }

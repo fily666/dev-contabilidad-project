@@ -1,6 +1,13 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
-import { ArrowDownRight, ArrowLeftRight, ArrowUpRight, FolderPlus, Landmark } from "lucide-react";
+import {
+  ArrowDownRight,
+  ArrowLeftRight,
+  ArrowUpRight,
+  FolderPlus,
+  Landmark,
+  Upload,
+} from "lucide-react";
 
 import { contenedorPrivado } from "@/di/container";
 import { EnlaceBoton } from "@/shared/ui/enlace-boton";
@@ -64,12 +71,18 @@ export default async function PaginaMovimientos({ searchParams }: Props) {
             Ingresos y egresos de todos tus proyectos.
           </p>
         </div>
-        <DialogoNuevoMovimiento
-          proyectos={opcionesProyecto}
-          categorias={categorias}
-          metodosPago={metodosPago}
-          hoy={hoy}
-        />
+        <div className="flex flex-wrap gap-2">
+          {/* RF-27 */}
+          <EnlaceBoton href="/movimientos/importar" variant="secondary">
+            <Upload className="size-4" aria-hidden /> Importar CSV
+          </EnlaceBoton>
+          <DialogoNuevoMovimiento
+            proyectos={opcionesProyecto}
+            categorias={categorias}
+            metodosPago={metodosPago}
+            hoy={hoy}
+          />
+        </div>
       </div>
 
       {proyectos.length === 0 ? (
