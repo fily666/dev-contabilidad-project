@@ -330,6 +330,7 @@ export default async function PaginaDashboard({ searchParams }: Props) {
               ) : (
                 <BarrasRanking
                   filas={panel.gastosPorCategoria.map((g) => ({
+                    clave: g.categoriaId,
                     etiqueta: g.categoria,
                     valor: g.total,
                   }))}
@@ -356,6 +357,7 @@ export default async function PaginaDashboard({ searchParams }: Props) {
                 titulo="Rentabilidad por proyecto"
                 columnas={["Invertido", "Ingresos", "Balance", "ROI"]}
                 filas={panel.rentabilidad.map((fila) => ({
+                  clave: fila.proyectoId,
                   etiqueta: fila.nombre,
                   valores: [
                     formatearDineroCompacto(fila.totalInvertido, fila.moneda),

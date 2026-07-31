@@ -25,6 +25,8 @@ import { MedidorLineal } from "@/shared/ui/viz/medidor-lineal";
 import { cn } from "@/shared/utils/cn";
 import { formatearDinero, formatearFecha, formatearPorcentaje } from "@/shared/utils/formato";
 import type { CategoriaConRuta } from "@/modules/categorias/domain/categoria.repository";
+import { categoriasDelTipo, sirveParaTipo } from "@/modules/categorias/domain/catalogo";
+import { SelectorCategoria } from "@/modules/categorias/presentation/components/selector-categoria";
 import { nivelDeAlerta, type NivelAlerta } from "../../domain/alertas";
 import { periodoAnual, periodoMensual } from "../../domain/presupuesto.entity";
 import type { EjecucionPresupuesto } from "../../domain/presupuesto.repository";
@@ -53,14 +55,23 @@ const SERIE_ALERTA: Record<NivelAlerta, 1 | 2 | 3> = { ok: 1, aviso: 3, excedido
 
 type Props = {
   filas: EjecucionPresupuesto[];
-  proyectos: Array<{ id: string; nombre: string }>;
+  proyectos: Array<{ id: string; nombre: string; tipoProyectoId?: string }>;
   categorias: CategoriaConRuta[];
+  /** Nombre de cada tipo, para distinguir raices homonimas en el plan global. */
+  nombrePorTipo?: Record<string, string>;
   hoy: string;
   formatoFecha?: string;
 };
 
 /** RF-80 a RF-83. */
-export function GestorPresupuestos({ filas, proyectos, categorias, hoy, formatoFecha }: Props) {
+export function GestorPresupuestos({
+  filas,
+  proyectos,
+  categorias,
+  nombrePorTipo,
+  hoy,
+  formatoFecha,
+}: Props) {
   const router = useRouter();
   const [pendiente, iniciarTransicion] = useTransition();
   const [abierto, setAbierto] = useState(false);
@@ -77,8 +88,12 @@ export function GestorPresupuestos({ filas, proyectos, categorias, hoy, formatoF
   });
 
   // Los presupuestos son de gasto: una categoría de ingreso no tiene plan que
-  // ejecutar (RF-81).
-  const categoriasDeGasto = categorias.filter((c) => c.naturaleza !== "ingreso");
+  // ejecutar (RF-81). Con proyecto elegido se acota además a su tipo; el
+  // presupuesto global abarca todos los tipos y conserva el catálogo entero.
+  const tipoDelProyecto = proyectos.find((p) => p.id === borrador.proyectoId)?.tipoProyectoId;
+  const categoriasDeGasto = categoriasDelTipo(categorias, tipoDelProyecto).filter(
+    (c) => c.naturaleza !== "ingreso",
+  );
 
   function periodoDelBorrador() {
     return borrador.periodicidad === "mensual"
@@ -270,7 +285,17 @@ export function GestorPresupuestos({ filas, proyectos, categorias, hoy, formatoF
                 <Label htmlFor="presupuesto-proyecto">Proyecto</Label>
                 <Select
                   value={borrador.proyectoId}
-                  onValueChange={(v) => setBorrador({ ...borrador, proyectoId: v ?? GLOBAL })}
+                  onValueChange={(v) => {
+                    // Cambiar de proyecto puede dejar la categoría fuera de su tipo.
+                    const proyectoId = v ?? GLOBAL;
+                    const tipo = proyectos.find((p) => p.id === proyectoId)?.tipoProyectoId;
+                    const sigue = sirveParaTipo(categorias, borrador.categoriaId, tipo);
+                    setBorrador({
+                      ...borrador,
+                      proyectoId,
+                      categoriaId: sigue ? borrador.categoriaId : "",
+                    });
+                  }}
                 >
                   <SelectTrigger id="presupuesto-proyecto" className="w-full">
                     <SelectValue />
@@ -286,24 +311,13 @@ export function GestorPresupuestos({ filas, proyectos, categorias, hoy, formatoF
                 </Select>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="presupuesto-categoria">Categoría</Label>
-                <Select
-                  value={borrador.categoriaId}
-                  onValueChange={(v) => setBorrador({ ...borrador, categoriaId: v ?? "" })}
-                >
-                  <SelectTrigger id="presupuesto-categoria" className="w-full">
-                    <SelectValue placeholder="Selecciona una categoría" />
-                  </SelectTrigger>
-                  <SelectContent className="max-h-72">
-                    {categoriasDeGasto.map((c) => (
-                      <SelectItem key={c.id} value={c.id}>
-                        {c.ruta}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              <SelectorCategoria
+                id="presupuesto-categoria"
+                categorias={categoriasDeGasto}
+                nombrePorTipo={nombrePorTipo}
+                valor={borrador.categoriaId}
+                alCambiar={(id) => setBorrador({ ...borrador, categoriaId: id })}
+              />
 
               <div className="space-y-2">
                 <Label htmlFor="presupuesto-periodicidad">Periodicidad</Label>

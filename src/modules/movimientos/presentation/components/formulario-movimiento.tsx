@@ -25,11 +25,22 @@ import {
   type TipoMovimiento,
 } from "@/shared/domain/enumeraciones";
 import type { CategoriaConRuta } from "@/modules/categorias/domain/categoria.repository";
+import { categoriasDelTipo, sirveParaTipo } from "@/modules/categorias/domain/catalogo";
+import { SelectorCategoria } from "@/modules/categorias/presentation/components/selector-categoria";
+import { subirComprobanteAction } from "@/modules/documentos/presentation/actions";
 import type { MetodoPagoVista } from "@/modules/metodos-pago/domain/metodo-pago.repository";
 import { actualizarMovimientoAction, registrarMovimientoAction } from "../actions";
 import { esquemaRegistrarMovimiento } from "../schemas";
+import { AdjuntosMovimiento } from "./adjuntos-movimiento";
 
-export type OpcionProyecto = { id: string; nombre: string; moneda: string };
+export type OpcionProyecto = {
+  id: string;
+  nombre: string;
+  moneda: string;
+  /** Acota el catalogo de categorias. Si falta, no se filtra: las pantallas de
+   * un solo proyecto ya reciben las categorias de su tipo. */
+  tipoProyectoId?: string;
+};
 
 /**
  * El formulario y la Server Action comparten el mismo esquema Zod (§8.7):
@@ -76,9 +87,15 @@ export function FormularioMovimiento({
 
   const [tipo, setTipo] = useState<TipoMovimiento>(movimiento?.tipo ?? "egreso");
   const [categoriaId, setCategoriaId] = useState(movimiento?.categoriaId ?? "");
+  const [proyectoId, setProyectoId] = useState(
+    movimiento?.proyectoId ?? proyectoFijo ?? proyectos[0]?.id ?? "",
+  );
   const [naturalezaManual, setNaturalezaManual] = useState<Naturaleza | undefined>(
     movimiento?.naturaleza,
   );
+  /** RF-40: soportes elegidos; se suben cuando el movimiento ya tiene id. */
+  const [soportes, setSoportes] = useState<File[]>([]);
+  const [subiendoSoportes, setSubiendoSoportes] = useState(false);
 
   const formulario = useForm<ValoresFormulario, unknown, SalidaFormulario>({
     resolver: zodResolver(esquemaRegistrarMovimiento),
@@ -99,11 +116,19 @@ export function FormularioMovimiento({
     },
   });
 
-  /** Solo las categorias compatibles con el tipo elegido (invariante §5.7.3). */
+  /**
+   * Las compatibles con el tipo elegido (invariante §5.7.3) y con el tipo del
+   * proyecto. Sin lo segundo, la pantalla global ofrecia el catalogo entero y
+   * las raices se repetian: «Adquisición» existe en inmueble y en vehiculo.
+   * Las transversales (`tipoProyectoId` nulo) sirven para cualquier proyecto.
+   */
   const categoriasDisponibles = useMemo(() => {
     const permitidas = NATURALEZAS_POR_TIPO[tipo];
-    return categorias.filter((c) => permitidas.includes(c.naturaleza));
-  }, [categorias, tipo]);
+    const tipoDelProyecto = proyectos.find((p) => p.id === proyectoId)?.tipoProyectoId;
+    return categoriasDelTipo(categorias, tipoDelProyecto).filter((c) =>
+      permitidas.includes(c.naturaleza),
+    );
+  }, [categorias, tipo, proyectos, proyectoId]);
 
   const categoriaElegida = categoriasDisponibles.find((c) => c.id === categoriaId);
   const naturalezaEfectiva = naturalezaManual ?? categoriaElegida?.naturaleza;
@@ -117,6 +142,41 @@ export function FormularioMovimiento({
    * pendiente: exigia metodo de pago para algo que aun no se ha pagado.
    */
   const estado = formulario.watch("estado") ?? "pagado";
+
+  /** Cambiar de proyecto puede dejar la categoria fuera del catalogo del tipo. */
+  function elegirProyecto(nuevo: string) {
+    setProyectoId(nuevo);
+    formulario.setValue("proyectoId", nuevo, { shouldValidate: true });
+
+    const tipoDelProyecto = proyectos.find((p) => p.id === nuevo)?.tipoProyectoId;
+    if (sirveParaTipo(categorias, categoriaId, tipoDelProyecto)) return;
+
+    setCategoriaId("");
+    setNaturalezaManual(undefined);
+    formulario.setValue("categoriaId", "");
+  }
+
+  /**
+   * RF-40. De uno en uno y en serie, no en paralelo: el tope de siete se
+   * comprueba en el servidor contando los soportes ya guardados, y siete
+   * llamadas simultaneas leerian todas cero. Devuelve los que no entraron.
+   */
+  async function adjuntarSoportes(movimientoId: string, proyecto: string): Promise<string[]> {
+    const fallidos: string[] = [];
+
+    for (const archivo of soportes) {
+      const datos = new FormData();
+      datos.set("proyectoId", proyecto);
+      datos.set("movimientoId", movimientoId);
+      datos.set("tipoDocumento", "comprobante");
+      datos.set("archivo", archivo);
+
+      const resultado = await subirComprobanteAction(datos);
+      if (!resultado.ok) fallidos.push(archivo.name);
+    }
+
+    return fallidos;
+  }
 
   async function enviar(datos: SalidaFormulario) {
     const carga = {
@@ -140,7 +200,23 @@ export function FormularioMovimiento({
     }
 
     toast.success(editando ? "Movimiento actualizado." : "Movimiento registrado.");
+
+    // El movimiento ya esta guardado: si un soporte falla se avisa cual, pero no
+    // se deshace nada. Perder el registro por un adjunto seria peor negocio.
+    if (!editando && soportes.length > 0) {
+      setSubiendoSoportes(true);
+      const fallidos = await adjuntarSoportes(resultado.data.id, datos.proyectoId);
+      setSubiendoSoportes(false);
+
+      if (fallidos.length > 0) {
+        toast.error(`No se pudieron subir estos soportes: ${fallidos.join(", ")}.`);
+      } else {
+        toast.success(soportes.length === 1 ? "Soporte adjuntado." : "Soportes adjuntados.");
+      }
+    }
+
     if (!editando) {
+      setSoportes([]);
       formulario.reset({
         ...formulario.getValues(),
         valor: "",
@@ -165,12 +241,7 @@ export function FormularioMovimiento({
             <Label htmlFor="proyectoId">
               Proyecto <span className="text-destructive">*</span>
             </Label>
-            <Select
-              defaultValue={formulario.getValues("proyectoId")}
-              onValueChange={(v) =>
-                formulario.setValue("proyectoId", v ?? "", { shouldValidate: true })
-              }
-            >
+            <Select value={proyectoId} onValueChange={(v) => elegirProyecto(v ?? "")}>
               <SelectTrigger id="proyectoId" className="w-full">
                 <SelectValue placeholder="Selecciona un proyecto" />
               </SelectTrigger>
@@ -213,33 +284,17 @@ export function FormularioMovimiento({
           </Select>
         </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="categoriaId">
-            Categoría <span className="text-destructive">*</span>
-          </Label>
-          <Select
-            value={categoriaId}
-            onValueChange={(v) => {
-              setCategoriaId(v ?? "");
-              setNaturalezaManual(undefined);
-              formulario.setValue("categoriaId", v ?? "", { shouldValidate: true });
-            }}
-          >
-            <SelectTrigger id="categoriaId" className="w-full">
-              <SelectValue placeholder="Selecciona una categoría" />
-            </SelectTrigger>
-            <SelectContent className="max-h-72">
-              {categoriasDisponibles.map((c) => (
-                <SelectItem key={c.id} value={c.id}>
-                  {c.ruta}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {errores.categoriaId ? (
-            <p className="text-sm text-destructive">{errores.categoriaId.message}</p>
-          ) : null}
-        </div>
+        <SelectorCategoria
+          categorias={categoriasDisponibles}
+          valor={categoriaId}
+          alCambiar={(id) => {
+            setCategoriaId(id);
+            setNaturalezaManual(undefined);
+            formulario.setValue("categoriaId", id, { shouldValidate: true });
+          }}
+          requerido
+          error={errores.categoriaId?.message}
+        />
 
         <div className="space-y-2">
           <Label htmlFor="naturaleza">Naturaleza</Label>
@@ -367,6 +422,12 @@ export function FormularioMovimiento({
         <Textarea id="observaciones" rows={2} {...formulario.register("observaciones")} />
       </div>
 
+      {/* Solo al crear: al editar, los soportes ya cargados se gestionan desde
+          la pantalla de documentos del proyecto (RF-47). */}
+      {!editando ? (
+        <AdjuntosMovimiento archivos={soportes} alCambiar={setSoportes} deshabilitado={enviando} />
+      ) : null}
+
       {!editando ? (
         <div className="flex items-center justify-between rounded-md border p-4">
           <div>
@@ -400,7 +461,11 @@ export function FormularioMovimiento({
         ) : null}
         <Button type="submit" disabled={enviando}>
           {enviando ? <Loader2 className="size-4 animate-spin" aria-hidden /> : null}
-          {editando ? "Guardar cambios" : "Registrar movimiento"}
+          {subiendoSoportes
+            ? "Subiendo soportes…"
+            : editando
+              ? "Guardar cambios"
+              : "Registrar movimiento"}
         </Button>
       </div>
     </form>

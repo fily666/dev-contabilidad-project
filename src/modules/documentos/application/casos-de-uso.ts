@@ -1,10 +1,14 @@
-import { NoEncontrado } from "@/shared/domain/errores";
+import { NoEncontrado, ReglaDeNegocioViolada } from "@/shared/domain/errores";
 import type { TipoDocumento } from "@/shared/domain/enumeraciones";
 import type { Reloj } from "@/shared/domain/reloj";
 import type { ProyectoRepository } from "@/modules/proyectos/domain/proyecto.repository";
 
 import { VIGENCIA_FIRMA_SEGUNDOS, type AlmacenamientoArchivos } from "../domain/almacenamiento";
-import { Documento, construirRutaStorage } from "../domain/documento.entity";
+import {
+  Documento,
+  MAXIMO_SOPORTES_POR_MOVIMIENTO,
+  construirRutaStorage,
+} from "../domain/documento.entity";
 import type {
   DocumentoListado,
   DocumentoRepository,
@@ -45,6 +49,19 @@ export class SubirDocumento {
   async ejecutar(entrada: EntradaSubirDocumento): Promise<Documento> {
     const proyecto = await this.proyectos.buscarPorId(entrada.proyectoId);
     if (!proyecto) throw new NoEncontrado("proyecto", entrada.proyectoId);
+
+    // RF-40: el tope es por movimiento, no por proyecto. Se comprueba aqui y no
+    // en la entidad porque depende de lo ya guardado, que la entidad no ve.
+    if (entrada.movimientoId) {
+      const yaTiene = await this.documentos.contarPorMovimiento(entrada.movimientoId);
+      if (yaTiene >= MAXIMO_SOPORTES_POR_MOVIMIENTO) {
+        throw new ReglaDeNegocioViolada(
+          "DEMASIADOS_SOPORTES",
+          `Un movimiento admite máximo ${MAXIMO_SOPORTES_POR_MOVIMIENTO} soportes.`,
+          "archivo",
+        );
+      }
+    }
 
     const id = this.nuevoId();
     const ruta = construirRutaStorage({

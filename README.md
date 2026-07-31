@@ -19,21 +19,31 @@ La especificación funcional y técnica completa está en **[Contexto.md](Contex
 | 4    | Pasivos, valoraciones, presupuestos, patrimonio, notificaciones por correo         | ✅ completa |
 | 5    | Importación CSV, exportación JSON, tipos de proyecto nuevos                        | ✅ completa |
 
-Falta, y no es alcance: decidir el proveedor de WhatsApp (§17.3), habilitar los backups
-diarios de Supabase (RNF-15) y correr la auditoría de accesibilidad y de Lighthouse
-(RNF-04, RNF-05), que se miden fuera del repositorio.
+«Completa» significa aquí que el módulo existe con sus cuatro capas y sus pruebas en
+verde. Con una salvedad que conviene leer antes de dar algo por cerrado: **cinco
+requerimientos tienen dominio, caso de uso y pruebas, pero ninguna pantalla los invoca
+todavía** —renombrar una categoría (RF-31), corregir un pasivo (RF-17), corregir un
+presupuesto (RF-80), el semáforo de estado financiero (§5.5) y los avisos in-app (§10.2)—.
+Están en la tabla de [Contexto.md §17](Contexto.md), con lo que existe y lo que falta en
+cada uno.
 
-Las tablas, funciones y vistas de **todas** las fases existen en la base de datos. Las
-únicas migraciones posteriores al esquema inicial agregan vistas de agregación
-(`v_movimientos_mensual`, `v_gastos_mensual_categoria`, `v_presupuesto_ejecucion`), para
-que el rango de fechas del panel y el comparativo de presupuestos se calculen en SQL una
-sola vez (ADR-11).
+Falta además, y no es alcance: decidir el proveedor de WhatsApp (§17), habilitar los
+backups diarios de Supabase (RNF-15) y correr la auditoría de accesibilidad y de
+Lighthouse (RNF-04, RNF-05), que se miden fuera del repositorio.
+
+Las tablas, funciones y vistas de **todas** las fases existen en la base de datos: son
+**ocho migraciones**, cinco de ellas el esquema inicial (tablas, funciones y triggers,
+vistas, blindaje, Storage) y tres posteriores —las tildes que faltaban en el catálogo, las
+tres últimas vistas de agregación (`v_movimientos_mensual`, `v_gastos_mensual_categoria`,
+`v_presupuesto_ejecucion`) para que el rango de fechas del panel y el comparativo de
+presupuestos se calculen en SQL una sola vez (ADR-11), y la subida del límite por soporte
+de 10 a 20 MB. El detalle está en [Contexto.md §6.8](Contexto.md).
 
 ---
 
 ## Requisitos
 
-- Node.js 20 o superior (probado con 26)
+- Node.js 20 o superior. **CI corre con 22**, que es la versión de referencia (`.github/workflows/ci.yml`)
 - Una cuenta de [Supabase](https://supabase.com)
 - **Sin Docker y sin Prisma** (restricción del proyecto, Contexto.md ADR-03 y ADR-04)
 
@@ -60,11 +70,16 @@ npm run db:seed
 npm run db:inspect          # tablas, RLS, blindaje de permisos, semillas
 npm run db:verify-types     # los tipos TS coinciden con el esquema real
 
-# 5. Levantar
+# 5. (Opcional) Datos de prueba, para ver la aplicación con información
+npm run db:demo
+
+# 6. Levantar
 npm run dev
 ```
 
-Abre <http://localhost:3000>, escribe el token y ya estás dentro. No hay que crear nada: la semilla deja los 5 tipos de proyecto, las 83 categorías, los 4 métodos de pago y la fila de ajustes.
+Abre <http://localhost:3000>, escribe el token y ya estás dentro. No hay que crear nada: la semilla deja los 8 tipos de proyecto, las 109 categorías, los 4 métodos de pago y la fila de ajustes.
+
+`npm run db:demo` es aparte, y es lo que conviene para desarrollar: siembra 5 proyectos —un inmueble arrendado con hipoteca, un vehículo financiado, un negocio en operación, una construcción en curso y un portafolio de cripto— con dos años de movimientos, obligaciones con vencimientos próximos y uno vencido, pasivos, valoraciones y presupuestos. Las fechas son relativas al día en que se ejecuta, así que los indicadores de los últimos 12 meses y el flujo proyectado siempre tienen cifras. **Borra toda la información propia de la base**, y si ya hay alguna se niega hasta que se lo pidan con `npm run db:demo -- --force`.
 
 ### Sobre el token
 
@@ -82,8 +97,9 @@ Un valor con forma de contraseña común (`Admin123!` y familia) es exactamente 
 
 - **npm 11+ bloquea los scripts de instalación por defecto.** Si `npx supabase` no funciona, ejecuta una vez `npm approve-scripts` (o instala la CLI con `brew install supabase/tap/supabase`).
 - **La región importa en la cadena de conexión.** El host del pooler incluye la región del proyecto (`aws-0-ca-central-1.pooler.supabase.com`, no `us-west-2`). Con la región equivocada el error es `tenant/user postgres.<ref> not found`, que parece un problema de credenciales pero no lo es. Cópiala del panel, no de otro proyecto.
-- **Sin Docker, tres subcomandos de la CLI no funcionan:** `supabase db dump`, `supabase db diff` y `supabase gen types --db-url`. Los scripts de [scripts/](scripts/) cubren esas necesidades con `postgres.js` (`db:inspect`, `db:verify-types`, `db:smoke`, `db:reset`). Para regenerar los tipos con la CLI hace falta `supabase login` + `supabase link` y usar `npm run db:types`, que va por la API y no por Docker.
+- **Sin Docker, tres subcomandos de la CLI no funcionan:** `supabase db dump`, `supabase db diff` y `supabase gen types --db-url`. Los scripts de [scripts/](scripts/) cubren esas necesidades con `postgres.js` (`db:inspect`, `db:verify-types`, `db:smoke`, `db:reset`).
 - `src/shared/infrastructure/supabase/database.types.ts` está escrito a mano, pero **verificado**: `npm run db:verify-types` contrasta cada columna y su nulabilidad contra la base real. Ejecútalo después de cada migración.
+- **No hay script `db:types`, y es a propósito.** Un `supabase gen types` sobreescribiría ese archivo, y con él las anotaciones que explican por qué una columna es nulable. Si necesitas ver lo que la CLI generaría, ejecútala a mano y compara; no la dejes escribir encima. El detalle está en [Contexto.md §15.3](Contexto.md).
 - **No hace falta configurar nada en Supabase Auth.** No se usa: no hay usuarios, ni correos de confirmación, ni URLs de redirección.
 - `npm audit` reporta avisos en dependencias transitivas de tooling (ESLint/minimatch, postcss, sharp). Los arreglos disponibles son cambios mayores o downgrades de Next.js, así que quedan sin aplicar de forma deliberada.
 
@@ -108,22 +124,23 @@ La contrapartida, dicha sin adornos: la barrera real es el token, no la base de 
 
 ## Scripts
 
-| Script                            | Qué hace                                                                                 |
-| --------------------------------- | ---------------------------------------------------------------------------------------- |
-| `npm run dev`                     | Servidor de desarrollo (Turbopack)                                                       |
-| `npm run build` / `start`         | Compilación y ejecución de producción                                                    |
-| `npm run lint` / `lint:fix`       | ESLint (incluye las reglas de frontera hexagonal)                                        |
-| `npm run format` / `format:check` | Prettier                                                                                 |
-| `npm run typecheck`               | `tsc --noEmit`                                                                           |
-| `npm test` / `test:watch`         | Vitest                                                                                   |
-| `npm run verify`                  | typecheck + lint + pruebas (lo que debe pasar antes de subir)                            |
-| `npm run db:push`                 | Aplica las migraciones pendientes a `SUPABASE_DB_URL`                                    |
-| `npm run db:seed`                 | Aplica migraciones y `seed.sql`                                                          |
-| `npm run db:reset`                | Borra el esquema y lo reconstruye desde cero; se niega si hay datos propios              |
-| `npm run db:inspect`              | Tablas, RLS, vistas, triggers, semillas y blindaje de permisos                           |
-| `npm run db:verify-types`         | Contrasta `database.types.ts` con el esquema real (falla si difieren)                    |
-| `npm run db:smoke`                | Prueba de humo end-to-end contra la base remota; se niega a correr si hay datos          |
-| `npm run db:types`                | Regenera `database.types.ts` vía la API de Supabase (requiere `supabase login` + `link`) |
+| Script                             | Qué hace                                                                               |
+| ---------------------------------- | -------------------------------------------------------------------------------------- |
+| `npm run dev`                      | Servidor de desarrollo (Turbopack)                                                     |
+| `npm run build` / `start`          | Compilación y ejecución de producción                                                  |
+| `npm run lint` / `lint:fix`        | ESLint (incluye las reglas de frontera hexagonal)                                      |
+| `npm run format` / `format:check`  | Prettier                                                                               |
+| `npm run typecheck`                | `tsc --noEmit`                                                                         |
+| `npm test` / `test:watch`          | Vitest                                                                                 |
+| `npm run verify`                   | typecheck + lint + pruebas (lo que debe pasar antes de subir)                          |
+| `npm run db:push`                  | Aplica las migraciones pendientes a `SUPABASE_DB_URL`                                  |
+| `npm run db:seed`                  | Aplica migraciones y `seed.sql`                                                        |
+| `npm run db:reset`                 | Borra el esquema y lo reconstruye desde cero; se niega si hay datos propios            |
+| `npm run db:demo`                  | Borra los datos propios y siembra 5 proyectos de prueba; se niega si hay datos propios |
+| `npm run db:inspect`               | Tablas, RLS, vistas, triggers, semillas y blindaje de permisos                         |
+| `npm run db:verify-types`          | Contrasta `database.types.ts` con el esquema real (falla si difieren)                  |
+| `npm run db:smoke`                 | Prueba de humo end-to-end contra la base remota; se niega a correr si hay datos        |
+| `npm run test:e2e` / `test:e2e:ui` | Playwright: los dos escenarios de referencia de punta a punta                          |
 
 Los scripts de base leen `SUPABASE_DB_URL` desde `.env` con `node --env-file`, así que la contraseña no aparece en `package.json` ni en el historial del shell.
 
@@ -135,12 +152,15 @@ Los scripts de base leen `SUPABASE_DB_URL` desde `.env` con `node --env-file`, a
 npm test
 ```
 
-Dos niveles, 157 pruebas:
+Tres niveles, **412 pruebas en 31 archivos**, unos seis segundos en total:
 
 - **Dominio y aplicación** (`src/**/*.test.ts`): aritmética de `Dinero`, fórmulas de indicadores de §5 con sus guardas contra división por cero, invariantes de `Movimiento` y `Proyecto`, atributos dinámicos por tipo, firma y verificación de la sesión, y el freno a la fuerza bruta.
-- **Esquema** (`tests/db/esquema.test.ts`): ejecuta las migraciones y el seed **reales** contra PostgreSQL embebido ([PGlite](https://pglite.dev)) y verifica restricciones, triggers, vistas de agregación, recurrencias, la protección del catálogo del sistema y —lo más importante— que los roles públicos no tengan acceso a nada (RNF-11).
+- **Componentes** (`src/**/*.test.tsx`): cuatro archivos que declaran `// @vitest-environment jsdom` en su cabecera. Cubren lo que solo se rompe al montar: el `Select` de Base UI —que no es un `<select>` nativo—, el selector de categoría, los adjuntos de un movimiento y una gráfica.
+- **Esquema** (`tests/db/esquema.test.ts`): 48 pruebas que ejecutan las migraciones y el seed **reales** contra PostgreSQL embebido ([PGlite](https://pglite.dev)) y verifican restricciones, triggers, vistas de agregación, recurrencias, la protección del catálogo del sistema y —lo más importante— que los roles públicos no tengan acceso a nada (RNF-11).
 
-Ese segundo nivel es la alternativa a `supabase start` dado que Docker está descartado: no necesita contenedores ni credenciales, y corre en aproximadamente un segundo.
+Ese último nivel es la alternativa a `supabase start` dado que Docker está descartado: no necesita contenedores ni credenciales, y corre en algo más de un segundo.
+
+Aparte va **Playwright** (`npm run test:e2e`), que no entra en `npm test` porque necesita navegador y una base con datos: corre los dos escenarios de referencia de punta a punta contra el Supabase de desarrollo, creando sus propios proyectos con el prefijo `[e2e]` y borrándolos al terminar. Su sitio es CI, no un gancho de git.
 
 Dos pruebas que parecen rebuscadas y no lo son:
 
@@ -158,7 +178,8 @@ src/
 ├── app/                  Next.js App Router — solo presentación
 │   ├── (auth)/acceso/    única pantalla pública: el token
 │   ├── (privado)/        shell con sesión: dashboard, proyectos, movimientos, configuración
-│   └── api/cron/         tareas programadas (Fase 2+)
+│   ├── api/cron/         tareas programadas, con guardia de `CRON_SECRET` compartida
+│   └── api/exportar/     `[formato]` para xlsx y pdf; `datos` para el volcado JSON
 ├── modules/<contexto>/
 │   ├── domain/           entidades, invariantes, PUERTOS (interfaces). Sin framework.
 │   ├── application/      casos de uso. Dependen de puertos, nunca de adaptadores.

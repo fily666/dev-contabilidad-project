@@ -3,7 +3,12 @@ import { formatearDineroCompacto } from "@/shared/utils/formato";
 import { brilloSerie, degradadoSerie, type SerieColor } from "./definiciones";
 import { marcasDeEje, proporcion } from "./escala";
 
-type Fila = { etiqueta: string; valor: number };
+/**
+ * `clave` identifica la fila cuando la etiqueta se repite: dos categorias raiz
+ * distintas pueden llamarse igual («Operación» existe en vehiculo y en negocio)
+ * y React descartaba una de las dos barras por clave duplicada.
+ */
+type Fila = { clave?: string; etiqueta: string; valor: number };
 
 type Props = {
   filas: Fila[];
@@ -29,7 +34,11 @@ export function BarrasRanking({ filas, moneda, serie = 1, maximoFilas = 6, class
     resto.length > 0
       ? [
           ...visibles,
-          { etiqueta: `Otros (${resto.length})`, valor: resto.reduce((a, f) => a + f.valor, 0) },
+          {
+            clave: "otros",
+            etiqueta: `Otros (${resto.length})`,
+            valor: resto.reduce((a, f) => a + f.valor, 0),
+          },
         ]
       : visibles;
 
@@ -38,12 +47,12 @@ export function BarrasRanking({ filas, moneda, serie = 1, maximoFilas = 6, class
 
   return (
     <ul className={cn("space-y-3", className)}>
-      {datos.map(({ etiqueta, valor }) => {
+      {datos.map(({ clave, etiqueta, valor }) => {
         const texto = formatearDineroCompacto(valor, moneda);
 
         return (
           <li
-            key={etiqueta}
+            key={clave ?? etiqueta}
             className="grid grid-cols-[minmax(0,7rem)_1fr_auto] items-center gap-3"
           >
             <span className="truncate text-xs text-muted-foreground" title={etiqueta}>

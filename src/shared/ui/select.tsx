@@ -6,7 +6,52 @@ import { Select as SelectPrimitive } from "@base-ui/react/select";
 import { cn } from "@/shared/utils/cn";
 import { ChevronDownIcon, CheckIcon, ChevronUpIcon } from "lucide-react";
 
-const Select = SelectPrimitive.Root;
+type OpcionSelect = { value: unknown; label: React.ReactNode };
+
+/** Recorre el arbol en busca de `<SelectItem>` para leer su valor y su etiqueta. */
+function recolectarOpciones(nodo: React.ReactNode, acumulado: OpcionSelect[]): void {
+  React.Children.forEach(nodo, (hijo) => {
+    if (!React.isValidElement(hijo)) {
+      return;
+    }
+    const props = hijo.props as { value?: unknown; children?: React.ReactNode };
+    if (hijo.type === SelectItem) {
+      acumulado.push({ value: props.value, label: props.children });
+      return;
+    }
+    if (typeof props.children !== "function") {
+      recolectarOpciones(props.children, acumulado);
+    }
+  });
+}
+
+/**
+ * Base UI resuelve la etiqueta del disparador con la prop `items` de la raiz
+ * (`resolveSelectedLabel`): sin ella `<Select.Value>` imprime el valor crudo, y
+ * los selectores de proyecto, categoria o metodo de pago mostraban el UUID en
+ * lugar del nombre. Aqui se deriva `items` de los `<SelectItem>` del arbol para
+ * no repetir las etiquetas en cada formulario; un `items` explicito manda.
+ */
+function Select<Value, Multiple extends boolean | undefined = false>({
+  items,
+  children,
+  ...props
+}: SelectPrimitive.Root.Props<Value, Multiple>) {
+  const opciones = React.useMemo(() => {
+    if (items) {
+      return items;
+    }
+    const derivadas: OpcionSelect[] = [];
+    recolectarOpciones(children, derivadas);
+    return derivadas.length > 0 ? derivadas : undefined;
+  }, [items, children]);
+
+  return (
+    <SelectPrimitive.Root {...props} items={opciones}>
+      {children}
+    </SelectPrimitive.Root>
+  );
+}
 
 function SelectGroup({ className, ...props }: SelectPrimitive.Group.Props) {
   return (

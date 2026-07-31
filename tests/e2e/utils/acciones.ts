@@ -43,6 +43,17 @@ async function elegir(
   await expect(page.getByRole("listbox")).toBeHidden();
 }
 
+/**
+ * La categoria se elige en dos campos encadenados, asi que la ruta
+ * «Adquisición › Valor de compra» de las pruebas se reparte entre ambos. Una
+ * raiz sin subcategoria se escribe sin «›» y deja el segundo campo quieto.
+ */
+async function elegirCategoria(page: Page, ambito: Page | Locator, ruta: string): Promise<void> {
+  const [raiz, subcategoria] = ruta.split("›").map((parte) => parte.trim());
+  await elegir(page, ambito, "Categoría", raiz ?? ruta);
+  if (subcategoria) await elegir(page, ambito, "Subcategoría", subcategoria);
+}
+
 export type DatosProyecto = {
   tipo: string | RegExp;
   nombre: string;
@@ -82,7 +93,8 @@ export async function crearProyecto(page: Page, datos: DatosProyecto): Promise<s
 
 export type DatosMovimiento = {
   tipo: "Ingreso" | "Egreso";
-  categoria: string | RegExp;
+  /** Ruta completa: «Adquisición › Valor de compra», o solo la raiz. */
+  categoria: string;
   valor: string;
   fecha: string;
   descripcion: string;
@@ -107,7 +119,7 @@ export async function registrarMovimiento(page: Page, datos: DatosMovimiento): P
   await expect(dialogo.getByRole("heading", { name: "Registrar movimiento" })).toBeVisible();
 
   await elegir(page, dialogo, "Tipo", datos.tipo);
-  await elegir(page, dialogo, "Categoría", datos.categoria);
+  await elegirCategoria(page, dialogo, datos.categoria);
 
   await dialogo.getByRole("textbox", { name: porEtiqueta("Valor") }).fill(datos.valor);
   await dialogo.getByRole("textbox", { name: porEtiqueta("Fecha") }).fill(datos.fecha);

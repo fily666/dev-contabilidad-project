@@ -17,6 +17,8 @@ import { FRECUENCIAS, type Frecuencia } from "@/shared/domain/enumeraciones";
 import { ETIQUETA_FRECUENCIA } from "@/shared/utils/etiquetas";
 import { formatearFecha } from "@/shared/utils/formato";
 import type { CategoriaConRuta } from "@/modules/categorias/domain/categoria.repository";
+import { categoriasDelTipo, sirveParaTipo } from "@/modules/categorias/domain/catalogo";
+import { SelectorCategoria } from "@/modules/categorias/presentation/components/selector-categoria";
 import { fechasDeRecurrencia, limiteDelHorizonte } from "@/modules/obligaciones/domain/recurrencia";
 import { actualizarObligacionAction, crearObligacionAction } from "../actions";
 import { esquemaCrearObligacion } from "../schemas";
@@ -24,7 +26,12 @@ import { esquemaCrearObligacion } from "../schemas";
 type ValoresFormulario = z.input<typeof esquemaCrearObligacion>;
 type SalidaFormulario = z.output<typeof esquemaCrearObligacion>;
 
-export type OpcionProyectoObligacion = { id: string; nombre: string };
+export type OpcionProyectoObligacion = {
+  id: string;
+  nombre: string;
+  /** Acota el catalogo de categorias; ver `OpcionProyecto` en movimientos. */
+  tipoProyectoId?: string;
+};
 
 type Props = {
   proyectos: OpcionProyectoObligacion[];
@@ -63,6 +70,9 @@ export function FormularioObligacion({
 
   const [frecuencia, setFrecuencia] = useState<Frecuencia>(obligacion?.frecuencia ?? "mensual");
   const [categoriaId, setCategoriaId] = useState(obligacion?.categoriaId ?? "");
+  const [proyectoId, setProyectoId] = useState(
+    obligacion?.proyectoId ?? proyectoFijo ?? proyectos[0]?.id ?? "",
+  );
 
   const formulario = useForm<ValoresFormulario, unknown, SalidaFormulario>({
     resolver: zodResolver(esquemaCrearObligacion),
@@ -78,6 +88,28 @@ export function FormularioObligacion({
       crearMovimientoAuto: false,
     },
   });
+
+  /**
+   * Solo las categorias del tipo del proyecto, mas las transversales: la
+   * pantalla global recibe el catalogo entero y las raices se repetirian
+   * («Adquisición» existe en inmueble y en vehiculo).
+   */
+  const categoriasDisponibles = useMemo(
+    () => categoriasDelTipo(categorias, proyectos.find((p) => p.id === proyectoId)?.tipoProyectoId),
+    [categorias, proyectos, proyectoId],
+  );
+
+  /** Cambiar de proyecto puede dejar la categoria fuera del catalogo del tipo. */
+  function elegirProyecto(nuevo: string) {
+    setProyectoId(nuevo);
+    formulario.setValue("proyectoId", nuevo, { shouldValidate: true });
+
+    const tipoDelProyecto = proyectos.find((p) => p.id === nuevo)?.tipoProyectoId;
+    if (sirveParaTipo(categorias, categoriaId, tipoDelProyecto)) return;
+
+    setCategoriaId("");
+    formulario.setValue("categoriaId", "");
+  }
 
   const fechaVencimiento = formulario.watch("fechaVencimiento");
   const intervaloMeses = formulario.watch("intervaloMeses");
@@ -128,12 +160,7 @@ export function FormularioObligacion({
             <Label htmlFor="proyectoId">
               Proyecto <span className="text-destructive">*</span>
             </Label>
-            <Select
-              defaultValue={formulario.getValues("proyectoId")}
-              onValueChange={(v) =>
-                formulario.setValue("proyectoId", v ?? "", { shouldValidate: true })
-              }
-            >
+            <Select value={proyectoId} onValueChange={(v) => elegirProyecto(v ?? "")}>
               <SelectTrigger id="proyectoId" className="w-full">
                 <SelectValue placeholder="Selecciona un proyecto" />
               </SelectTrigger>
@@ -151,32 +178,16 @@ export function FormularioObligacion({
           </div>
         ) : null}
 
-        <div className="space-y-2">
-          <Label htmlFor="categoriaId">
-            Categoría <span className="text-destructive">*</span>
-          </Label>
-          <Select
-            value={categoriaId}
-            onValueChange={(v) => {
-              setCategoriaId(v ?? "");
-              formulario.setValue("categoriaId", v ?? "", { shouldValidate: true });
-            }}
-          >
-            <SelectTrigger id="categoriaId" className="w-full">
-              <SelectValue placeholder="Selecciona una categoría" />
-            </SelectTrigger>
-            <SelectContent className="max-h-72">
-              {categorias.map((c) => (
-                <SelectItem key={c.id} value={c.id}>
-                  {c.ruta}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {errores.categoriaId ? (
-            <p className="text-sm text-destructive">{errores.categoriaId.message}</p>
-          ) : null}
-        </div>
+        <SelectorCategoria
+          categorias={categoriasDisponibles}
+          valor={categoriaId}
+          alCambiar={(id) => {
+            setCategoriaId(id);
+            formulario.setValue("categoriaId", id, { shouldValidate: true });
+          }}
+          requerido
+          error={errores.categoriaId?.message}
+        />
 
         <div className="space-y-2 sm:col-span-2">
           <Label htmlFor="concepto">

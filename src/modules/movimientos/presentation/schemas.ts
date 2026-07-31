@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { aNumero } from "@/shared/utils/formato";
 import {
   ESTADOS_MOVIMIENTO,
   NATURALEZAS,
@@ -18,8 +19,7 @@ const valorMonetario = z
   .union([z.number(), z.string()])
   .transform((v) => {
     if (typeof v === "number") return v;
-    const limpio = v.replace(/[^\d,.-]/g, "").replace(/\.(?=\d{3}\b)/g, "");
-    return Number(limpio.replace(",", "."));
+    return aNumero(v);
   })
   .refine((v) => Number.isFinite(v), "Escribe un valor numérico.")
   .refine((v) => v > 0, "El valor debe ser mayor que cero.");
@@ -29,8 +29,7 @@ const valorMonetarioOpcional = z
   .transform((v) => {
     if (v === null || v === undefined || v === "") return null;
     if (typeof v === "number") return v;
-    const limpio = v.replace(/[^\d,.-]/g, "").replace(/\.(?=\d{3}\b)/g, "");
-    return Number(limpio.replace(",", "."));
+    return aNumero(v);
   })
   .refine((v) => v === null || (Number.isFinite(v) && v >= 0), "Escribe un valor numérico válido.");
 

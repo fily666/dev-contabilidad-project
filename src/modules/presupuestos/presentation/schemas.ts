@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { aNumero } from "@/shared/utils/formato";
 
 /** Esquemas compartidos por formulario y Server Action (RNF-07). */
 
@@ -8,8 +9,7 @@ const monetario = z
   .union([z.number(), z.string()])
   .transform((v) => {
     if (typeof v === "number") return v;
-    const limpio = v.replace(/[^\d,.-]/g, "").replace(/\.(?=\d{3}\b)/g, "");
-    return Number(limpio.replace(",", "."));
+    return aNumero(v);
   })
   .refine((v) => Number.isFinite(v) && v >= 0, "Escribe un valor numérico no negativo.");
 

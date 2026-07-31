@@ -26,10 +26,37 @@ export const MIMES_PERMITIDOS: Record<string, string> = {
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document": ".docx",
 };
 
-/** RF-42: 10 MB. Es el mismo limite del bucket y del `check` de la tabla. */
-export const TAMANO_MAXIMO_BYTES = 10 * 1024 * 1024;
+/** RF-42: 20 MB. Es el mismo limite del bucket y del `check` de la tabla. */
+export const TAMANO_MAXIMO_BYTES = 20 * 1024 * 1024;
 
-/** Los que se pueden previsualizar en linea (RF-44). */
+/** Texto unico del limite, para que los tres mensajes no se desincronicen. */
+export const TAMANO_MAXIMO_LEGIBLE = `${TAMANO_MAXIMO_BYTES / 1024 / 1024} MB`;
+
+/**
+ * RF-40: cuantos soportes admite un movimiento.
+ *
+ * Un pago se justifica con el comprobante y a lo sumo unos anexos; sin tope, un
+ * solo movimiento podria llenar el bucket.
+ */
+export const MAXIMO_SOPORTES_POR_MOVIMIENTO = 7;
+
+/**
+ * Subconjunto admitido como comprobante de pago (RF-40). El catalogo general
+ * incluye ademas hojas de calculo y documentos de texto, que sirven como
+ * soporte de proyecto (RF-41) pero no como prueba de un pago.
+ */
+export const MIMES_COMPROBANTE: readonly string[] = [
+  "application/pdf",
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+];
+
+/**
+ * Los que se pueden previsualizar en linea (RF-44). Hoy coinciden con
+ * `MIMES_COMPROBANTE`, pero son reglas distintas: una habla de que se puede
+ * mostrar en el navegador y la otra de que se acepta como prueba de pago.
+ */
 const MIMES_PREVISUALIZABLES = ["application/pdf", "image/jpeg", "image/png", "image/webp"];
 
 /**
@@ -168,7 +195,7 @@ function validarTamano(valor: number): number {
   if (valor > TAMANO_MAXIMO_BYTES) {
     throw new ReglaDeNegocioViolada(
       "ARCHIVO_DEMASIADO_GRANDE",
-      "El archivo supera el máximo de 10 MB.",
+      `El archivo supera el máximo de ${TAMANO_MAXIMO_LEGIBLE}.`,
       "archivo",
     );
   }

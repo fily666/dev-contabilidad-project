@@ -5,7 +5,7 @@ import { contenedorPrivado } from "@/di/container";
 import { ejecutarAccion } from "@/shared/presentation/ejecutar-accion";
 import type { Resultado } from "@/shared/domain/resultado";
 import { slug } from "@/shared/utils/formato";
-import { esquemaDocumentoPorId, esquemaSubirDocumento } from "./schemas";
+import { esquemaDocumentoPorId, esquemaSubirComprobante, esquemaSubirDocumento } from "./schemas";
 
 function revalidar(proyectoId?: string, movimientoId?: string | null) {
   revalidatePath("/documentos");
@@ -31,6 +31,40 @@ export async function subirDocumentoAction(datos: FormData): Promise<Resultado<{
   };
 
   return ejecutarAccion(esquemaSubirDocumento, entrada, async (valido) => {
+    const documento = await contenedor.documentos.subir.ejecutar({
+      proyectoId: valido.proyectoId,
+      movimientoId: valido.movimientoId,
+      nombreArchivo: valido.archivo.name,
+      nombreSeguro: slug(valido.archivo.name) || "soporte",
+      mimeType: valido.archivo.type,
+      tamanoBytes: valido.archivo.size,
+      contenido: await valido.archivo.arrayBuffer(),
+      tipoDocumento: valido.tipoDocumento,
+    });
+
+    revalidar(documento.proyectoId, documento.movimientoId);
+    return { id: documento.id };
+  });
+}
+
+/**
+ * RF-40: soporte adjuntado desde el formulario de un movimiento.
+ *
+ * Se sube un archivo por llamada. Enviar los siete en un solo cuerpo obligaria a
+ * subir el `bodySizeLimit` de las Server Actions a 140 MB, y un fallo a mitad de
+ * camino se llevaria por delante los que ya habian pasado.
+ */
+export async function subirComprobanteAction(datos: FormData): Promise<Resultado<{ id: string }>> {
+  const { contenedor } = await contenedorPrivado();
+
+  const entrada = {
+    proyectoId: datos.get("proyectoId"),
+    movimientoId: datos.get("movimientoId"),
+    tipoDocumento: datos.get("tipoDocumento") ?? undefined,
+    archivo: datos.get("archivo"),
+  };
+
+  return ejecutarAccion(esquemaSubirComprobante, entrada, async (valido) => {
     const documento = await contenedor.documentos.subir.ejecutar({
       proyectoId: valido.proyectoId,
       movimientoId: valido.movimientoId,

@@ -59,6 +59,9 @@ export default async function PaginaMovimientos({ searchParams }: Props) {
     id: p.proyectoId,
     nombre: p.nombre,
     moneda: p.moneda,
+    // Aqui se listan todas las categorias: el formulario las acota al tipo del
+    // proyecto que se elija, porque el proyecto se escoge dentro del dialogo.
+    tipoProyectoId: p.tipoProyectoId,
   }));
 
   return (

@@ -133,4 +133,16 @@ export class SupabaseDocumentoRepository implements DocumentoRepository {
     if (error) throw error;
     return count ?? 0;
   }
+
+  async contarPorMovimiento(movimientoId: string): Promise<number> {
+    const { count, error } = await this.supabase
+      .from("documentos")
+      .select("id", { count: "exact", head: true })
+      .eq("movimiento_id", movimientoId)
+      // Los eliminados liberan cupo: el tope es sobre lo que se ve (ADR-12).
+      .is("eliminado_en", null);
+
+    if (error) throw error;
+    return count ?? 0;
+  }
 }

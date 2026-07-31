@@ -117,7 +117,13 @@ export function AccionesObligacion({
           </DialogHeader>
 
           <FormularioObligacion
-            proyectos={[{ id: obligacion.proyectoId, nombre: obligacion.proyectoNombre }]}
+            proyectos={[
+              {
+                id: obligacion.proyectoId,
+                nombre: obligacion.proyectoNombre,
+                tipoProyectoId: obligacion.tipoProyectoId,
+              },
+            ]}
             categorias={categorias}
             hoy={hoy}
             horizonteMeses={horizonteMeses}

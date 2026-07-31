@@ -36,15 +36,6 @@ export function formatearPorcentaje(razon: number | null | undefined, decimales 
   })} %`;
 }
 
-/** Muestra un valor numerico o el guion largo si no aplica (§5.3). */
-export function formatearOpcional(
-  valor: number | null | undefined,
-  formateador: (v: number) => string,
-): string {
-  if (valor === null || valor === undefined || !Number.isFinite(valor)) return "—";
-  return formateador(valor);
-}
-
 /**
  * `2026-02-05` -> `5 feb 2026`
  *
@@ -71,6 +62,13 @@ export function formatearMesCorto(fechaIso: string): string {
   return format(parseISO(fechaIso), "MMM yy", { locale: es });
 }
 
+/** Tamaño legible: los bytes crudos no le dicen nada a nadie. */
+export function formatearTamano(bytes: number): string {
+  if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  if (bytes >= 1024) return `${Math.round(bytes / 1024)} KB`;
+  return `${bytes} B`;
+}
+
 /** Nombre de archivo seguro para Storage (§6.7). */
 export function slug(texto: string): string {
   return texto
@@ -82,7 +80,16 @@ export function slug(texto: string): string {
     .slice(0, 80);
 }
 
-/** Convierte la entrada del usuario con separadores de miles en numero. */
+/**
+ * Convierte la entrada del usuario en numero (§8.4). Acepta lo que de verdad
+ * escribe alguien en es-CO: `1.250.000`, `1250000,50`, `$ 1.250.000`. El punto
+ * solo se descarta cuando separa grupos de tres digitos, para no confundir el
+ * separador de miles con el decimal.
+ *
+ * Vive aqui y no en el esquema Zod porque la usan los dos formularios de importe
+ * y el resolver: tres copias de esta expresion regular eran tres sitios donde
+ * arreglar el mismo caso raro.
+ */
 export function aNumero(entrada: string): number {
   const limpio = entrada.replace(/[^\d,.-]/g, "").replace(/\.(?=\d{3}\b)/g, "");
   return Number(limpio.replace(",", "."));

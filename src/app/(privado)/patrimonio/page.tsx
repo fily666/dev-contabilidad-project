@@ -105,6 +105,7 @@ export default async function PaginaPatrimonio() {
             ) : (
               <BarrasComparativas
                 categorias={patrimonio.proyectos.map((p) => ({
+                  clave: p.proyectoId,
                   etiqueta: p.proyecto,
                   valores: [p.valoracionActual ?? 0, p.pasivoTotal],
                 }))}

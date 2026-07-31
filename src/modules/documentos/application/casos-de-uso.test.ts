@@ -6,7 +6,7 @@ import {
 } from "@/modules/proyectos/application/dobles";
 
 import { VIGENCIA_FIRMA_SEGUNDOS } from "../domain/almacenamiento";
-import { TAMANO_MAXIMO_BYTES } from "../domain/documento.entity";
+import { MAXIMO_SOPORTES_POR_MOVIMIENTO, TAMANO_MAXIMO_BYTES } from "../domain/documento.entity";
 import {
   EliminarDocumento,
   ListarDocumentos,
@@ -83,7 +83,7 @@ describe("SubirDocumento (RF-40 a RF-43)", () => {
     expect(almacenamiento.objetos.size).toBe(0);
   });
 
-  it("rechaza mas de 10 MB (RF-42)", async () => {
+  it("rechaza mas de 20 MB (RF-42)", async () => {
     const { subir, proyecto } = montar();
 
     await expect(
@@ -96,6 +96,54 @@ describe("SubirDocumento (RF-40 a RF-43)", () => {
         contenido: contenido(16),
       }),
     ).rejects.toMatchObject({ codigo: "ARCHIVO_DEMASIADO_GRANDE" });
+  });
+
+  it("un movimiento no admite mas de siete soportes (RF-40)", async () => {
+    const { subir, almacenamiento, proyecto } = montar();
+    const movimientoId = "dddddddd-dddd-4ddd-8ddd-dddddddddd07";
+
+    async function adjuntar(numero: number) {
+      return subir.ejecutar({
+        proyectoId: proyecto.id,
+        movimientoId,
+        nombreArchivo: `soporte-${numero}.pdf`,
+        nombreSeguro: `soporte-${numero}.pdf`,
+        mimeType: PDF,
+        tamanoBytes: 100,
+        contenido: contenido(100),
+      });
+    }
+
+    for (let i = 1; i <= MAXIMO_SOPORTES_POR_MOVIMIENTO; i += 1) await adjuntar(i);
+
+    await expect(adjuntar(MAXIMO_SOPORTES_POR_MOVIMIENTO + 1)).rejects.toMatchObject({
+      codigo: "DEMASIADOS_SOPORTES",
+    });
+
+    // El octavo se rechaza antes de tocar el bucket.
+    expect(almacenamiento.objetos.size).toBe(MAXIMO_SOPORTES_POR_MOVIMIENTO);
+  });
+
+  it("el tope es por movimiento: otro movimiento del mismo proyecto empieza de cero", async () => {
+    const { subir, proyecto } = montar();
+
+    async function adjuntar(movimientoId: string, numero: number) {
+      return subir.ejecutar({
+        proyectoId: proyecto.id,
+        movimientoId,
+        nombreArchivo: `soporte-${numero}.pdf`,
+        nombreSeguro: `soporte-${numero}.pdf`,
+        mimeType: PDF,
+        tamanoBytes: 100,
+        contenido: contenido(100),
+      });
+    }
+
+    for (let i = 1; i <= MAXIMO_SOPORTES_POR_MOVIMIENTO; i += 1) {
+      await adjuntar("dddddddd-dddd-4ddd-8ddd-dddddddddd11", i);
+    }
+
+    await expect(adjuntar("dddddddd-dddd-4ddd-8ddd-dddddddddd12", 1)).resolves.toBeDefined();
   });
 
   it("si falla la escritura de la fila, el objeto no queda huerfano", async () => {

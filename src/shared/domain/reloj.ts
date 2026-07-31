@@ -21,10 +21,6 @@ export function esFechaIso(valor: string): boolean {
   return fecha.getUTCFullYear() === a && fecha.getUTCMonth() === m - 1 && fecha.getUTCDate() === d;
 }
 
-export function aFechaIso(fecha: Date): FechaIso {
-  return fecha.toISOString().slice(0, 10);
-}
-
 /** Diferencia en dias completos entre dos fechas de negocio. */
 export function diasEntre(desde: FechaIso, hasta: FechaIso): number {
   const ms = Date.parse(`${hasta}T00:00:00Z`) - Date.parse(`${desde}T00:00:00Z`);

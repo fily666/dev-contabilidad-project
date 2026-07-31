@@ -638,12 +638,12 @@ describe("esquema de base de datos", () => {
   });
 
   describe("almacenamiento de soportes (§6.7)", () => {
-    it("el bucket es privado y limita el tamano a 10 MB", async () => {
+    it("el bucket es privado y limita el tamano a 20 MB", async () => {
       const r = await base.db.query<{ public: boolean; file_size_limit: string }>(
         `select public, file_size_limit from storage.buckets where id = 'soportes'`,
       );
       expect(r.rows[0]!.public).toBe(false);
-      expect(Number(r.rows[0]!.file_size_limit)).toBe(10 * 1024 * 1024);
+      expect(Number(r.rows[0]!.file_size_limit)).toBe(20 * 1024 * 1024);
     });
 
     it("storage.objects no tiene politicas: solo se opera con service_role", async () => {
@@ -659,7 +659,7 @@ describe("esquema de base de datos", () => {
       await expect(
         base.db.query(
           `insert into documentos (proyecto_id, nombre_archivo, ruta_storage, mime_type, tamano_bytes)
-           values ($1, 'grande.pdf', $2, 'application/pdf', 10485761)`,
+           values ($1, 'grande.pdf', $2, 'application/pdf', 20971521)`,
           [proyecto.rows[0]!.id, `${proyecto.rows[0]!.id}/grande.pdf`],
         ),
       ).rejects.toThrow(/tamano_bytes/);

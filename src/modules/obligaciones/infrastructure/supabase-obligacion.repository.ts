@@ -17,7 +17,7 @@ type FilaOcurrencia = Tablas<"ocurrencias_obligacion">;
 const SELECT_LISTADO = `
   id, proyecto_id, categoria_id, concepto, valor_estimado, fecha_vencimiento,
   frecuencia, intervalo_meses, dias_aviso, crear_movimiento_auto, activa,
-  proyectos!inner ( nombre, moneda ),
+  proyectos!inner ( nombre, moneda, tipo_proyecto_id ),
   categorias!inner ( nombre ),
   ocurrencias_obligacion ( fecha_vencimiento, estado )
 `;
@@ -78,7 +78,7 @@ export class SupabaseObligacionRepository implements ObligacionRepository {
     if (error) throw error;
 
     type FilaListado = Fila & {
-      proyectos: { nombre: string; moneda: string } | null;
+      proyectos: { nombre: string; moneda: string; tipo_proyecto_id: string } | null;
       categorias: { nombre: string } | null;
       ocurrencias_obligacion: Array<{ fecha_vencimiento: string; estado: string }> | null;
     };
@@ -94,6 +94,7 @@ export class SupabaseObligacionRepository implements ObligacionRepository {
         id: f.id,
         proyectoId: f.proyecto_id,
         proyectoNombre: f.proyectos?.nombre ?? "—",
+        tipoProyectoId: f.proyectos?.tipo_proyecto_id ?? "",
         categoriaId: f.categoria_id,
         categoria: f.categorias?.nombre ?? "—",
         concepto: f.concepto,

@@ -121,6 +121,7 @@ export class ProyectoRepositoryEnMemoria implements ProyectoRepository {
       .map((p) => ({
         proyectoId: p.id,
         nombre: p.nombre,
+        tipoProyectoId: p.tipoProyectoId,
         tipoCodigo: p.tipoProyectoId === TIPO_VEHICULO.id ? "vehiculo" : "inmueble",
         tipoNombre: p.tipoProyectoId === TIPO_VEHICULO.id ? "Vehículo" : "Inmueble",
         icono: null,

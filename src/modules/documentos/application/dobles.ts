@@ -58,6 +58,11 @@ export class DocumentoRepositoryEnMemoria implements DocumentoRepository {
     return [...this.filas.values()].filter((d) => d.proyectoId === proyectoId && !d.eliminado)
       .length;
   }
+
+  async contarPorMovimiento(movimientoId: string): Promise<number> {
+    return [...this.filas.values()].filter((d) => d.movimientoId === movimientoId && !d.eliminado)
+      .length;
+  }
 }
 
 export class AlmacenamientoEnMemoria implements AlmacenamientoArchivos {

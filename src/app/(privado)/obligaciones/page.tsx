@@ -37,7 +37,13 @@ export default async function PaginaObligaciones() {
     .filter((e) => e.diasRestantes >= 0)
     .reduce((suma, e) => suma + e.valorEstimado, 0);
 
-  const opcionesProyecto = proyectos.map((p) => ({ id: p.proyectoId, nombre: p.nombre }));
+  // `tipoProyectoId` acota las categorias del dialogo: aqui se cargan todas
+  // porque el proyecto se elige dentro del formulario.
+  const opcionesProyecto = proyectos.map((p) => ({
+    id: p.proyectoId,
+    nombre: p.nombre,
+    tipoProyectoId: p.tipoProyectoId,
+  }));
 
   return (
     <div className="space-y-6">

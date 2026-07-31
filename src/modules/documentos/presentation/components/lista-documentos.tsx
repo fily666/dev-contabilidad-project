@@ -3,7 +3,7 @@ import { FileImage, FileSpreadsheet, FileText, FileType } from "lucide-react";
 import { Badge } from "@/shared/ui/badge";
 import { EstadoVacio } from "@/shared/ui/estado-vacio";
 import { ETIQUETA_TIPO_DOCUMENTO } from "@/shared/utils/etiquetas";
-import { formatearFecha } from "@/shared/utils/formato";
+import { formatearFecha, formatearTamano } from "@/shared/utils/formato";
 import type { DocumentoListado } from "../../domain/documento.repository";
 import { AccionesDocumento } from "./acciones-documento";
 
@@ -12,13 +12,6 @@ type Props = {
   formatoFecha?: string;
   ocultarProyecto?: boolean;
 };
-
-/** Tamaño legible: los bytes crudos no le dicen nada a nadie. */
-function formatearTamano(bytes: number): string {
-  if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-  if (bytes >= 1024) return `${Math.round(bytes / 1024)} KB`;
-  return `${bytes} B`;
-}
 
 function Icono({ mimeType }: { mimeType: string }) {
   if (mimeType.startsWith("image/")) return <FileImage className="size-4" aria-hidden />;

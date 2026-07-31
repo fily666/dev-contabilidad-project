@@ -16,6 +16,8 @@ export type ObligacionListada = {
   id: string;
   proyectoId: string;
   proyectoNombre: string;
+  /** Acota el catalogo de categorias al editar desde la pantalla global. */
+  tipoProyectoId: string;
   categoriaId: string;
   categoria: string;
   concepto: string;

@@ -31,7 +31,7 @@ export class SupabaseProyectoRepository implements ProyectoRepository {
     let consulta = this.supabase
       .from("proyectos")
       .select(
-        `id, nombre, estado, fecha_inicio, moneda, tipos_proyecto!inner ( codigo, nombre, icono )`,
+        `id, nombre, estado, fecha_inicio, moneda, tipo_proyecto_id, tipos_proyecto!inner ( codigo, nombre, icono )`,
       );
 
     if (filtro?.estados?.length) consulta = consulta.in("estado", filtro.estados);
@@ -54,6 +54,7 @@ export class SupabaseProyectoRepository implements ProyectoRepository {
       estado: ResumenProyecto["estado"];
       fecha_inicio: string;
       moneda: string;
+      tipo_proyecto_id: string;
       tipos_proyecto: { codigo: string; nombre: string; icono: string | null } | null;
     };
 
@@ -62,6 +63,7 @@ export class SupabaseProyectoRepository implements ProyectoRepository {
       return {
         proyectoId: fila.id,
         nombre: fila.nombre,
+        tipoProyectoId: fila.tipo_proyecto_id,
         tipoCodigo: fila.tipos_proyecto?.codigo ?? "otro",
         tipoNombre: fila.tipos_proyecto?.nombre ?? "Otro",
         icono: fila.tipos_proyecto?.icono ?? null,

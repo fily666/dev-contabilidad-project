@@ -2,8 +2,22 @@
 
 > **Documento fuente de verdad del proyecto.** Toda decisión de implementación debe poder rastrearse a una sección de este archivo. Si algo no está aquí, se define aquí antes de codificarse.
 
-**Versión:** 1.1 · **Fecha:** 2026-07-30 · **Estado:** Fase 1 implementada y verificada
+**Versión:** 1.2 · **Fecha:** 2026-07-31 · **Estado:** fases 0 a 5 implementadas; ver [§14](#14-roadmap-por-fases) y los cinco huecos de [§17](#17-supuestos-y-pendientes-por-definir)
 
+> **Cambios de la 1.2** (auditoría de coherencia documento ↔ código). La 1.1 declaraba
+> «Fase 1 implementada» mientras [§14](#14-roadmap-por-fases) daba las cinco por cerradas:
+> ese desfase es lo que esta revisión corrige, y con él todo lo que el documento describía
+> de memoria. [§6.4](#64-vistas-de-agregación) pasa de siete vistas a las diez que existen;
+> [§6.8](#68-migraciones) lista las ocho migraciones aplicadas; [§7.2](#72-estructura-de-carpetas)
+> y [§7.3](#73-puertos-definidos) se corrigen contra el árbol real (desaparece el puerto
+> `ServicioAuditoria`, que nunca se escribió, y aparecen los cuatro que faltaban);
+> [§7.5](#75-flujo-de-una-operación-de-escritura) deja de invalidar una caché de TanStack
+> Query que [§7.6](#76-estrategia-de-renderizado) ya había retirado; RF-43 y [§11](#11-reportes-y-exportación)
+> dejan de nombrar a un usuario que [ADR-14](#16-decisiones-técnicas-adr) eliminó;
+> [§15.3](#153-scripts) documenta `db:demo`; y [§17](#17-supuestos-y-pendientes-por-definir)
+> gana la lista de **código implementado y probado que ninguna pantalla invoca todavía**,
+> que es la deuda real que quedaba escondida detrás de «las cinco fases están implementadas».
+>
 > **Cambios de la 1.1** (auditoría de integridad del sistema): [§8.1](#81-stack) refleja
 > el stack real (Base UI en lugar de Radix, capa propia de gráficas en lugar de Recharts);
 > RNF-08 deja de exigir un actor que [§6.3](#63-esquema) había eliminado; RF-101 documenta
@@ -208,16 +222,16 @@ Cada requerimiento tiene ID estable (`RF-xx`), módulo y criterios de aceptació
 
 ### 4.5 Módulo: Gestión documental
 
-| ID    | Requerimiento                                                                                                                          | Fase |
-| ----- | -------------------------------------------------------------------------------------------------------------------------------------- | ---- |
-| RF-40 | Adjuntar uno o varios soportes a un movimiento.                                                                                        | 2    |
-| RF-41 | Adjuntar documentos a nivel de proyecto sin movimiento asociado (escritura, contrato, tarjeta de propiedad).                           | 2    |
-| RF-42 | Tipos soportados: PDF, JPG, PNG, WEBP, XLSX, DOCX. Máximo 10 MB por archivo.                                                           | 2    |
-| RF-43 | Metadatos por soporte: nombre del archivo, fecha de carga, usuario que cargó, tipo de documento, ruta de almacenamiento, tamaño, MIME. | 2    |
-| RF-44 | Previsualización en línea de imágenes y PDF.                                                                                           | 2    |
-| RF-45 | Descarga mediante URL firmada temporal; los archivos nunca son públicos.                                                               | 2    |
-| RF-46 | Eliminar soporte (borrado lógico en base de datos + borrado del objeto en Storage).                                                    | 2    |
-| RF-47 | Buscar documentos por proyecto, tipo, rango de fechas y nombre.                                                                        | 3    |
+| ID    | Requerimiento                                                                                                                                                                                                | Fase |
+| ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---- |
+| RF-40 | Adjuntar hasta 7 soportes a un movimiento, desde el propio formulario de registro.                                                                                                                           | 2    |
+| RF-41 | Adjuntar documentos a nivel de proyecto sin movimiento asociado (escritura, contrato, tarjeta de propiedad).                                                                                                 | 2    |
+| RF-42 | Tipos soportados: PDF, JPG, PNG, WEBP, XLSX, DOCX. Máximo 20 MB por archivo. El comprobante de un pago admite solo PDF e imágenes.                                                                           | 2    |
+| RF-43 | Metadatos por soporte: nombre del archivo, fecha de carga, tipo de documento, ruta de almacenamiento, tamaño y MIME. **Sin «quién lo cargó»:** hay un solo operador ([ADR-14](#16-decisiones-técnicas-adr)). | 2    |
+| RF-44 | Previsualización en línea de imágenes y PDF.                                                                                                                                                                 | 2    |
+| RF-45 | Descarga mediante URL firmada temporal; los archivos nunca son públicos.                                                                                                                                     | 2    |
+| RF-46 | Eliminar soporte (borrado lógico en base de datos + borrado del objeto en Storage).                                                                                                                          | 2    |
+| RF-47 | Buscar documentos por proyecto, tipo, rango de fechas y nombre.                                                                                                                                              | 3    |
 
 **Criterios de aceptación (RF-45):** copiar la URL de un soporte y abrirla sin sesión funciona durante la vigencia de la firma (60 minutos) y falla después; la ruta directa del bucket sin firma devuelve 403.
 
@@ -426,7 +440,7 @@ create type estado_notificacion  as enum ('programada','enviada','fallida','canc
 
 ### 6.3 Esquema
 
-El DDL ejecutable vive en `supabase/migrations/20260730120000_esquema_inicial.sql`; lo que sigue es el mismo esquema con las anotaciones de diseño. Si difieren, la migración manda: `npm run db:verify-types` contrasta además los tipos de TypeScript contra la base real.
+El DDL ejecutable vive en `supabase/migrations/20260730120000_esquema_inicial.sql`; lo que sigue es el mismo esquema con las anotaciones de diseño, **ya con las migraciones posteriores aplicadas** ([§6.8](#68-migraciones)) — por eso el `check` de `tamano_bytes` dice 20 MB aquí y 10 MB en el archivo inicial. Si difieren, manda el estado acumulado de las migraciones: `npm run db:verify-types` contrasta además los tipos de TypeScript contra la base real.
 
 **Ninguna tabla tiene `propietario_id`, `creado_por` ni `actualizado_por`.** El sistema es monousuario ([ADR-14](#16-decisiones-técnicas-adr)): no hay a quién atribuir las filas ni de quién aislarlas.
 
@@ -598,7 +612,7 @@ create table documentos (
   ruta_storage   text not null unique,   -- {proyecto_id}/{uuid}-{slug}  (§6.7)
   tipo_documento tipo_documento not null default 'otro',
   mime_type      text not null,
-  tamano_bytes   bigint not null check (tamano_bytes > 0 and tamano_bytes <= 10485760),
+  tamano_bytes   bigint not null check (tamano_bytes > 0 and tamano_bytes <= 20971520),
   cargado_en     timestamptz not null default now(),
   eliminado_en   timestamptz             -- borrado lógico
 );
@@ -718,7 +732,22 @@ where m.estado = 'pagado'
 group by 1, 2;
 ```
 
-Las siete vistas se crean con `security_invoker = on`. Aunque ya no haya usuarios que aislar, la opción garantiza que una vista nunca conceda más acceso que quien la consulta, de modo que agregar una política en el futuro no abra un hueco por la puerta de atrás.
+Arriba están las dos vistas fundacionales. El juego completo son **diez**, repartidas en dos migraciones:
+
+| Vista                        | Alimenta                                       | Migración |
+| ---------------------------- | ---------------------------------------------- | --------- |
+| `v_resumen_proyecto`         | [§5.1](#51-agregados-base-por-proyecto), RF-15 | `…120200` |
+| `v_flujo_caja_mensual`       | RF-71, RF-92                                   | `…120200` |
+| `v_metricas_12m`             | [§5.3](#53-rentabilidad) (ventana de 12 meses) | `…120200` |
+| `v_gastos_por_categoria`     | RF-76                                          | `…120200` |
+| `v_agenda_obligaciones`      | RF-58, RF-73 (redefinida en `…140000`)         | `…120200` |
+| `v_flujo_proyectado_mensual` | RF-72                                          | `…120200` |
+| `v_patrimonio_proyecto`      | RF-78                                          | `…120200` |
+| `v_presupuesto_ejecucion`    | RF-81, RF-82                                   | `…140000` |
+| `v_movimientos_mensual`      | RF-75                                          | `…140000` |
+| `v_gastos_mensual_categoria` | RF-75, RF-76                                   | `…140000` |
+
+Las diez se crean con `security_invoker = on`. Aunque ya no haya usuarios que aislar, la opción garantiza que una vista nunca conceda más acceso que quien la consulta, de modo que agregar una política en el futuro no abra un hueco por la puerta de atrás.
 
 Los porcentuales **no** se calculan aquí: van en el dominio, porque necesitan devolver `null` cuando el divisor es cero ([§5.3](#53-rentabilidad)) y SQL no distinguiría ese caso de un cero legítimo.
 
@@ -759,7 +788,7 @@ Lo que hay que vigilar tras cada migración es que no aparezcan permisos nuevos:
 
 ### 6.7 Almacenamiento (Supabase Storage)
 
-- Bucket único **privado**: `soportes`, límite de 10 MB y lista blanca de MIME.
+- Bucket único **privado**: `soportes`, límite de 20 MB y lista blanca de MIME.
 - Convención de ruta: `{proyecto_id}/{uuid}-{slug-nombre-archivo}`.
 - **Sin políticas de Storage.** `storage.objects` tiene RLS activo en Supabase, así que sin políticas ningún rol público puede listar, leer ni subir. La aplicación opera el bucket con `service_role` desde el servidor.
 - Acceso de lectura exclusivamente por URL firmada con vigencia de 60 minutos, generada en el servidor.
@@ -769,9 +798,23 @@ Lo que hay que vigilar tras cada migración es que no aparezcan permisos nuevos:
 
 ### 6.8 Migraciones
 
-- Carpeta `supabase/migrations/`, archivos `YYYYMMDDHHMMSS_descripcion.sql`, versionados y aplicados con Supabase CLI.
+- Carpeta `supabase/migrations/`, archivos `YYYYMMDDHHMMSS_descripcion.sql`, versionados y aplicados con Supabase CLI. Las aplicadas hoy son ocho:
+
+  | Migración                                    | Qué introduce                                                                                      |
+  | -------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+  | `20260730120000_esquema_inicial`             | Enumerados, catorce tablas, índices y restricciones ([§6.3](#63-esquema))                          |
+  | `20260730120100_funciones_y_triggers`        | Los cinco triggers de [§6.6](#66-triggers) y `generar_ocurrencias`                                 |
+  | `20260730120200_vistas_agregacion`           | Las siete primeras vistas de [§6.4](#64-vistas-de-agregación)                                      |
+  | `20260730120300_blindaje_acceso`             | RLS en las catorce tablas y cierre a los roles públicos ([§6.5](#65-blindaje-de-acceso-a-la-base)) |
+  | `20260730120400_storage_soportes`            | Bucket privado `soportes` ([§6.7](#67-almacenamiento-supabase-storage))                            |
+  | `20260730130000_acentos_del_catalogo`        | Tildes del catálogo sembrado (RNF-13)                                                              |
+  | `20260730140000_vistas_agenda_y_presupuesto` | Las tres vistas restantes y la redefinición de `v_agenda_obligaciones`                             |
+  | `20260731120000_soportes_veinte_mb`          | Sube el límite por archivo de 10 a 20 MB (RF-42)                                                   |
+
+- **El límite de tamaño de un soporte vive en tres capas y las tres deben decir lo mismo:** la entidad (`documento.entity.ts`), el `check` de `documentos.tamano_bytes` y el `file_size_limit` del bucket. La última migración las movió juntas por eso: si el bucket admitiera menos que el `check`, el objeto se rechazaría después de que la entidad lo dio por bueno y el usuario vería un error opaco. La migración busca el `check` original **por su definición y no por su nombre**, porque el DDL inicial lo declaró sin nombrar y Postgres le puso uno derivado.
 - Nunca se edita una migración ya aplicada: se crea una nueva. **Única excepción admitida hasta ahora:** el paso a monousuario ([ADR-14](#16-decisiones-técnicas-adr)) reescribió el juego completo de migraciones en lugar de encadenar cuatro migraciones de deshacer. Se hizo porque la base no tenía ningún dato, las migraciones originales llevaban horas aplicadas y el esquema anterior queda en el historial de git. La regla vuelve a estar en vigor: de aquí en adelante, migración nueva.
 - Datos semilla (ajustes, tipos de proyecto, categorías del sistema y métodos de pago) en `supabase/seed.sql`, idempotentes.
+- **`supabase/demo.sql` no es semilla, es material de desarrollo.** Siembra cinco proyectos con dos años de historia para que el dashboard, el flujo proyectado y los presupuestos tengan cifras con las que trabajar. Se aplica solo con `npm run db:demo` ([§15.3](#153-scripts)), nunca con `db:seed`, y se niega a correr si ya hay datos propios: mezclar datos de demostración con datos reales es irreversible sin distinguirlos.
 - **Corregir un texto ya sembrado exige migración, no editar el seed.** El seed inserta con `on conflict do nothing` / `do update` sobre `(tipo_proyecto_id, padre_id, nombre)`: cambiar un `nombre` allí no renombra la fila existente, la duplica. Así se hizo con `20260730130000_acentos_del_catalogo.sql`, que puso las tildes que faltaban en el catálogo (RNF-13) con `set local app.sembrando = 'on'` —única vía legítima para escribir sobre las filas del sistema ([§6.6](#66-triggers))— y además se actualizó el seed para que una instalación nueva nazca correcta.
 - **`supabase db push --include-seed` no reejecuta una semilla cuyo hash ya conoce:** informa «hash update» y sigue, dejando un esquema recién creado y vacío sin ningún error a la vista. Por eso `scripts/reiniciar-base.mjs` borra también `supabase_migrations.seed_files`.
 - Los tipos TypeScript de `src/shared/infrastructure/supabase/database.types.ts` están escritos a mano, pero **verificados**: `npm run db:verify-types` contrasta cada columna y su nulabilidad contra la base real. Ejecutarlo después de cada migración.
@@ -810,27 +853,34 @@ src/
 │   │   └── configuracion/                # catálogos + preferencias (§4.11)
 │   ├── api/
 │   │   ├── cron/(obligaciones|notificaciones|estados)/route.ts
-│   │   ├── exportar/(excel|pdf)/route.ts
-│   │   └── webhooks/
+│   │   ├── cron/autorizacion.ts        # guardia compartida (§10.1)
+│   │   └── exportar/
+│   │       ├── [formato]/route.ts      # RF-94, RF-95: xlsx | pdf en una sola ruta
+│   │       └── datos/route.ts          # RF-103: exportación completa en JSON
 │   ├── layout.tsx
 │   └── globals.css
 │
 ├── modules/                              # un contexto acotado por carpeta
-│   ├── proyectos/
+│   ├── proyectos/                         # módulo de referencia: así se ve uno completo
 │   │   ├── domain/
 │   │   │   ├── proyecto.entity.ts         # entidad + invariantes
-│   │   │   ├── tipo-proyecto.ts
 │   │   │   ├── proyecto.repository.ts     # PUERTO (interface)
-│   │   │   └── proyecto.errors.ts
+│   │   │   ├── tipo-proyecto.entity.ts
+│   │   │   ├── tipo-proyecto.repository.ts
+│   │   │   └── indicadores.ts             # fórmulas de §5.3 y semáforo de §5.5
 │   │   ├── application/
 │   │   │   ├── crear-proyecto.use-case.ts
 │   │   │   ├── actualizar-proyecto.use-case.ts
 │   │   │   ├── listar-proyectos.use-case.ts
+│   │   │   ├── obtener-proyecto.use-case.ts
 │   │   │   ├── obtener-resumen-proyecto.use-case.ts
-│   │   │   ├── archivar-proyecto.use-case.ts
-│   │   │   └── dto/
+│   │   │   ├── cambiar-estado-proyecto.use-case.ts   # archivar/pausar/finalizar (RF-13)
+│   │   │   ├── eliminar-proyecto.use-case.ts         # RF-18: solo sin movimientos
+│   │   │   ├── (listar|administrar)-tipos-proyecto.use-case.ts
+│   │   │   └── dobles.ts                  # repositorios en memoria para pruebas (§8.8)
 │   │   ├── infrastructure/
 │   │   │   ├── supabase-proyecto.repository.ts   # ADAPTADOR
+│   │   │   ├── supabase-tipo-proyecto.repository.ts
 │   │   │   └── proyecto.mapper.ts
 │   │   └── presentation/
 │   │       ├── components/
@@ -853,11 +903,14 @@ src/
 │   ├── domain/                            # Dinero, Reloj, Resultado, enumeraciones, errores base
 │   ├── infrastructure/
 │   │   ├── supabase/(cliente-servidor|entorno|database.types).ts
-│   │   ├── storage/
-│   │   ├── email/
-│   │   └── export/(excel|pdf)/
+│   │   ├── storage/supabase-almacenamiento.ts
+│   │   ├── email/resend.ts
+│   │   ├── export/(excel.ts|pdf.tsx)
+│   │   └── reloj-del-sistema.ts
 │   ├── presentation/                      # ejecutarAccion: envoltura de Server Actions
+│   ├── testing/reloj-fijo.ts              # el Reloj determinista de las pruebas
 │   ├── ui/                                # shadcn/ui + componentes propios
+│   │   └── viz/                           # capa de gráficas en SVG (§8.1)
 │   └── utils/                             # cn, formato de moneda y fechas, etiquetas es-CO
 │
 ├── di/
@@ -868,6 +921,8 @@ src/
 
 **Notas de implementación:**
 
+- **No hay un `<modulo>.errors.ts` por módulo.** Los errores de dominio son tres clases en `shared/domain/errores.ts` (`NoEncontrado`, `NoAutorizado`, `ReglaDeNegocioViolada`) que llevan un código estable, y la presentación lo traduce con `MENSAJE_ERROR` de `shared/utils/etiquetas.ts` ([§8.6](#86-errores-y-resultados)). Un archivo de errores por módulo habría multiplicado por trece la misma jerarquía sin añadir ni una regla.
+- **`presentation/leer-filtros.ts`** aparece en `movimientos`, `documentos`, `dashboard` y `reportes`: es la contrapartida de haber puesto el estado de lectura en la URL ([§7.6](#76-estrategia-de-renderizado)). Traduce `searchParams` a la entrada del caso de uso, aplicando los valores por omisión y descartando lo que no valide, para que una URL manipulada a mano no llegue nunca al dominio.
 - Los métodos de pago viven en su propio módulo (`metodos-pago/`) aunque comparten pantalla de configuración con las categorías: son dos catálogos con ciclos de vida distintos.
 - Las reglas de frontera de §7.1 están codificadas como reglas `no-restricted-imports` en `eslint.config.mjs`: violarlas rompe el lint, no solo la convención.
 - Los componentes de `shared/ui` provienen de shadcn/ui sobre **Base UI**, que compone con la prop `render` en lugar de `asChild`. Para enlaces con apariencia de botón se usa el helper `EnlaceBoton`.
@@ -878,25 +933,34 @@ src/
 
 ### 7.3 Puertos definidos
 
-| Puerto                                      | Responsabilidad                                 | Adaptador v1                      |
-| ------------------------------------------- | ----------------------------------------------- | --------------------------------- |
-| `ProyectoRepository`                        | Persistencia de proyectos                       | Supabase (PostgREST)              |
-| `MovimientoRepository`                      | Persistencia y consulta filtrada de movimientos | Supabase                          |
-| `CategoriaRepository`                       | Catálogo de categorías                          | Supabase                          |
-| `ObligacionRepository`                      | Obligaciones y ocurrencias                      | Supabase                          |
-| `DocumentoRepository`                       | Metadatos de soportes                           | Supabase                          |
-| `PresupuestoRepository`                     | Presupuestos por período                        | Supabase                          |
-| `PasivoRepository` / `ValoracionRepository` | Patrimonio                                      | Supabase                          |
-| `AlmacenamientoArchivos`                    | Subir, firmar URL, eliminar                     | Supabase Storage                  |
-| `NotificadorEmail`                          | Envío de correo                                 | Resend                            |
-| `NotificadorWhatsApp`                       | Envío de WhatsApp                               | pendiente (fase 5)                |
-| `GeneradorExcel`                            | Exportación .xlsx                               | ExcelJS                           |
-| `GeneradorPdf`                              | Exportación .pdf                                | @react-pdf/renderer               |
-| `Reloj`                                     | Fecha/hora actual (testeable)                   | implementación del sistema        |
-| `ServicioAuditoria`                         | Registro de cambios                             | Supabase (triggers + repositorio) |
-| `CredencialAcceso`                          | Token y secreto de sesión configurados          | variables de entorno              |
-| `AlmacenSesion`                             | Leer, escribir y borrar la sesión del navegador | cookie `httpOnly` de Next         |
-| `AjustesRepository`                         | Moneda y zona horaria de la instalación         | Supabase (fila única)             |
+| Puerto                                      | Responsabilidad                                                 | Adaptador v1                                                      |
+| ------------------------------------------- | --------------------------------------------------------------- | ----------------------------------------------------------------- |
+| `ProyectoRepository`                        | Persistencia de proyectos y sus cifras agregadas                | Supabase (PostgREST)                                              |
+| `TipoProyectoRepository`                    | Catálogo de tipos de proyecto (RF-100, RNF-10)                  | Supabase                                                          |
+| `MovimientoRepository`                      | Persistencia y consulta filtrada de movimientos                 | Supabase                                                          |
+| `CategoriaRepository`                       | Catálogo de categorías                                          | Supabase                                                          |
+| `MetodoPagoRepository`                      | Catálogo de métodos de pago (RF-33)                             | Supabase                                                          |
+| `ObligacionRepository`                      | Obligaciones y ocurrencias                                      | Supabase                                                          |
+| `DocumentoRepository`                       | Metadatos de soportes                                           | Supabase                                                          |
+| `PresupuestoRepository`                     | Presupuestos por período                                        | Supabase                                                          |
+| `PasivoRepository` / `ValoracionRepository` | Patrimonio                                                      | Supabase                                                          |
+| `DashboardRepository`                       | Lecturas agregadas del panel ([§6.4](#64-vistas-de-agregación)) | Supabase (vistas)                                                 |
+| `NotificacionRepository`                    | Cola de avisos programados y enviados                           | Supabase                                                          |
+| `AlmacenamientoArchivos`                    | Subir, firmar URL, eliminar                                     | Supabase Storage                                                  |
+| `NotificadorEmail`                          | Envío de correo                                                 | Resend (API REST, sin SDK)                                        |
+| `NotificadorWhatsApp`                       | Envío de WhatsApp                                               | **sin adaptador** ([§17](#17-supuestos-y-pendientes-por-definir)) |
+| `GeneradorExcel`                            | Exportación .xlsx                                               | ExcelJS                                                           |
+| `GeneradorPdf`                              | Exportación .pdf                                                | @react-pdf/renderer                                               |
+| `Reloj`                                     | Fecha/hora actual (testeable)                                   | sistema · `reloj-fijo` en pruebas                                 |
+| `CredencialAcceso`                          | Token y secreto de sesión configurados                          | variables de entorno                                              |
+| `AlmacenSesion`                             | Leer, escribir y borrar la sesión del navegador                 | cookie `httpOnly` de Next                                         |
+| `AjustesRepository`                         | Preferencias de la instalación (fila única `ajustes`)           | Supabase                                                          |
+
+**No hay puerto `ServicioAuditoria`, y es deliberado.** La auditoría de RNF-08 la
+escribe por completo el trigger `registrar_auditoria()` ([§6.6](#66-triggers)): una
+interfaz en el dominio para algo que la base hace sola sería ceremonia que además se
+podría olvidar de invocar. La contrapartida es que `registro_auditoria` hoy solo se
+escribe, no se lee: no existe pantalla de historial.
 
 ### 7.4 Anatomía de un caso de uso
 
@@ -937,12 +1001,13 @@ Las reglas (compatibilidad tipo/categoría, `valor > 0`, pagado exige fecha) viv
 
 ```
 Formulario (React Hook Form + Zod)
-  → Server Action  (valida con el mismo esquema Zod, obtiene la sesión)
-    → container.registrarMovimiento()
+  → Server Action  (valida con el mismo esquema Zod)
+    → contenedorPrivado()  (exige sesión vigente, §9.2)
       → Caso de uso  (orquesta)
         → Entidad de dominio  (aplica invariantes)
-        → Repositorio (puerto)  →  Adaptador Supabase  →  PostgreSQL + RLS
-  ← Result  →  revalidatePath / invalidación de TanStack Query  →  toast
+        → Repositorio (puerto)  →  Adaptador Supabase  →  PostgreSQL
+                                    (checks, triggers; RLS activo sin políticas, §6.5)
+  ← Resultado  →  revalidatePath  →  toast (sonner)
 ```
 
 ### 7.6 Estrategia de renderizado
@@ -1013,20 +1078,26 @@ genuinamente interactiva (zoom, tooltip con cruz, pincel de rango), se reevalúa
 | Casos de uso          | verbo infinitivo + sufijo | `ArchivarProyecto`                 |
 | Server Actions        | verbo + `Action`          | `registrarMovimientoAction`        |
 
-Sufijos obligatorios: `.entity.ts`, `.repository.ts` (puerto), `.use-case.ts`, `.mapper.ts`, `.schemas.ts`, `.dto.ts`.
+Sufijos obligatorios cuando el archivo describe **una** cosa: `.entity.ts`, `.repository.ts` (puerto), `.use-case.ts`, `.mapper.ts`.
+
+Los nombres fijos por capa, en cambio, no llevan sufijo porque no hay más de uno por módulo: `actions.ts` (Server Actions), `schemas.ts` (Zod), `leer-filtros.ts` (URL → entrada del caso de uso) y `dobles.ts` (repositorios en memoria). **No hay archivos `.dto.ts`:** las entradas y salidas de los casos de uso son tipos declarados junto al caso de uso que los usa, y sacarlos a un archivo aparte solo alejaba el tipo de su única razón de existir.
+
+Cuando un módulo tiene varios casos de uso pequeños que se leen juntos —`categorias`, `obligaciones`, `presupuestos`, `patrimonio`, `notificaciones`, `metodos-pago`, `reportes`, `acceso`, `documentos`— viven en un solo `application/casos-de-uso.ts`. Se reserva un archivo `.use-case.ts` por caso a los módulos donde cada uno tiene peso propio: `movimientos` y `proyectos`.
 
 ### 8.4 Manejo de dinero
 
 - Almacenamiento: `numeric(18,2)`.
 - En TypeScript, un value object `Dinero` que encapsula monto y moneda; jamás aritmética con `number` sueltos ni floats acumulados.
-- Presentación: `Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 })`.
-- Entrada: campo con máscara de miles que envía el valor numérico limpio.
+- Presentación: `Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 })`, en `shared/utils/formato.ts`.
+- **Entrada: campo de texto con `inputMode="decimal"`, sin máscara que reescriba mientras se teclea.** Lo que normaliza es `aNumero()`, dentro del `transform` del esquema Zod: acepta `1.250.000`, `1250000,50` y `$ 1.250.000`, y descarta el punto solo cuando separa grupos de tres dígitos, para no confundir el separador de miles con el decimal. Una máscara que reformatea en cada pulsación pelea con el cursor y con React Hook Form; normalizar al validar da el mismo resultado sin ese conflicto.
+- Esa normalización es **una sola función compartida** por los cuatro esquemas que reciben importes (movimientos, obligaciones, presupuestos, patrimonio). Estuvo copiada en siete sitios, que eran siete lugares donde arreglar el mismo caso raro.
 
 ### 8.5 Fechas
 
 - Fechas de negocio (fecha del movimiento, vencimiento) como `date` sin hora, para evitar corrimientos de zona.
 - Marcas de tiempo de auditoría como `timestamptz` en UTC.
-- Todo cálculo de vencimientos usa la zona horaria del perfil (`America/Bogota` por defecto).
+- Todo cálculo de vencimientos usa la zona horaria de `ajustes` (`America/Bogota` por defecto). No hay perfil: la zona configura la instalación, no a una persona ([§2](#2-glosario-del-dominio), [ADR-14](#16-decisiones-técnicas-adr)).
+- El dominio nunca llama a `new Date()`: recibe el puerto `Reloj`. `contenedorPrivado()` lo construye ya ajustado a esa zona, y las pruebas inyectan `reloj-fijo`, que es lo que hace verificables los vencimientos y las recurrencias.
 
 ### 8.6 Errores y resultados
 
@@ -1036,8 +1107,8 @@ Sufijos obligatorios: `.entity.ts`, `.repository.ts` (puerto), `.use-case.ts`, `
 
 ### 8.7 Validación
 
-- Un esquema Zod por operación, en `presentation/schemas.ts`, reutilizado por el formulario y la Server Action (RNF: validación en cliente y servidor con la misma fuente).
-- La base de datos es la última línea de defensa: `check`, `not null`, `unique` y RLS.
+- Un esquema Zod por operación, en `presentation/schemas.ts`, reutilizado por el formulario y la Server Action (RNF-07: validación en cliente y servidor con la misma fuente).
+- La base de datos es la última línea de defensa: `check`, `not null`, `unique`, claves foráneas y los triggers de [§6.6](#66-triggers) —`validar_movimiento()` y `proteger_filas_de_sistema()` rechazan lo que el dominio dejara pasar—. **RLS no cuenta como validación:** está activo pero sin políticas, así que no comprueba datos; lo que hace es cerrar la base a los roles públicos ([§6.5](#65-blindaje-de-acceso-a-la-base)).
 
 ### 8.8 Pruebas
 
@@ -1048,6 +1119,15 @@ Sufijos obligatorios: `.entity.ts`, `.repository.ts` (puerto), `.use-case.ts`, `
 | Esquema          | Migraciones y seed reales contra PostgreSQL embebido (PGlite): restricciones, triggers, vistas, recurrencias, Storage y blindaje de permisos | esquema completo              |
 | Humo remoto      | Las comprobaciones críticas contra el Supabase real (`npm run db:smoke`)                                                                     | cifras, invariantes, blindaje |
 | E2E (Playwright) | Los dos escenarios de [§3](#3-escenarios-de-referencia) de punta a punta                                                                     | flujos críticos               |
+
+`npm run test` cubre los tres primeros niveles: **412 pruebas en 31 archivos**, en unos seis segundos.
+
+**El ≥ 90 % es un objetivo, no una puerta.** `vitest.config.ts` declara el reporte de
+cobertura y qué mide (`modules/*/domain`, `modules/*/application`, `shared/domain`), pero
+no hay umbral configurado, ni script `test:coverage`, ni la dependencia `@vitest/coverage-v8`
+instalada: hoy esa cifra no se mide en cada corrida. Lo bloqueante es RNF-14 —tipos y
+lint— en CI. Convertir el 90 % en umbral es una decisión abierta, y decirlo así es mejor
+que dejar una columna que parece verificada y no lo está.
 
 **Pruebas de seguridad obligatorias**, en lugar de las de aislamiento entre usuarios que ya no aplican:
 
@@ -1164,9 +1244,9 @@ cualquiera puede disparar, no.
 
 ### 10.2 Canales
 
-- **Email (Resend)** desde la Fase 4: resumen de próximos vencimientos y aviso individual.
-- **In-app**: campana con obligaciones vencidas y próximas (Fase 3).
-- **WhatsApp**: Fase 5, detrás del puerto `NotificadorWhatsApp` para no acoplar el dominio al proveedor.
+- **Email (Resend)**: resumen de próximos vencimientos y aviso individual. Sin `RESEND_API_KEY` ni `EMAIL_REMITENTE` el canal queda desactivado y los avisos se quedan `programada` en lugar de marcarse `fallida` ([§15.1](#151-variables-de-entorno)).
+- **In-app**: las filas con `canal = 'in_app'` se crean y se marcan enviadas sin proveedor, porque publicarlas es solo dejarlas legibles. **Lo que todavía no existe es quien las lea:** no hay campana en la barra superior, y `notificaciones` se escribe sin que ninguna pantalla la consulte ([§17](#17-supuestos-y-pendientes-por-definir)). Lo que sí está resuelto es la necesidad de fondo —ver qué vence y qué está vencido— por el panel de agenda de RF-58.
+- **WhatsApp**: el puerto `NotificadorWhatsApp` existe y el caso de uso lo trata como canal opcional; **falta el adaptador**, así que esos avisos quedan programados sin enviarse en lugar de fallar. Decidir el proveedor es lo único pendiente ([§17](#17-supuestos-y-pendientes-por-definir)).
 
 ### 10.3 Plantillas de correo
 
@@ -1179,8 +1259,9 @@ Resumen semanal (lunes), aviso individual N días antes, y aviso de obligación 
 - Los reportes se construyen sobre los mismos casos de uso de consulta del dashboard: una sola definición de cifras.
 - Filtros comunes: proyecto, rango de fechas, tipo de movimiento, categoría, estado.
 - **Excel:** una hoja de datos con encabezados y una hoja de resumen con totales; columnas de valor con formato de moneda.
-- **PDF:** encabezado con nombre del usuario, título del reporte, filtros aplicados y fecha de generación; tabla paginada; totales al cierre.
-- Generación en API Route con respuesta en streaming; nombre de archivo `{reporte}_{proyecto}_{yyyyMMdd}.{ext}`.
+- **PDF:** encabezado con el título del reporte, los filtros aplicados y la fecha de generación; tabla paginada; totales al cierre. **Sin nombre de usuario:** no hay ninguno que poner ([ADR-14](#16-decisiones-técnicas-adr)).
+- Generación en API Route (`/api/exportar/[formato]`, un solo handler para `xlsx` y `pdf`); nombre de archivo `{reporte}_{proyecto}_{yyyyMMdd}.{ext}`.
+- **RF-103 va por su propia ruta**, `/api/exportar/datos`: exporta el volcado completo en JSON y no comparte ni filtros ni formato con los reportes.
 - Límite de 10.000 filas por exportación; si se excede, se solicita refinar los filtros.
 
 ---
@@ -1257,11 +1338,22 @@ Si un tipo requiere un cálculo genuinamente nuevo (por ejemplo TIR para fondos 
 
 Cada fase termina desplegada en Vercel y usable. No se inicia una fase sin cerrar la anterior.
 
-**Estado a 31 de julio de 2026: las cinco fases están implementadas.** Lo que queda
-pendiente no es alcance, son las decisiones de §17 y las verificaciones que solo se
-pueden hacer fuera del repositorio (backups de Supabase, auditoría de accesibilidad y
-medición de Lighthouse). El detalle de cada fase queda abajo como registro de lo
-acordado, no como plan por ejecutar.
+**Estado a 31 de julio de 2026: las cinco fases están implementadas, con cinco
+requerimientos a medias.** Todos los módulos existen con sus cuatro capas, y
+`npm run verify` pasa en limpio (412 pruebas en 31 archivos). Lo que falta se agrupa en
+tres cosas distintas, y conviene no confundirlas:
+
+1. **Cinco requerimientos con dominio y caso de uso escritos y probados, pero sin
+   pantalla que los invoque** ([§17](#17-supuestos-y-pendientes-por-definir)). No es
+   alcance por diseñar: es cableado que falta, y hasta la revisión 1.2 estaba oculto
+   porque «implementado» se estaba midiendo por módulo y no por camino completo.
+2. **Las decisiones abiertas** de [§17](#17-supuestos-y-pendientes-por-definir) (proveedor
+   de WhatsApp, detalle de la tabla de amortización).
+3. **Las verificaciones que solo se pueden hacer fuera del repositorio:** backups de
+   Supabase (RNF-15), auditoría axe (RNF-04) y medición de Lighthouse (RNF-05). Ninguna
+   la puede dar por buena una prueba del repositorio, así que ninguna está dada por buena.
+
+El detalle de cada fase queda abajo como registro de lo acordado, no como plan por ejecutar.
 
 ### Fase 0 — Fundación
 
@@ -1344,8 +1436,8 @@ SUPABASE_SERVICE_ROLE_KEY=        # omite RLS; solo servidor, nunca en el client
 SUPABASE_DB_URL=                  # contraseña de postgres; solo migraciones y scripts/
 
 # Aplicación
-NEXT_PUBLIC_APP_URL=
-CRON_SECRET=                      # protege /api/cron/*
+NEXT_PUBLIC_APP_URL=              # base de los enlaces del correo (§10.3) y de los E2E
+CRON_SECRET=                      # protege /api/cron/*; mínimo 16 caracteres
 
 # Correo. Sin estas dos, el canal de correo queda desactivado y las
 # notificaciones se quedan programadas en lugar de fallar (§10.2).
@@ -1378,21 +1470,22 @@ Sin Docker: las migraciones se aplican contra el proyecto Supabase en la nube.
 
 ### 15.3 Scripts
 
-| Script                     | Acción                                                                  |
-| -------------------------- | ----------------------------------------------------------------------- |
-| `dev`                      | Servidor de desarrollo                                                  |
-| `build` / `start`          | Compilación y ejecución de producción                                   |
-| `lint` / `lint:fix`        | ESLint (incluye las reglas de frontera de [§7.1](#71-principios))       |
-| `format` / `format:check`  | Prettier                                                                |
-| `typecheck`                | `tsc --noEmit`                                                          |
-| `test` / `test:watch`      | Vitest: unitarias, casos de uso y esquema en PGlite                     |
-| `test:e2e` / `test:e2e:ui` | Playwright: los escenarios de [§3](#3-escenarios-de-referencia)         |
-| `verify`                   | typecheck + lint + pruebas (lo que debe pasar antes de subir)           |
-| `db:push` / `db:seed`      | Migraciones y semillas                                                  |
-| `db:reset`                 | Borra el esquema y lo reconstruye desde cero (se niega si hay datos)    |
-| `db:inspect`               | Tablas, RLS, vistas, triggers, semillas y **blindaje de permisos**      |
-| `db:verify-types`          | Contrasta `database.types.ts` con el esquema real; falla si difieren    |
-| `db:smoke`                 | Prueba end-to-end contra la base remota; se niega a correr si hay datos |
+| Script                     | Acción                                                                                                                                      |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `dev`                      | Servidor de desarrollo                                                                                                                      |
+| `build` / `start`          | Compilación y ejecución de producción                                                                                                       |
+| `lint` / `lint:fix`        | ESLint (incluye las reglas de frontera de [§7.1](#71-principios))                                                                           |
+| `format` / `format:check`  | Prettier                                                                                                                                    |
+| `typecheck`                | `tsc --noEmit`                                                                                                                              |
+| `test` / `test:watch`      | Vitest: unitarias, casos de uso y esquema en PGlite                                                                                         |
+| `test:e2e` / `test:e2e:ui` | Playwright: los escenarios de [§3](#3-escenarios-de-referencia)                                                                             |
+| `verify`                   | typecheck + lint + pruebas (lo que debe pasar antes de subir)                                                                               |
+| `db:push` / `db:seed`      | Migraciones y semillas                                                                                                                      |
+| `db:reset`                 | Borra el esquema y lo reconstruye desde cero (se niega si hay datos)                                                                        |
+| `db:demo`                  | Borra los datos propios y siembra los cinco proyectos de `demo.sql` ([§6.8](#68-migraciones)); se niega si ya hay datos, salvo `-- --force` |
+| `db:inspect`               | Tablas, RLS, vistas, triggers, semillas y **blindaje de permisos**                                                                          |
+| `db:verify-types`          | Contrasta `database.types.ts` con el esquema real; falla si difieren                                                                        |
+| `db:smoke`                 | Prueba end-to-end contra la base remota; se niega a correr si hay datos                                                                     |
 
 Los scripts de base leen `SUPABASE_DB_URL` con `node --env-file=.env`, así que la contraseña no aparece en `package.json` ni en el historial del shell.
 
@@ -1449,6 +1542,28 @@ Los E2E no van en un gancho: necesitan navegador y base con datos, y su sitio es
 - **Horizonte de proyección por defecto: 12 meses**, configurable en los ajustes entre 1 y 60 (RF-101).
 - **Zona horaria por defecto: `America/Bogota`.**
 - **Depreciación no automática:** el valor del vehículo baja registrando valoraciones manuales.
+
+### Implementado y probado, pero sin cableado en la interfaz
+
+Esta lista sale de contrastar el documento contra el árbol de código en la revisión 1.2:
+cada entrada tiene su dominio escrito, su caso de uso y sus pruebas en verde, y **ninguna
+pantalla la llama**. Es la deuda más fácil de perder de vista, porque el módulo existe,
+la prueba pasa y el requerimiento parece cerrado.
+
+| Hueco                                                                                                                           | Lo que ya existe                                                            | Lo que falta                                                                           |
+| ------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| **RF-31, renombrar una categoría**                                                                                              | `ActualizarCategoria` + `actualizarCategoriaAction`                         | El gestor de categorías solo crea, activa/desactiva y elimina                          |
+| **RF-17, corregir un pasivo**                                                                                                   | `ActualizarPasivo` + `actualizarPasivoAction`                               | El gestor de patrimonio solo registra                                                  |
+| **RF-80, corregir un presupuesto**                                                                                              | `ActualizarPresupuesto` + `actualizarPresupuestoAction`                     | El gestor de presupuestos solo crea                                                    |
+| **[§5.5](#55-estado-financiero-del-proyecto), semáforo del proyecto** — indicador exigido por [§3](#3-escenarios-de-referencia) | `calcularEstadoFinanciero` (7 casos de prueba) e `InsigniaEstadoFinanciero` | Nadie reúne las señales (vencidas, flujo de 3 meses, presupuesto) ni pinta la insignia |
+| **[§10.2](#102-canales), avisos in-app**                                                                                        | Las filas `canal = 'in_app'` se crean y se marcan enviadas                  | No hay campana ni pantalla que lea `notificaciones`                                    |
+
+La decisión pendiente es la misma para las cinco: **cablearlas o retirar el requerimiento.**
+Mientras no se resuelva, el código se conserva —está probado y cumple una regla escrita
+aquí—, pero conviene saber que hoy no llega al usuario. Las tres Server Actions
+`actualizar*` son además superficie expuesta sin consumidor: siguen protegidas por
+`contenedorPrivado()` ([§9.2](#92-dónde-se-comprueba)), pero un endpoint sin quien lo
+llame es un endpoint que nadie mira.
 
 ### Pendientes por confirmar
 

@@ -14,6 +14,8 @@ export type FiltroProyectos = {
 export type ResumenProyecto = {
   proyectoId: string;
   nombre: string;
+  /** Necesario para acotar el catalogo de categorias al tipo del proyecto. */
+  tipoProyectoId: string;
   tipoCodigo: string;
   tipoNombre: string;
   icono: string | null;

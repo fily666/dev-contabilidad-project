@@ -25,11 +25,3 @@ export function urlSupabase(): string {
 export function claveServicio(): string {
   return requerida("SUPABASE_SERVICE_ROLE_KEY", process.env.SUPABASE_SERVICE_ROLE_KEY);
 }
-
-export function urlAplicacion(): string {
-  return process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
-}
-
-export function secretoCron(): string {
-  return requerida("CRON_SECRET", process.env.CRON_SECRET);
-}

@@ -82,7 +82,7 @@ export function SubidaDocumento({ proyectoId, movimientoId, etiqueta = "Subir so
             disabled={pendiente}
           />
           <p className="text-xs text-muted-foreground">
-            PDF, JPG, PNG, WEBP, XLSX o DOCX. Máximo 10 MB.
+            PDF, JPG, PNG, WEBP, XLSX o DOCX. Máximo 20 MB.
           </p>
         </div>
       </div>

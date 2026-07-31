@@ -28,11 +28,16 @@ export default async function PaginaPresupuestos({ searchParams }: Props) {
   const hoy = contenedor.reloj.hoy();
   const proyectoId = primero(parametros.proyectoId);
 
-  const [ejecucion, proyectos, categorias] = await Promise.all([
+  const [ejecucion, proyectos, categorias, tipos] = await Promise.all([
     contenedor.presupuestos.listarEjecucion.ejecutar({ filtro: { proyectoId } }),
     contenedor.proyectos.listar.ejecutar({ filtro: { estados: ["activo", "pausado"] } }),
     contenedor.categorias.listar.ejecutar({}),
+    // Un presupuesto global abarca todos los tipos, y ahi conviven categorias
+    // raiz con el mismo nombre: el selector las distingue con el tipo.
+    contenedor.proyectos.listarTipos.ejecutar(),
   ]);
+
+  const nombrePorTipo = Object.fromEntries(tipos.map((t) => [t.id, t.nombre]));
 
   const { filas, resumen } = ejecucion;
   const moneda = filas[0]?.moneda ?? ajustes.moneda;
@@ -97,6 +102,7 @@ export default async function PaginaPresupuestos({ searchParams }: Props) {
         ) : (
           <BarrasComparativas
             categorias={vigentes.map((f) => ({
+              clave: f.presupuestoId,
               etiqueta: f.categoria,
               valores: [f.valorPlaneado, f.valorReal],
             }))}
@@ -112,8 +118,13 @@ export default async function PaginaPresupuestos({ searchParams }: Props) {
 
       <GestorPresupuestos
         filas={filas}
-        proyectos={proyectos.map((p) => ({ id: p.proyectoId, nombre: p.nombre }))}
+        proyectos={proyectos.map((p) => ({
+          id: p.proyectoId,
+          nombre: p.nombre,
+          tipoProyectoId: p.tipoProyectoId,
+        }))}
         categorias={categorias}
+        nombrePorTipo={nombrePorTipo}
         hoy={hoy}
         formatoFecha={ajustes.formatoFecha}
       />

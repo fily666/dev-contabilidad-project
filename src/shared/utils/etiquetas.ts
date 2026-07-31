@@ -134,8 +134,9 @@ export const MENSAJE_ERROR: Record<string, string> = {
   CONCEPTO_INVALIDO: "El concepto debe tener entre 1 y 150 caracteres.",
   DOCUMENTO_NO_ENCONTRADO: "El soporte no existe o ya fue eliminado.",
   TIPO_ARCHIVO_NO_PERMITIDO: "Solo se admiten PDF, JPG, PNG, WEBP, XLSX y DOCX.",
-  ARCHIVO_DEMASIADO_GRANDE: "El archivo supera el máximo de 10 MB.",
+  ARCHIVO_DEMASIADO_GRANDE: "El archivo supera el máximo de 20 MB.",
   ARCHIVO_VACIO: "El archivo está vacío o no se pudo leer.",
+  DEMASIADOS_SOPORTES: "Un movimiento admite máximo 7 soportes.",
   ERROR_INESPERADO: "Ocurrió un error inesperado. Intenta de nuevo.",
 };
 

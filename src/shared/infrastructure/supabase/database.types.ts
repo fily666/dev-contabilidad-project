@@ -666,5 +666,3 @@ export type Database = {
 
 export type Tablas<T extends keyof Database["public"]["Tables"]> =
   Database["public"]["Tables"][T]["Row"];
-export type Vistas<T extends keyof Database["public"]["Views"]> =
-  Database["public"]["Views"][T]["Row"];

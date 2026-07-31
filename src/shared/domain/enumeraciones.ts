@@ -67,13 +67,3 @@ export const NATURALEZAS_POR_TIPO: Record<TipoMovimiento, readonly Naturaleza[]>
 export function naturalezaEsCompatible(tipo: TipoMovimiento, naturaleza: Naturaleza): boolean {
   return NATURALEZAS_POR_TIPO[tipo].includes(naturaleza);
 }
-
-/** Estados que representan dinero efectivamente movido (regla de oro §2). */
-export function afectaCaja(estado: EstadoMovimiento): boolean {
-  return estado === "pagado";
-}
-
-/** Estados que representan un compromiso aun no ejecutado (§5.2). */
-export function esComprometido(estado: EstadoMovimiento): boolean {
-  return estado === "pendiente" || estado === "vencido";
-}

@@ -49,6 +49,7 @@ export class ObligacionRepositoryEnMemoria implements ObligacionRepository {
           id: o.id,
           proyectoId: o.proyectoId,
           proyectoNombre: "Proyecto",
+          tipoProyectoId: "tipo",
           categoriaId: o.categoriaId,
           categoria: "Categoría",
           concepto: o.concepto,

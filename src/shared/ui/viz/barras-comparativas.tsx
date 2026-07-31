@@ -5,7 +5,8 @@ import { marcasDeEje, proporcion } from "./escala";
 import { TablaDeDatos } from "./panel-grafica";
 
 type Serie = { etiqueta: string; serie: SerieColor };
-type Categoria = { etiqueta: string; valores: number[] };
+/** `clave` identifica la categoria cuando dos etiquetas coinciden (ver `BarrasRanking`). */
+type Categoria = { clave?: string; etiqueta: string; valores: number[] };
 
 type Props = {
   categorias: Categoria[];
@@ -73,7 +74,7 @@ export function BarrasComparativas({
             <div className="absolute inset-0 flex items-end gap-4">
               {categorias.map((categoria) => (
                 <div
-                  key={categoria.etiqueta}
+                  key={categoria.clave ?? categoria.etiqueta}
                   // El area de la categoria completa tambien responde al puntero,
                   // para no obligar a acertar sobre una columna de 16 px.
                   title={`${categoria.etiqueta}\n${series
@@ -127,7 +128,7 @@ export function BarrasComparativas({
           <div className="mt-2 flex gap-4">
             {categorias.map((categoria) => (
               <span
-                key={categoria.etiqueta}
+                key={categoria.clave ?? categoria.etiqueta}
                 title={categoria.etiqueta}
                 className="min-w-0 flex-1 truncate text-center text-[0.65rem] text-muted-foreground"
               >
@@ -142,6 +143,7 @@ export function BarrasComparativas({
         titulo={tituloTabla}
         columnas={series.map((s) => s.etiqueta)}
         filas={categorias.map((c) => ({
+          clave: c.clave,
           etiqueta: c.etiqueta,
           valores: c.valores.map((v) => formatearDineroCompacto(v, moneda)),
         }))}

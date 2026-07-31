@@ -54,7 +54,8 @@ export function TablaDeDatos({
 }: {
   titulo: string;
   columnas: string[];
-  filas: Array<{ etiqueta: string; valores: string[] }>;
+  /** `clave` identifica la fila cuando dos etiquetas coinciden (ver `BarrasRanking`). */
+  filas: Array<{ clave?: string; etiqueta: string; valores: string[] }>;
 }) {
   return (
     <table className="sr-only">
@@ -71,10 +72,10 @@ export function TablaDeDatos({
       </thead>
       <tbody>
         {filas.map((f) => (
-          <tr key={f.etiqueta}>
+          <tr key={f.clave ?? f.etiqueta}>
             <th scope="row">{f.etiqueta}</th>
             {f.valores.map((v, i) => (
-              <td key={`${f.etiqueta}-${columnas[i] ?? i}`}>{v}</td>
+              <td key={`${f.clave ?? f.etiqueta}-${columnas[i] ?? i}`}>{v}</td>
             ))}
           </tr>
         ))}

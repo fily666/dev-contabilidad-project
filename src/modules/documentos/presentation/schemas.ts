@@ -1,22 +1,34 @@
 import { z } from "zod";
 import { TIPOS_DOCUMENTO } from "@/shared/domain/enumeraciones";
-import { MIMES_PERMITIDOS, TAMANO_MAXIMO_BYTES } from "../domain/documento.entity";
+import {
+  MIMES_COMPROBANTE,
+  MIMES_PERMITIDOS,
+  TAMANO_MAXIMO_BYTES,
+  TAMANO_MAXIMO_LEGIBLE,
+} from "../domain/documento.entity";
 
 /**
  * El archivo viaja como `File` dentro de un FormData, asi que el esquema valida
  * el archivo mismo y no solo sus metadatos: es la unica forma de rechazar en el
  * servidor un tipo o un tamaño que el `accept` del navegador se salto (RNF-07).
  */
-const archivo = z
-  .custom<File>((valor) => typeof File !== "undefined" && valor instanceof File, {
-    message: "Selecciona un archivo.",
-  })
-  .refine((f) => f.size > 0, "El archivo está vacío.")
-  .refine((f) => f.size <= TAMANO_MAXIMO_BYTES, "El archivo supera el máximo de 10 MB.")
-  .refine(
-    (f) => Object.hasOwn(MIMES_PERMITIDOS, f.type),
-    "Solo se admiten PDF, JPG, PNG, WEBP, XLSX y DOCX.",
-  );
+function esquemaArchivo(mimes: readonly string[], mensajeTipo: string) {
+  return z
+    .custom<File>((valor) => typeof File !== "undefined" && valor instanceof File, {
+      message: "Selecciona un archivo.",
+    })
+    .refine((f) => f.size > 0, "El archivo está vacío.")
+    .refine(
+      (f) => f.size <= TAMANO_MAXIMO_BYTES,
+      `El archivo supera el máximo de ${TAMANO_MAXIMO_LEGIBLE}.`,
+    )
+    .refine((f) => mimes.includes(f.type), mensajeTipo);
+}
+
+const archivo = esquemaArchivo(
+  Object.keys(MIMES_PERMITIDOS),
+  "Solo se admiten PDF, JPG, PNG, WEBP, XLSX y DOCX.",
+);
 
 /** RF-40 a RF-43. */
 export const esquemaSubirDocumento = z.object({
@@ -26,6 +38,17 @@ export const esquemaSubirDocumento = z.object({
     .transform((v) => (v === "" || v === undefined ? null : v)),
   tipoDocumento: z.enum(TIPOS_DOCUMENTO).default("otro"),
   archivo,
+});
+
+/**
+ * RF-40: soporte adjuntado desde el formulario de un movimiento. Se separa del
+ * anterior porque exige movimiento y acota los tipos al comprobante de un pago.
+ */
+export const esquemaSubirComprobante = z.object({
+  proyectoId: z.string().uuid("Selecciona un proyecto."),
+  movimientoId: z.string().uuid(),
+  tipoDocumento: z.enum(TIPOS_DOCUMENTO).default("comprobante"),
+  archivo: esquemaArchivo(MIMES_COMPROBANTE, "Solo se admiten PDF, JPG, PNG y WEBP."),
 });
 
 export const esquemaDocumentoPorId = z.object({ id: z.string().uuid() });
@@ -49,3 +72,8 @@ export const esquemaFiltroDocumentos = z.object({
 export const ACCEPT_ARCHIVOS = Object.entries(MIMES_PERMITIDOS)
   .map(([mime, extension]) => `${mime},${extension}`)
   .join(",");
+
+/** `accept` del input de comprobantes (RF-40): solo PDF e imágenes. */
+export const ACCEPT_COMPROBANTES = MIMES_COMPROBANTE.map(
+  (mime) => `${mime},${MIMES_PERMITIDOS[mime] ?? ""}`,
+).join(",");

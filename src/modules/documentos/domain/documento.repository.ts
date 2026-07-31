@@ -39,4 +39,6 @@ export interface DocumentoRepository {
   /** Persiste el borrado logico. */
   actualizar(documento: Documento): Promise<Documento>;
   contarPorProyecto(proyectoId: string): Promise<number>;
+  /** RF-40: cuantos soportes vivos cuelgan ya del movimiento. */
+  contarPorMovimiento(movimientoId: string): Promise<number>;
 }
