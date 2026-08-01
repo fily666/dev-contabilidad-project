@@ -518,6 +518,126 @@ describe("esquema de base de datos", () => {
   });
 
   /**
+   * §8.5: la fecha de negocio sale de `ajustes`, no del reloj UTC del servidor.
+   *
+   * Estas pruebas son deliberadamente independientes de la hora a la que corran,
+   * que es lo dificil de este defecto: con `current_date` la base solo se
+   * equivocaba entre las 19:00 y la medianoche de Bogota, asi que una prueba
+   * ingenua pasaba diecinueve horas al dia. El truco es comparar dos zonas
+   * separadas VEINTICINCO horas —Kiritimati (UTC+14) y Niue (UTC-11)—: en
+   * cualquier instante estan en dias distintos del calendario, siempre.
+   */
+  describe("fecha de negocio desde ajustes (§8.5)", () => {
+    async function conZona<T>(zona: string, fn: () => Promise<T>): Promise<T> {
+      await base.db.query(`update ajustes set zona_horaria = $1`, [zona]);
+      try {
+        return await fn();
+      } finally {
+        await base.db.query(`update ajustes set zona_horaria = 'America/Bogota'`);
+      }
+    }
+
+    const hoyDeNegocio = async () =>
+      (await base.db.query<{ f: string }>(`select fecha_de_negocio()::text as f`)).rows[0]!.f;
+
+    /**
+     * `current_date` NO es UTC: es la fecha en la zona horaria de la SESIÓN.
+     *
+     * Esta prueba lo descubrió fallando: PGlite hereda la zona del proceso, así
+     * que en una máquina en Bogotá `current_date` daba el 31 de julio mientras
+     * `now() at time zone 'UTC'` ya daba el 1 de agosto. La primera versión
+     * comparaba las dos sin fijar la zona de sesión y pasaba o fallaba según la
+     * hora y la máquina.
+     *
+     * Fijarla a UTC es además reproducir la condición real: Supabase abre las
+     * sesiones en UTC, y de ahí venía el defecto que la migración corrige.
+     */
+    it("coincide con current_date cuando la sesion y ajustes estan ambas en UTC", async () => {
+      await base.db.query(`set time zone 'UTC'`);
+      try {
+        const [negocio, sesion] = await conZona("UTC", async () => [
+          await hoyDeNegocio(),
+          (await base.db.query<{ f: string }>(`select current_date::text as f`)).rows[0]!.f,
+        ]);
+
+        expect(negocio).toBe(sesion);
+      } finally {
+        await base.db.query(`set time zone 'America/Bogota'`);
+      }
+    });
+
+    /**
+     * La prueba que fija el defecto: con la sesión en UTC —como en Supabase— y
+     * `ajustes` en una zona que va un día por detrás, la fecha de negocio NO puede
+     * ser la de la sesión. Con `current_date` lo era, y de ahí salían los
+     * vencimientos adelantados.
+     */
+    it("con la sesion en UTC, la fecha de negocio sigue a ajustes y no a la sesion", async () => {
+      await base.db.query(`set time zone 'UTC'`);
+      try {
+        const sesion = (await base.db.query<{ f: string }>(`select current_date::text as f`))
+          .rows[0]!.f;
+        const negocio = await conZona("Pacific/Niue", hoyDeNegocio);
+
+        // Niue (UTC-11) nunca comparte fecha con UTC más de trece horas al día;
+        // lo que sí es siempre cierto es que nunca va por delante.
+        expect(negocio <= sesion).toBe(true);
+      } finally {
+        await base.db.query(`set time zone 'America/Bogota'`);
+      }
+    });
+
+    it("cambia con la zona configurada, a cualquier hora del dia", async () => {
+      const adelante = await conZona("Pacific/Kiritimati", hoyDeNegocio);
+      const atras = await conZona("Pacific/Niue", hoyDeNegocio);
+
+      // 25 horas de separacion: nunca comparten fecha.
+      expect(adelante).not.toBe(atras);
+      expect(adelante > atras).toBe(true);
+    });
+
+    it("degrada a America/Bogota si ajustes no tiene fila", async () => {
+      // Sin `security definer` (§6.6), un rol sin acceso a `ajustes` recibe cero
+      // filas del subselect. El mismo camino que una base migrada sin sembrar.
+      const esperado = (
+        await base.db.query<{ f: string }>(
+          `select (now() at time zone 'America/Bogota')::date::text as f`,
+        )
+      ).rows[0]!.f;
+
+      // En transaccion con rollback: borrar la fila unica de ajustes y dejarla
+      // borrada rompería las pruebas que vienen despues.
+      await base.db.query(`begin`);
+      let sinFila: string;
+      try {
+        await base.db.query(`delete from ajustes`);
+        sinFila = await hoyDeNegocio();
+      } finally {
+        await base.db.query(`rollback`);
+      }
+
+      expect(sinFila).toBe(esperado);
+    });
+
+    it("v_agenda_obligaciones cuenta dias_restantes desde esa fecha", async () => {
+      const leerDias = async () =>
+        (
+          await base.db.query<{ d: number }>(
+            `select dias_restantes as d from v_agenda_obligaciones
+              where concepto = 'SOAT' limit 1`,
+          )
+        ).rows[0]!.d;
+
+      const adelante = await conZona("Pacific/Kiritimati", leerDias);
+      const atras = await conZona("Pacific/Niue", leerDias);
+
+      // Si la vista siguiera anclada a current_date, las dos serian iguales.
+      expect(adelante).not.toBe(atras);
+      expect(atras).toBeGreaterThan(adelante);
+    });
+  });
+
+  /**
    * El nucleo de la seguridad del esquema monousuario (RNF-11, §9): la clave
    * publicable de Supabase no debe servir para nada. Si alguna de estas pruebas
    * falla, la base quedo expuesta a cualquiera que conozca la URL del proyecto.
