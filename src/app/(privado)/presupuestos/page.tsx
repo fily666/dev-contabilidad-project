@@ -7,6 +7,7 @@ import { PanelGrafica } from "@/shared/ui/viz/panel-grafica";
 import { BarrasComparativas } from "@/shared/ui/viz/barras-comparativas";
 import { EstadoVacio } from "@/shared/ui/estado-vacio";
 import { formatearDineroCompacto, formatearPorcentaje } from "@/shared/utils/formato";
+import { ritmoDeEjecucion } from "@/modules/presupuestos/domain/alertas";
 import { GestorPresupuestos } from "@/modules/presupuestos/presentation/components/gestor-presupuestos";
 
 export const metadata: Metadata = { title: "Presupuestos" };
@@ -45,6 +46,17 @@ export default async function PaginaPresupuestos({ searchParams }: Props) {
   // Los del periodo que contiene hoy: es lo que interesa mirar primero.
   const vigentes = filas.filter((f) => f.periodoInicio <= hoy && f.periodoFin >= hoy);
 
+  // Ritmo del periodo vigente más largo: es el que marca el paso del conjunto.
+  const referencia = vigentes[0];
+  const ritmo = referencia
+    ? ritmoDeEjecucion({
+        ejecucion: resumen.ejecucion,
+        periodoInicio: referencia.periodoInicio,
+        periodoFin: referencia.periodoFin,
+        hoy,
+      })
+    : null;
+
   return (
     <div className="space-y-8">
       <div>
@@ -55,30 +67,52 @@ export default async function PaginaPresupuestos({ searchParams }: Props) {
         </p>
       </div>
 
+      {/*
+        La ejecución pasa a ser el valor PRINCIPAL de la primera tarjeta: es el
+        indicador que responde la pregunta del módulo, y estaba en el `detalle` de
+        12 px de la tarjeta «Ejecutado», debajo del importe.
+
+        «Alertas» se partió en dos: mostraba `"2 / 3"` con el detalle «Excedidos /
+        sobre el 80 %», dos magnitudes en un solo valor que no se podía colorear
+        —el tono tenía que elegir una de las dos—, ni ordenar, ni leer de un
+        vistazo.
+
+        Y «Desviación» se retiró: es `ejecutado − planeado`, visible ya en las dos
+        tarjetas contiguas y en cada barra de la tabla. Su hueco lo ocupa el ritmo.
+      */}
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <TarjetaIndicador
+          etiqueta="Ejecución"
+          valor={formatearPorcentaje(resumen.ejecucion, 0)}
+          tono={
+            resumen.ejecucion === null
+              ? "neutro"
+              : resumen.ejecucion > 1
+                ? "negativo"
+                : resumen.ejecucion >= 0.8
+                  ? "advertencia"
+                  : "positivo"
+          }
+          detalle={textoRitmo(ritmo)}
+          icono={<Receipt className="size-4" />}
+        />
         <TarjetaIndicador
           etiqueta="Planeado"
           valor={formatearDineroCompacto(resumen.planeado, moneda)}
-          detalle={`${filas.length} presupuesto(s)`}
+          detalle={`${filas.length} partida(s)`}
           icono={<PiggyBank className="size-4" />}
         />
         <TarjetaIndicador
           etiqueta="Ejecutado"
           valor={formatearDineroCompacto(resumen.real, moneda)}
-          detalle={formatearPorcentaje(resumen.ejecucion, 1)}
-          icono={<Receipt className="size-4" />}
-        />
-        <TarjetaIndicador
-          etiqueta="Desviación"
-          valor={formatearDineroCompacto(resumen.desviacion, moneda)}
+          detalle={`Desviación ${formatearDineroCompacto(resumen.desviacion, moneda)}`}
           tono={resumen.desviacion > 0 ? "negativo" : "positivo"}
-          detalle={resumen.desviacion > 0 ? "Por encima del plan" : "Dentro del plan"}
           icono={<Scale className="size-4" />}
         />
         <TarjetaIndicador
-          etiqueta="Alertas"
-          valor={`${resumen.excedidos} / ${resumen.enAviso}`}
-          detalle="Excedidos / sobre el 80 %"
+          etiqueta="Excedidos"
+          valor={String(resumen.excedidos)}
+          detalle={`${resumen.enAviso} sobre el 80 %`}
           tono={
             resumen.excedidos > 0 ? "negativo" : resumen.enAviso > 0 ? "advertencia" : "positivo"
           }
@@ -96,6 +130,7 @@ export default async function PaginaPresupuestos({ searchParams }: Props) {
       >
         {vigentes.length === 0 ? (
           <EstadoVacio
+            denso
             titulo="Sin presupuestos vigentes"
             descripcion="Crea uno para el mes o el año en curso y aquí verás la comparación."
           />
@@ -130,4 +165,12 @@ export default async function PaginaPresupuestos({ searchParams }: Props) {
       />
     </div>
   );
+}
+
+/** El ritmo en palabras: un número suelto como «1,4×» no se interpreta solo. */
+function textoRitmo(ritmo: number | null): string {
+  if (ritmo === null) return "Sin periodo vigente";
+  if (ritmo > 1.15) return `Ritmo ${ritmo.toFixed(1)}× · se gasta más rápido que pasa el periodo`;
+  if (ritmo < 0.85) return `Ritmo ${ritmo.toFixed(1)}× · por debajo del paso del periodo`;
+  return `Ritmo ${ritmo.toFixed(1)}× · al día con el periodo`;
 }

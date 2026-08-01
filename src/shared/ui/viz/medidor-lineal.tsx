@@ -1,5 +1,12 @@
 import { cn } from "@/shared/utils/cn";
-import { brilloSerie, degradadoSerie, type SerieColor } from "./definiciones";
+import {
+  brilloSerie,
+  brilloTono,
+  degradadoSerie,
+  degradadoTono,
+  type SerieColor,
+  type TonoSemantico,
+} from "./definiciones";
 
 type Props = {
   etiqueta: string;
@@ -7,7 +14,15 @@ type Props = {
   razon: number | null;
   /** Valor escrito a la derecha de la etiqueta. */
   valorTexto?: string;
+  /** Identidad de la marca: qué es lo que se mide (escala categórica). */
   serie?: SerieColor;
+  /**
+   * Estado de lo medido: qué tan bien va (escala semántica). Manda sobre `serie`
+   * cuando se pasa, porque un medidor que representa un estado no debería llevar
+   * además un color de identidad — son dos lenguajes distintos y el color solo
+   * puede hablar uno.
+   */
+  tono?: TonoSemantico;
   className?: string;
 };
 
@@ -15,8 +30,10 @@ type Props = {
  * Medidor lineal: una proporcion sobre una pista del mismo tono, un paso mas
  * cerca de la superficie, para que el estado se lea en toda la barra.
  */
-export function MedidorLineal({ etiqueta, razon, valorTexto, serie = 1, className }: Props) {
+export function MedidorLineal({ etiqueta, razon, valorTexto, serie = 1, tono, className }: Props) {
   const relleno = razon === null ? 0 : Math.max(0, Math.min(1, razon));
+  const fondo = tono ? degradadoTono(tono, "derecha") : degradadoSerie(serie, "derecha");
+  const halo = tono ? brilloTono(tono) : brilloSerie(serie);
 
   return (
     <div className={cn("space-y-1.5", className)}>
@@ -36,11 +53,7 @@ export function MedidorLineal({ etiqueta, razon, valorTexto, serie = 1, classNam
       >
         <div
           className="h-full rounded-r-[4px] transition-[width] duration-500"
-          style={{
-            width: `${relleno * 100}%`,
-            background: degradadoSerie(serie, "derecha"),
-            filter: brilloSerie(serie),
-          }}
+          style={{ width: `${relleno * 100}%`, background: fondo, filter: halo }}
         />
       </div>
     </div>

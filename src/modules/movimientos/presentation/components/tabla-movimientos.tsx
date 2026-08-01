@@ -6,6 +6,7 @@ import { cn } from "@/shared/utils/cn";
 import type { MetodoPagoVista } from "@/modules/metodos-pago/domain/metodo-pago.repository";
 import type { MovimientoListado } from "../../domain/movimiento.repository";
 import { AccionesMovimiento } from "./acciones-movimiento";
+import { CabeceraOrden } from "./cabecera-orden";
 
 type Props = {
   filas: MovimientoListado[];
@@ -15,6 +16,12 @@ type Props = {
   formatoFecha?: string;
   /** Oculta la columna de proyecto cuando ya se esta dentro de uno. */
   ocultarProyecto?: boolean;
+  /**
+   * RF-24: cabeceras pulsables. Se apaga donde el listado no es la vista
+   * principal —los últimos movimientos del detalle de proyecto—, porque ahí el
+   * orden lo fija la página y un control que no hace nada es peor que ninguno.
+   */
+  ordenable?: boolean;
 };
 
 /** RF-23, RF-24. En móvil la tabla se presenta como tarjetas (RNF-01). */
@@ -24,6 +31,7 @@ export function TablaMovimientos({
   hoy,
   formatoFecha,
   ocultarProyecto,
+  ordenable,
 }: Props) {
   return (
     <>
@@ -32,13 +40,31 @@ export function TablaMovimientos({
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="w-28">Fecha</TableHead>
+              <TableHead className="w-28">
+                {ordenable ? <CabeceraOrden campo="fecha">Fecha</CabeceraOrden> : "Fecha"}
+              </TableHead>
               {ocultarProyecto ? null : <TableHead>Proyecto</TableHead>}
               <TableHead>Descripción</TableHead>
-              <TableHead>Categoría</TableHead>
+              <TableHead>
+                {ordenable ? (
+                  <CabeceraOrden campo="categoria">Categoría</CabeceraOrden>
+                ) : (
+                  "Categoría"
+                )}
+              </TableHead>
               <TableHead>Naturaleza</TableHead>
-              <TableHead className="text-right">Valor</TableHead>
-              <TableHead>Estado</TableHead>
+              <TableHead className="text-right">
+                {ordenable ? (
+                  <CabeceraOrden campo="valor" alineado="derecha">
+                    Valor
+                  </CabeceraOrden>
+                ) : (
+                  "Valor"
+                )}
+              </TableHead>
+              <TableHead>
+                {ordenable ? <CabeceraOrden campo="estado">Estado</CabeceraOrden> : "Estado"}
+              </TableHead>
               <TableHead className="w-12" />
             </TableRow>
           </TableHeader>

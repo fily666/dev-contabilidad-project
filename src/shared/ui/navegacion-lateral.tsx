@@ -17,12 +17,16 @@ import {
 } from "lucide-react";
 import { cn } from "@/shared/utils/cn";
 
+/**
+ * Ya no hay bandera `proximamente`: existió para mostrar deshabilitados los
+ * módulos de fases posteriores, y las cinco fases están implementadas, así que
+ * los diez enlaces están vivos. Se retiró junto con su rama de render, que eran
+ * catorce líneas que ningún enlace alcanzaba.
+ */
 type Enlace = {
   href: string;
   etiqueta: string;
   icono: React.ComponentType<{ className?: string }>;
-  /** Módulos de fases posteriores: visibles pero deshabilitados. */
-  proximamente?: boolean;
 };
 
 /** Estructura de modulos de Contexto.md §4 y §14. */
@@ -60,25 +64,8 @@ export function NavegacionLateral({ alNavegar }: { alNavegar?: () => void }) {
 
       <p className="etiqueta-dato px-3 pb-1">Módulos</p>
 
-      {ENLACES.map(({ href, etiqueta, icono: Icono, proximamente }) => {
+      {ENLACES.map(({ href, etiqueta, icono: Icono }) => {
         const activo = ruta === href || ruta.startsWith(`${href}/`);
-
-        if (proximamente) {
-          return (
-            <span
-              key={href}
-              aria-disabled
-              title="Disponible en una fase posterior"
-              className="flex cursor-not-allowed items-center gap-3 rounded-lg px-3 py-2 text-sm text-muted-foreground/50"
-            >
-              <Icono className="size-4 shrink-0" aria-hidden />
-              <span className="truncate">{etiqueta}</span>
-              <span className="ml-auto rounded-full border border-border px-1.5 text-[9px] tracking-[0.14em] uppercase">
-                pronto
-              </span>
-            </span>
-          );
-        }
 
         return (
           <Link

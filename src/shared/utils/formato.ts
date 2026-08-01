@@ -10,7 +10,23 @@ export function formatearDinero(valor: number, moneda = "COP"): string {
   }).format(valor);
 }
 
-/** Version compacta para tarjetas de indicadores: $ 60,5 M */
+/**
+ * Version compacta para tarjetas de indicadores e importes en tabla: `$ 60,5 M`.
+ *
+ * **Solo dos sufijos, `K` y `M`, y `M` no tiene techo.** Antes había un tercero,
+ * `MM` para miles de millones, y en es-CO «MM» se lee habitualmente como
+ * *millones*: `$ 1.200 M` y `$ 1,2 MM` son la misma cifra escrita de dos formas
+ * que se contradicen para un lector local. Con un solo sufijo por encima del
+ * millón, mil doscientos millones se escriben `$ 1.200 M` y no hay ambigüedad que
+ * resolver.
+ *
+ * Se usa en **todos** los importes de una misma vista, tarjetas y tablas
+ * incluidas. Mezclarlo con `formatearDinero` dentro de una pantalla obliga a
+ * traducir mentalmente entre `$ 320,0 M` y `$ 320.000.000`, que es lo que hacía
+ * Patrimonio: compacto en las tarjetas de arriba y completo en la tabla de abajo.
+ * `formatearDinero` queda para donde el importe exacto es el dato —el detalle de
+ * un movimiento, un reporte que se exporta, el valor de una obligación—.
+ */
 export function formatearDineroCompacto(valor: number, moneda = "COP"): string {
   const abs = Math.abs(valor);
   const simbolo = moneda === "COP" ? "$" : `${moneda} `;
@@ -18,7 +34,6 @@ export function formatearDineroCompacto(valor: number, moneda = "COP"): string {
   const conUnidad = (n: number, u: string) =>
     `${signo}${simbolo}${n.toLocaleString("es-CO", { maximumFractionDigits: 1 })} ${u}`;
 
-  if (abs >= 1_000_000_000) return conUnidad(abs / 1_000_000_000, "MM");
   if (abs >= 1_000_000) return conUnidad(abs / 1_000_000, "M");
   if (abs >= 1_000) return conUnidad(abs / 1_000, "K");
   return formatearDinero(valor, moneda);

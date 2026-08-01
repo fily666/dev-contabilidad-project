@@ -1,9 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
 
 import { contenedorPrivado } from "@/di/container";
-import { EnlaceBoton } from "@/shared/ui/enlace-boton";
 import { TarjetaIndicador } from "@/shared/ui/tarjeta-indicador";
 import { formatearDineroCompacto, formatearPorcentaje } from "@/shared/utils/formato";
 import { GestorPatrimonio } from "@/modules/patrimonio/presentation/components/gestor-patrimonio";
@@ -32,18 +30,7 @@ export default async function PaginaPatrimonioProyecto({ params }: Props) {
 
   return (
     <div className="space-y-6">
-      <div>
-        <EnlaceBoton href={`/proyectos/${id}`} variant="ghost" size="sm" className="mb-2 -ml-2">
-          <ArrowLeft className="size-4" aria-hidden /> {proyecto.nombre}
-        </EnlaceBoton>
-
-        <p className="etiqueta-dato">{proyecto.nombre}</p>
-        <h1 className="mt-1 text-2xl font-semibold tracking-tight">Patrimonio</h1>
-        <p className="text-sm text-muted-foreground">
-          Valor comercial del activo, deuda asociada y el neto entre los dos.
-        </p>
-      </div>
-
+      {/* Cabecera y pestañas en el layout de `(secciones)`. */}
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <TarjetaIndicador
           etiqueta="Valoración actual"

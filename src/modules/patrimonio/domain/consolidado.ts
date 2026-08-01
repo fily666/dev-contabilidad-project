@@ -18,6 +18,22 @@ export type ConsolidadoPatrimonio = {
   retornoTotal: number | null;
   /** Proyectos sin valoración registrada: su activo no está contado. */
   sinValoracion: number;
+  /**
+   * Plusvalía consolidada: valoración − invertido, solo de los proyectos que
+   * tienen valoración.
+   *
+   * Es la respuesta a «¿se está valorizando?», que es una de las dos preguntas del
+   * módulo y no se mostraba en ninguna parte: la vista comparaba valoración con
+   * pasivo —cuánto se debe— y nunca valoración con lo invertido.
+   */
+  plusvalia: number;
+  /**
+   * LTV consolidado: pasivo ÷ valoración. `null` si no hay ninguna valoración.
+   *
+   * Es el indicador de riesgo del módulo —qué parte del activo es deuda— y sale de
+   * dos columnas que ya se leían.
+   */
+  ltv: number | null;
   moneda: string;
 };
 
@@ -51,8 +67,33 @@ export function consolidar(
     totalInvertido: invertido,
     retornoTotal: resultado.mas(plusvalia).dividido(Dinero.de(invertido, moneda)),
     sinValoracion: filas.length - conValoracion.length,
+    plusvalia: plusvalia.valor,
+    // Sobre el valorado, no sobre `activos`: son lo mismo hoy, pero atarlo a la
+    // base de la plusvalia deja claro que un proyecto sin valoracion no participa.
+    ltv: Dinero.de(pasivos, moneda).dividido(Dinero.de(valoradoActual, moneda)),
     moneda,
   };
+}
+
+/** Plusvalía de un proyecto: `null` cuando no hay valoración con la que medirla. */
+export function plusvaliaDelProyecto(fila: PatrimonioProyecto): number | null {
+  if (fila.valoracionActual === null) return null;
+  return Dinero.de(fila.valoracionActual, fila.moneda).menos(
+    Dinero.de(fila.totalInvertido, fila.moneda),
+  ).valor;
+}
+
+/**
+ * LTV de un proyecto: pasivo ÷ valoración.
+ *
+ * `null` sin valoración —no hay base— y también con valoración cero, por la guarda
+ * de §5.3. Un proyecto sin deuda da 0, que sí es una respuesta.
+ */
+export function ltvDelProyecto(fila: PatrimonioProyecto): number | null {
+  if (fila.valoracionActual === null) return null;
+  return Dinero.de(fila.pasivoTotal, fila.moneda).dividido(
+    Dinero.de(fila.valoracionActual, fila.moneda),
+  );
 }
 
 /** Retorno de un solo proyecto, con la misma formula (§5.3). */

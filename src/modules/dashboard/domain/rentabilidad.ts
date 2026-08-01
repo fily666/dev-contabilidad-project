@@ -32,17 +32,30 @@ export type EntradaRentabilidad = {
   balance: number;
 };
 
+/**
+ * ROI acumulado de un proyecto: resultado sobre lo invertido.
+ *
+ * El **cálculo** está separado del **filtro** a propósito. Antes vivían juntos, y
+ * la consecuencia era que el ROI solo existía para los proyectos con ingresos: la
+ * tabla de cartera no podía mostrar «—» en los demás porque no recibía el dato,
+ * y §5.3 dice justamente que un indicador no calculable se presenta como «—».
+ *
+ * El filtro de §5.4 —comparar el ROI de un vehículo con el de un apartamento
+ * arrendado no significa nada— sigue aplicándose donde corresponde: en el ranking
+ * de RF-74, no en la medida.
+ */
+export function roiDeProyecto(p: EntradaRentabilidad): number | null {
+  const resultado = Dinero.de(p.totalIngresos, p.moneda).menos(Dinero.de(p.totalEgresos, p.moneda));
+  return resultado.dividido(Dinero.de(p.totalInvertido, p.moneda));
+}
+
+/** RF-74: el ranking comparable, que sí excluye los proyectos sin ingresos. */
 export function rentabilidadPorProyecto(
   proyectos: readonly EntradaRentabilidad[],
 ): FilaRentabilidad[] {
   return proyectos
     .filter((p) => p.totalIngresos > 0)
-    .map((p) => {
-      const resultado = Dinero.de(p.totalIngresos, p.moneda).menos(
-        Dinero.de(p.totalEgresos, p.moneda),
-      );
-      return { ...p, roi: resultado.dividido(Dinero.de(p.totalInvertido, p.moneda)) };
-    })
+    .map((p) => ({ ...p, roi: roiDeProyecto(p) }))
     .sort((a, b) => (b.roi ?? -Infinity) - (a.roi ?? -Infinity));
 }
 

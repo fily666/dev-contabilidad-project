@@ -6,6 +6,7 @@ import { contenedorPrivado } from "@/di/container";
 import { EnlaceBoton } from "@/shared/ui/enlace-boton";
 import { EstadoVacio } from "@/shared/ui/estado-vacio";
 import { TarjetaProyecto } from "@/modules/proyectos/presentation/components/tarjeta-proyecto";
+import { roiDeProyecto } from "@/modules/dashboard/domain/rentabilidad";
 import { ESTADOS_PROYECTO, type EstadoProyecto } from "@/shared/domain/enumeraciones";
 import { ETIQUETA_ESTADO_PROYECTO } from "@/shared/utils/etiquetas";
 import { cn } from "@/shared/utils/cn";
@@ -29,6 +30,29 @@ export default async function PaginaProyectos({ searchParams }: Props) {
       estados: estadoFiltro ? [estadoFiltro] : ["activo", "pausado", "finalizado"],
     },
   });
+
+  // §5.5: la señal que dice cuál de los proyectos necesita atención. Una sola
+  // llamada para toda la lista, no una por tarjeta.
+  const semaforos = await contenedor.dashboard.semaforos.ejecutar(
+    proyectos.map((p) => ({ proyectoId: p.proyectoId, tipoProyectoId: p.tipoProyectoId })),
+  );
+
+  // El ROI de cada proyecto, con «—» donde no es calculable (§5.3).
+  const roiPorProyecto = new Map(
+    proyectos.map((p) => [
+      p.proyectoId,
+      roiDeProyecto({
+        proyectoId: p.proyectoId,
+        nombre: p.nombre,
+        estado: p.estado,
+        moneda: p.moneda,
+        totalInvertido: p.totalInvertido,
+        totalIngresos: p.totalIngresos,
+        totalEgresos: p.totalEgresos,
+        balance: p.balance,
+      }),
+    ]),
+  );
 
   return (
     <div className="space-y-6">
@@ -78,6 +102,8 @@ export default async function PaginaProyectos({ searchParams }: Props) {
             <TarjetaProyecto
               key={proyecto.proyectoId}
               proyecto={proyecto}
+              semaforo={semaforos.get(proyecto.proyectoId)}
+              roi={roiPorProyecto.get(proyecto.proyectoId)}
               formatoFecha={ajustes.formatoFecha}
             />
           ))}

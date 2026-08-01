@@ -263,6 +263,19 @@ En el tema anterior, `@theme inline { --font-sans: var(--font-sans) }` era autor
 
 `DefinicionesGraficas` monta una vez por documento los degradados que usan las marcas; va en el layout privado.
 
+### Dos escalas de color, y no se cruzan
+
+`src/shared/ui/viz/definiciones.tsx` expone **dos** escalas, y mezclarlas rompe las dos:
+
+| Escala         | Tipo             | Responde                  | Tokens                                      |
+| -------------- | ---------------- | ------------------------- | ------------------------------------------- |
+| **Categórica** | `SerieColor` 1–5 | ¿cuál de varias cosas es? | `--chart-1` … `--chart-5`                   |
+| **Semántica**  | `TonoSemantico`  | ¿qué tan bien va?         | `--success` / `--warning` / `--destructive` |
+
+La regla es corta: **la categórica nunca codifica estado.** El caso que lo demostró vivía en los presupuestos, que pintaban «excedido» con la ranura 2 —el azul de los egresos— y «sobre el 80 %» con la 3 —el ámbar de la inversión—, mientras la insignia del mismo presupuesto, dos celdas a la derecha en la misma fila, se pintaba en rojo. Cuando el color dice dos cosas deja de decir ninguna.
+
+`MedidorLineal` acepta `serie` o `tono`, y `tono` manda: un medidor que representa un estado no debería llevar además un color de identidad. `DefinicionesGraficas` monta los degradados de las dos escalas (`deg-<1..5>-v|h` y `deg-tono-<ok|aviso|critico>-v|h`), de modo que la primera gráfica en SVG que quiera pintar un estado no tenga que volver a la categórica.
+
 ### Paleta categórica
 
 Orden fijo, asignado por serie y **nunca ciclado**: 1 verdemar (ingresos), 2 azul (egresos), 3 ámbar (inversión), 4 rosa, 5 violeta. Las tres primeras ranuras son las que se pueden usar cuando cualquier par de marcas puede quedar contiguo.

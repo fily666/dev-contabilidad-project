@@ -107,6 +107,13 @@ export class ProyectoRepositoryEnMemoria implements ProyectoRepository {
   readonly movimientosPorProyecto = new Map<string, number>();
   /** Cifras a devolver por proyecto; si falta, se devuelven ceros. */
   readonly cifras = new Map<string, Partial<CifrasProyecto>>();
+  /**
+   * Cifras **historicas** por proyecto, como las devuelve `v_resumen_proyecto`:
+   * toda la historia, sin rango. Sirve para distinguir en las pruebas quien lee
+   * el historico —el listado de `/proyectos`, que es lo correcto alli— de quien
+   * debe leer el rango: el panel de RF-79.
+   */
+  readonly historico = new Map<string, Partial<ResumenProyecto>>();
   eliminados: string[] = [];
 
   async buscarPorId(id: string): Promise<Proyecto | null> {
@@ -133,6 +140,7 @@ export class ProyectoRepositoryEnMemoria implements ProyectoRepository {
         totalEgresos: 0,
         balance: 0,
         ultimoMovimiento: null,
+        ...this.historico.get(p.id),
       }));
   }
 

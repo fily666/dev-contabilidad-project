@@ -24,10 +24,37 @@ const ATAJOS = [
   { etiqueta: "3 meses", meses: 3 },
 ] as const;
 
-function restarMeses(hasta: string, meses: number): string {
-  const [anio, mes, dia] = hasta.split("-").map(Number) as [number, number, number];
-  const fecha = new Date(Date.UTC(anio, mes - 1 - meses, dia));
-  return fecha.toISOString().slice(0, 10);
+/**
+ * El rango del panel es MENSUAL, no diario, y los campos lo dicen.
+ *
+ * Las vistas de §6.4 agregan por mes (`date_trunc('month', fecha)`), así que el
+ * adaptador lleva cualquier fecha al día 1 antes de consultar. Mientras los
+ * campos fueron `type="date"`, elegir «15 de marzo → 10 de abril» devolvía marzo
+ * y abril completos: la interfaz prometía una precisión que la consulta no tiene
+ * y no había forma de que el usuario se enterara. Un selector de mes no puede
+ * mentir sobre eso.
+ *
+ * Lo que viaja en la URL sigue siendo una fecha completa, por dos razones: no
+ * rompe los enlaces ya compartidos (RNF-09) y deja el valor listo para quien lo
+ * lea como día —los reportes, por ejemplo—. De ahí que `hasta` se escriba con el
+ * ÚLTIMO día del mes y no con el primero: así el rango es correcto tanto si se
+ * interpreta por mes como si se interpreta por día.
+ */
+const mesDe = (fechaIso: string): string => fechaIso.slice(0, 7);
+
+const primerDia = (mes: string): string => `${mes}-01`;
+
+function ultimoDia(mes: string): string {
+  const [anio, m] = mes.split("-").map(Number) as [number, number];
+  // Día 0 del mes siguiente es el último del mes pedido.
+  return new Date(Date.UTC(anio, m, 0)).toISOString().slice(0, 10);
+}
+
+/** Rango de los últimos N meses contando el mes de `hasta` como uno de ellos. */
+function rangoDeMeses(mesHasta: string, meses: number): { desde: string; hasta: string } {
+  const [anio, m] = mesHasta.split("-").map(Number) as [number, number];
+  const inicio = new Date(Date.UTC(anio, m - meses, 1));
+  return { desde: inicio.toISOString().slice(0, 10), hasta: ultimoDia(mesHasta) };
 }
 
 /** RF-79: un solo filtro para todas las cifras del panel. */
@@ -76,9 +103,11 @@ export function FiltrosPanel({ proyectos, desde, hasta }: Props) {
         </Label>
         <Input
           id="panel-desde"
-          type="date"
-          value={desde}
-          onChange={(e) => aplicar({ desde: e.target.value })}
+          type="month"
+          value={mesDe(desde)}
+          onChange={(e) =>
+            e.target.value ? aplicar({ desde: primerDia(e.target.value) }) : undefined
+          }
         />
       </div>
 
@@ -88,9 +117,11 @@ export function FiltrosPanel({ proyectos, desde, hasta }: Props) {
         </Label>
         <Input
           id="panel-hasta"
-          type="date"
-          value={hasta}
-          onChange={(e) => aplicar({ hasta: e.target.value })}
+          type="month"
+          value={mesDe(hasta)}
+          onChange={(e) =>
+            e.target.value ? aplicar({ hasta: ultimoDia(e.target.value) }) : undefined
+          }
         />
       </div>
 
@@ -102,7 +133,7 @@ export function FiltrosPanel({ proyectos, desde, hasta }: Props) {
             type="button"
             variant="secondary"
             size="sm"
-            onClick={() => aplicar({ desde: restarMeses(hasta, atajo.meses), hasta })}
+            onClick={() => aplicar(rangoDeMeses(mesDe(hasta), atajo.meses))}
           >
             {atajo.etiqueta}
           </Button>

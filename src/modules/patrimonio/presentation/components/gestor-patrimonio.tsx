@@ -29,6 +29,7 @@ import type { PasivoListado, ValoracionListada } from "../../domain/patrimonio.r
 import {
   abonarACapitalAction,
   cambiarEstadoPasivoAction,
+  actualizarPasivoAction,
   crearPasivoAction,
   eliminarPasivoAction,
   eliminarValoracionAction,
@@ -78,6 +79,18 @@ export function GestorPatrimonio({
   const router = useRouter();
   const [pendiente, iniciarTransicion] = useTransition();
   const [pasivoAbierto, setPasivoAbierto] = useState(false);
+  /**
+   * RF-17: corregir un pasivo.
+   *
+   * `ActualizarPasivo` y su Server Action estaban escritas y probadas sin ningún
+   * consumidor: el gestor solo registraba. Y el saldo de un crédito es el dato que
+   * más se corrige del producto —baja cada mes—, así que la única salida era
+   * eliminar y volver a crear, perdiendo el historial de abonos.
+   *
+   * `null` es «alta»; un id es «edición». El mismo diálogo sirve para las dos, que
+   * es lo que evita mantener dos formularios con los mismos nueve campos.
+   */
+  const [editandoPasivo, setEditandoPasivo] = useState<string | null>(null);
   const [valoracionAbierta, setValoracionAbierta] = useState(false);
   const [abonando, setAbonando] = useState<PasivoListado | null>(null);
   const [abono, setAbono] = useState("");
@@ -94,6 +107,32 @@ export function GestorPatrimonio({
     fuente: "",
     notas: "",
   });
+
+  function abrirAltaPasivo() {
+    setEditandoPasivo(null);
+    setPasivo({
+      ...PASIVO_VACIO,
+      proyectoId: proyectoFijo ?? proyectos[0]?.id ?? "",
+      fechaDesembolso: hoy,
+    });
+    setPasivoAbierto(true);
+  }
+
+  function abrirEdicionPasivo(fila: PasivoListado) {
+    setEditandoPasivo(fila.id);
+    setPasivo({
+      proyectoId: fila.proyectoId,
+      nombre: fila.nombre,
+      tipo: fila.tipo,
+      montoOriginal: String(fila.montoOriginal),
+      saldoActual: String(fila.saldoActual),
+      tasaInteresEa: fila.tasaInteresEa === null ? "" : String(fila.tasaInteresEa),
+      plazoMeses: fila.plazoMeses === null ? "" : String(fila.plazoMeses),
+      valorCuota: fila.valorCuota === null ? "" : String(fila.valorCuota),
+      fechaDesembolso: fila.fechaDesembolso,
+    });
+    setPasivoAbierto(true);
+  }
 
   function ejecutar(accion: () => Promise<{ ok: boolean; mensaje?: string }>, exito: string) {
     iniciarTransicion(async () => {
@@ -118,7 +157,7 @@ export function GestorPatrimonio({
               Créditos y deudas del proyecto. El saldo se actualiza al abonar a capital.
             </p>
           </div>
-          <Button onClick={() => setPasivoAbierto(true)} disabled={proyectos.length === 0}>
+          <Button onClick={abrirAltaPasivo} disabled={proyectos.length === 0}>
             <Plus className="size-4" aria-hidden /> Nuevo pasivo
           </Button>
         </div>
@@ -205,6 +244,14 @@ export function GestorPatrimonio({
                           }
                         >
                           {fila.activo ? "Cerrar" : "Reactivar"}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          disabled={pendiente}
+                          onClick={() => abrirEdicionPasivo(fila)}
+                        >
+                          Editar
                         </Button>
                         <Button
                           variant="ghost"
@@ -317,7 +364,7 @@ export function GestorPatrimonio({
       <Dialog open={pasivoAbierto} onOpenChange={setPasivoAbierto}>
         <DialogContent className="max-h-[90svh] overflow-y-auto sm:max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Nuevo pasivo</DialogTitle>
+            <DialogTitle>{editandoPasivo ? "Editar pasivo" : "Nuevo pasivo"}</DialogTitle>
             <DialogDescription>
               El saldo inicial es el monto original si no indicas otro. La tasa se escribe como
               porcentaje efectivo anual.
@@ -447,22 +494,28 @@ export function GestorPatrimonio({
               disabled={pendiente || pasivo.nombre.trim() === "" || pasivo.montoOriginal === ""}
               onClick={() =>
                 iniciarTransicion(async () => {
-                  const resultado = await crearPasivoAction({
+                  const datos = {
                     ...pasivo,
                     saldoActual:
                       pasivo.saldoActual === "" ? pasivo.montoOriginal : pasivo.saldoActual,
-                  });
+                  };
+                  // El mismo formulario para alta y edición: nueve campos
+                  // duplicados en dos diálogos eran nueve sitios donde divergir.
+                  const resultado = editandoPasivo
+                    ? await actualizarPasivoAction({ ...datos, id: editandoPasivo })
+                    : await crearPasivoAction(datos);
                   if (!resultado.ok) {
                     toast.error(resultado.mensaje);
                     return;
                   }
                   setPasivoAbierto(false);
+                  setEditandoPasivo(null);
                   setPasivo({
                     ...PASIVO_VACIO,
                     proyectoId: pasivo.proyectoId,
                     fechaDesembolso: hoy,
                   });
-                  toast.success("Pasivo registrado.");
+                  toast.success(editandoPasivo ? "Pasivo actualizado." : "Pasivo registrado.");
                   router.refresh();
                 })
               }

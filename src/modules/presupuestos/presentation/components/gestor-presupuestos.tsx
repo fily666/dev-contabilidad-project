@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { AlertTriangle, Copy, Loader2, Plus, Trash2 } from "lucide-react";
+import { AlertTriangle, Copy, Loader2, Pencil, Plus, Trash2 } from "lucide-react";
 
 import { Badge } from "@/shared/ui/badge";
 import { Button } from "@/shared/ui/button";
@@ -22,6 +22,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Textarea } from "@/shared/ui/textarea";
 import { EstadoVacio } from "@/shared/ui/estado-vacio";
 import { MedidorLineal } from "@/shared/ui/viz/medidor-lineal";
+import type { TonoSemantico } from "@/shared/ui/viz/definiciones";
 import { cn } from "@/shared/utils/cn";
 import { formatearDinero, formatearFecha, formatearPorcentaje } from "@/shared/utils/formato";
 import type { CategoriaConRuta } from "@/modules/categorias/domain/categoria.repository";
@@ -31,6 +32,7 @@ import { nivelDeAlerta, type NivelAlerta } from "../../domain/alertas";
 import { periodoAnual, periodoMensual } from "../../domain/presupuesto.entity";
 import type { EjecucionPresupuesto } from "../../domain/presupuesto.repository";
 import {
+  actualizarPresupuestoAction,
   copiarPresupuestosAction,
   crearPresupuestoAction,
   eliminarPresupuestoAction,
@@ -51,7 +53,19 @@ const ETIQUETA_ALERTA: Record<NivelAlerta, string> = {
   excedido: "Excedido",
 };
 
-const SERIE_ALERTA: Record<NivelAlerta, 1 | 2 | 3> = { ok: 1, aviso: 3, excedido: 2 };
+/**
+ * RF-82 en la escala SEMÁNTICA, no en la categórica.
+ *
+ * Antes esto mapeaba a las ranuras 1/3/2 de la paleta de series, así que un
+ * presupuesto excedido se pintaba con el azul de los egresos mientras su insignia
+ * —dos celdas a la derecha, en la misma fila— se pintaba en rojo. Los dos leen
+ * ahora de los mismos tokens del tema.
+ */
+const TONO_ALERTA: Record<NivelAlerta, TonoSemantico> = {
+  ok: "ok",
+  aviso: "aviso",
+  excedido: "critico",
+};
 
 type Props = {
   filas: EjecucionPresupuesto[];
@@ -75,6 +89,14 @@ export function GestorPresupuestos({
   const router = useRouter();
   const [pendiente, iniciarTransicion] = useTransition();
   const [abierto, setAbierto] = useState(false);
+  /**
+   * RF-80: corregir un presupuesto.
+   *
+   * `ActualizarPresupuesto` estaba escrita y probada sin consumidor: el gestor solo
+   * creaba, copiaba y eliminaba. Corregir un valor mal teclado obligaba a eliminar
+   * y volver a crear, y eliminar un presupuesto pierde su historia de ejecución.
+   */
+  const [editando, setEditando] = useState<string | null>(null);
   const mesActual = hoy.slice(0, 7);
 
   const [borrador, setBorrador] = useState({
@@ -101,7 +123,37 @@ export function GestorPresupuestos({
       : periodoAnual(Number(borrador.anio));
   }
 
-  function crear() {
+  function abrirAlta() {
+    setEditando(null);
+    setBorrador({
+      proyectoId: GLOBAL,
+      categoriaId: "",
+      periodicidad: "mensual",
+      mes: mesActual,
+      anio: String(Number(hoy.slice(0, 4))),
+      valorPlaneado: "",
+      notas: "",
+    });
+    setAbierto(true);
+  }
+
+  /** El periodo guardado es un rango; aquí se reconstruye la periodicidad. */
+  function abrirEdicion(fila: EjecucionPresupuesto) {
+    const anual = fila.periodoInicio.endsWith("-01-01") && fila.periodoFin.endsWith("-12-31");
+    setEditando(fila.presupuestoId);
+    setBorrador({
+      proyectoId: fila.proyectoId ?? GLOBAL,
+      categoriaId: fila.categoriaId,
+      periodicidad: anual ? "anual" : "mensual",
+      mes: fila.periodoInicio.slice(0, 7),
+      anio: fila.periodoInicio.slice(0, 4),
+      valorPlaneado: String(fila.valorPlaneado),
+      notas: "",
+    });
+    setAbierto(true);
+  }
+
+  function guardar() {
     iniciarTransicion(async () => {
       let periodo: { inicio: string; fin: string };
       try {
@@ -111,22 +163,26 @@ export function GestorPresupuestos({
         return;
       }
 
-      const resultado = await crearPresupuestoAction({
+      const datos = {
         proyectoId: borrador.proyectoId === GLOBAL ? "" : borrador.proyectoId,
         categoriaId: borrador.categoriaId,
         periodoInicio: periodo.inicio,
         periodoFin: periodo.fin,
         valorPlaneado: borrador.valorPlaneado,
         notas: borrador.notas,
-      });
+      };
+      const resultado = editando
+        ? await actualizarPresupuestoAction({ ...datos, id: editando })
+        : await crearPresupuestoAction(datos);
 
       if (!resultado.ok) {
         toast.error(resultado.mensaje);
         return;
       }
       setAbierto(false);
+      setEditando(null);
       setBorrador({ ...borrador, categoriaId: "", valorPlaneado: "", notas: "" });
-      toast.success("Presupuesto creado.");
+      toast.success(editando ? "Presupuesto actualizado." : "Presupuesto creado.");
       router.refresh();
     });
   }
@@ -169,7 +225,7 @@ export function GestorPresupuestos({
           Planeado contra real por categoría y periodo. El gasto de las subcategorías cuenta dentro
           de la categoría presupuestada.
         </p>
-        <Button onClick={() => setAbierto(true)}>
+        <Button onClick={abrirAlta}>
           <Plus className="size-4" aria-hidden /> Nuevo presupuesto
         </Button>
       </div>
@@ -231,7 +287,7 @@ export function GestorPresupuestos({
                       <MedidorLineal
                         etiqueta={formatearPorcentaje(fila.ejecucion, 0)}
                         razon={fila.ejecucion === null ? null : Math.min(1, fila.ejecucion)}
-                        serie={nivel ? SERIE_ALERTA[nivel] : 1}
+                        tono={nivel ? TONO_ALERTA[nivel] : "ok"}
                       />
                       {nivel ? (
                         <Badge variant="outline" className={cn("mt-1", CLASES_ALERTA[nivel])}>
@@ -241,6 +297,16 @@ export function GestorPresupuestos({
                     </TableCell>
                     <TableCell>
                       <div className="flex gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          aria-label="Editar presupuesto"
+                          title="Editar"
+                          disabled={pendiente}
+                          onClick={() => abrirEdicion(fila)}
+                        >
+                          <Pencil className="size-4" aria-hidden />
+                        </Button>
                         <Button
                           variant="ghost"
                           size="icon"
@@ -273,7 +339,7 @@ export function GestorPresupuestos({
       <Dialog open={abierto} onOpenChange={setAbierto}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Nuevo presupuesto</DialogTitle>
+            <DialogTitle>{editando ? "Editar presupuesto" : "Nuevo presupuesto"}</DialogTitle>
             <DialogDescription>
               Por proyecto o global, mensual o anual. Un presupuesto por categoría y periodo.
             </DialogDescription>
@@ -389,7 +455,7 @@ export function GestorPresupuestos({
               Cancelar
             </Button>
             <Button
-              onClick={crear}
+              onClick={guardar}
               disabled={pendiente || borrador.categoriaId === "" || borrador.valorPlaneado === ""}
             >
               {pendiente ? <Loader2 className="size-4 animate-spin" aria-hidden /> : null}

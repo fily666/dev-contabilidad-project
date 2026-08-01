@@ -8,21 +8,39 @@ import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/ui/select";
-import { ESTADOS_MOVIMIENTO, TIPOS_MOVIMIENTO } from "@/shared/domain/enumeraciones";
-import { ETIQUETA_ESTADO_MOVIMIENTO, ETIQUETA_TIPO_MOVIMIENTO } from "@/shared/utils/etiquetas";
+import { ESTADOS_MOVIMIENTO, NATURALEZAS, TIPOS_MOVIMIENTO } from "@/shared/domain/enumeraciones";
+import {
+  ETIQUETA_ESTADO_MOVIMIENTO,
+  ETIQUETA_NATURALEZA,
+  ETIQUETA_TIPO_MOVIMIENTO,
+} from "@/shared/utils/etiquetas";
 
 const TODOS = "__todos__";
 
 type Props = {
-  proyectos: Array<{ id: string; nombre: string }>;
+  /** Opcional: dentro de un proyecto no hay nada que elegir. */
+  proyectos?: Array<{ id: string; nombre: string }>;
+  /** RF-23: el catálogo para filtrar por categoría. */
+  categorias?: Array<{ id: string; ruta: string }>;
+  /** RF-23: los métodos de pago activos. */
+  metodosPago?: Array<{ id: string; nombre: string }>;
   ocultarProyecto?: boolean;
 };
 
 /**
  * RF-23: filtros combinables. Viajan en la URL para que la vista sea
  * compartible y recargable (RNF-09).
+ *
+ * Categoría, método de pago y naturaleza faltaban aquí aunque `leerFiltros` los
+ * validaba y el repositorio los soportaba: era capacidad escrita y probada que no
+ * llegaba al usuario. RF-23 pide explícitamente categoría y método de pago.
  */
-export function FiltrosMovimientos({ proyectos, ocultarProyecto }: Props) {
+export function FiltrosMovimientos({
+  proyectos = [],
+  categorias = [],
+  metodosPago = [],
+  ocultarProyecto,
+}: Props) {
   const router = useRouter();
   const parametros = useSearchParams();
   const [texto, setTexto] = useState(parametros.get("texto") ?? "");
@@ -37,7 +55,9 @@ export function FiltrosMovimientos({ proyectos, ocultarProyecto }: Props) {
     router.push(`?${nuevos.toString()}`);
   }
 
-  const hayFiltros = [...parametros.keys()].some((k) => k !== "pagina");
+  const activos = [...parametros.keys()].filter(
+    (k) => k !== "pagina" && k !== "ordenCampo" && k !== "ordenDireccion",
+  ).length;
 
   return (
     <div className="panel space-y-4 p-5">
@@ -111,6 +131,76 @@ export function FiltrosMovimientos({ proyectos, ocultarProyecto }: Props) {
         </div>
 
         <div className="space-y-1.5">
+          <Label htmlFor="filtro-naturaleza" className="text-xs">
+            Naturaleza
+          </Label>
+          <Select
+            value={parametros.get("naturalezas") ?? TODOS}
+            onValueChange={(v) => aplicar({ naturalezas: v })}
+          >
+            <SelectTrigger id="filtro-naturaleza" className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={TODOS}>Todas</SelectItem>
+              {NATURALEZAS.map((n) => (
+                <SelectItem key={n} value={n}>
+                  {ETIQUETA_NATURALEZA[n]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {categorias.length > 0 ? (
+          <div className="space-y-1.5">
+            <Label htmlFor="filtro-categoria" className="text-xs">
+              Categoría
+            </Label>
+            <Select
+              value={parametros.get("categoriaIds") ?? TODOS}
+              onValueChange={(v) => aplicar({ categoriaIds: v })}
+            >
+              <SelectTrigger id="filtro-categoria" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={TODOS}>Todas</SelectItem>
+                {categorias.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.ruta}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        ) : null}
+
+        {metodosPago.length > 0 ? (
+          <div className="space-y-1.5">
+            <Label htmlFor="filtro-metodo" className="text-xs">
+              Método de pago
+            </Label>
+            <Select
+              value={parametros.get("metodoPagoId") ?? TODOS}
+              onValueChange={(v) => aplicar({ metodoPagoId: v })}
+            >
+              <SelectTrigger id="filtro-metodo" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={TODOS}>Todos</SelectItem>
+                {metodosPago.map((m) => (
+                  <SelectItem key={m.id} value={m.id}>
+                    {m.nombre}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        ) : null}
+
+        <div className="space-y-1.5">
           <Label htmlFor="filtro-desde" className="text-xs">
             Desde
           </Label>
@@ -158,17 +248,27 @@ export function FiltrosMovimientos({ proyectos, ocultarProyecto }: Props) {
         </form>
       </div>
 
-      {hayFiltros ? (
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => {
-            setTexto("");
-            router.push("?");
-          }}
-        >
-          <X className="size-4" aria-hidden /> Limpiar filtros
-        </Button>
+      {/*
+        El contador dice por qué el total no cuadra con el que el usuario
+        recuerda. Antes solo aparecía un botón «Limpiar» sin decir cuántos
+        filtros había puestos.
+      */}
+      {activos > 0 ? (
+        <div className="flex items-center gap-2">
+          <span className="etiqueta-dato">
+            {activos} {activos === 1 ? "filtro activo" : "filtros activos"}
+          </span>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              setTexto("");
+              router.push("?");
+            }}
+          >
+            <X className="size-4" aria-hidden /> Limpiar
+          </Button>
+        </div>
       ) : null}
     </div>
   );

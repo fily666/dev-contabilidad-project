@@ -3,7 +3,7 @@
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Eye, EyeOff, Loader2, Plus, Trash2 } from "lucide-react";
+import { Check, Eye, EyeOff, Loader2, Pencil, Plus, Trash2, X } from "lucide-react";
 
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
@@ -16,6 +16,7 @@ import { DESCRIPCION_NATURALEZA, ETIQUETA_NATURALEZA } from "@/shared/utils/etiq
 import type { CategoriaConRuta } from "../../domain/categoria.repository";
 import {
   cambiarEstadoCategoriaAction,
+  actualizarCategoriaAction,
   crearCategoriaAction,
   eliminarCategoriaAction,
 } from "../actions";
@@ -65,6 +66,36 @@ export function GestorCategorias({ categorias, tipos }: Props) {
       }
       setNombre("");
       toast.success("Categoría creada.");
+      router.refresh();
+    });
+  }
+
+  /**
+   * RF-31: renombrar.
+   *
+   * `ActualizarCategoria` y `actualizarCategoriaAction` estaban escritas, probadas
+   * y sin un solo consumidor: el gestor solo creaba, ocultaba y eliminaba, así que
+   * una categoría mal escrita quedaba mal escrita para siempre en todos los
+   * movimientos que la usaran. Se edita en línea y no en un diálogo porque el único
+   * campo editable es el nombre; abrir un modal para un campo es ceremonia.
+   */
+  const [editando, setEditando] = useState<string | null>(null);
+  const [nombreEditado, setNombreEditado] = useState("");
+
+  function empezarEdicion(categoria: CategoriaConRuta) {
+    setEditando(categoria.id);
+    setNombreEditado(categoria.nombre);
+  }
+
+  function guardarNombre(id: string) {
+    iniciarTransicion(async () => {
+      const resultado = await actualizarCategoriaAction({ id, nombre: nombreEditado });
+      if (!resultado.ok) {
+        toast.error(resultado.mensaje);
+        return;
+      }
+      setEditando(null);
+      toast.success("Categoría renombrada.");
       router.refresh();
     });
   }
@@ -201,7 +232,17 @@ export function GestorCategorias({ categorias, tipos }: Props) {
           <div key={raiz.id} className="panel">
             <div className="flex items-center justify-between gap-3 border-b p-3">
               <div className="flex min-w-0 flex-wrap items-center gap-2">
-                <span className="truncate font-medium">{raiz.nombre}</span>
+                {editando === raiz.id ? (
+                  <CampoNombre
+                    valor={nombreEditado}
+                    alCambiar={setNombreEditado}
+                    alGuardar={() => guardarNombre(raiz.id)}
+                    alCancelar={() => setEditando(null)}
+                    pendiente={pendiente}
+                  />
+                ) : (
+                  <span className="truncate font-medium">{raiz.nombre}</span>
+                )}
                 <InsigniaNaturaleza naturaleza={raiz.naturaleza} />
                 {raiz.esSistema ? (
                   <Badge variant="secondary" className="text-xs">
@@ -214,6 +255,7 @@ export function GestorCategorias({ categorias, tipos }: Props) {
                 pendiente={pendiente}
                 alAlternar={alternarVisibilidad}
                 alEliminar={eliminar}
+                alEditar={editando === raiz.id ? undefined : empezarEdicion}
               />
             </div>
 
@@ -225,7 +267,17 @@ export function GestorCategorias({ categorias, tipos }: Props) {
                       <span className="text-muted-foreground" aria-hidden>
                         ↳
                       </span>
-                      <span className="truncate text-sm">{hija.nombre}</span>
+                      {editando === hija.id ? (
+                        <CampoNombre
+                          valor={nombreEditado}
+                          alCambiar={setNombreEditado}
+                          alGuardar={() => guardarNombre(hija.id)}
+                          alCancelar={() => setEditando(null)}
+                          pendiente={pendiente}
+                        />
+                      ) : (
+                        <span className="truncate text-sm">{hija.nombre}</span>
+                      )}
                       {hija.esSistema ? null : (
                         <Badge variant="outline" className="text-xs">
                           Propia
@@ -237,6 +289,7 @@ export function GestorCategorias({ categorias, tipos }: Props) {
                       pendiente={pendiente}
                       alAlternar={alternarVisibilidad}
                       alEliminar={eliminar}
+                      alEditar={editando === hija.id ? undefined : empezarEdicion}
                     />
                   </li>
                 ))}
@@ -254,14 +307,33 @@ function FilaAcciones({
   pendiente,
   alAlternar,
   alEliminar,
+  alEditar,
 }: {
   categoria: CategoriaConRuta;
   pendiente: boolean;
   alAlternar: (id: string, activa: boolean) => void;
   alEliminar: (id: string) => void;
+  alEditar?: (categoria: CategoriaConRuta) => void;
 }) {
   return (
     <div className="flex shrink-0 items-center gap-1">
+      {/*
+        Las filas del sistema no se renombran: lo impide el trigger
+        `proteger_filas_de_sistema()` (§6.6), y ofrecer el botón sería prometer
+        algo que la base rechaza.
+      */}
+      {alEditar && !categoria.esSistema ? (
+        <Button
+          variant="ghost"
+          size="icon"
+          disabled={pendiente}
+          onClick={() => alEditar(categoria)}
+          aria-label="Renombrar categoría"
+          title="Renombrar"
+        >
+          <Pencil className="size-4" aria-hidden />
+        </Button>
+      ) : null}
       <Button
         variant="ghost"
         size="icon"
@@ -288,5 +360,52 @@ function FilaAcciones({
         </Button>
       ) : null}
     </div>
+  );
+}
+
+/** Edición en línea del nombre: Enter guarda, Escape cancela. */
+function CampoNombre({
+  valor,
+  alCambiar,
+  alGuardar,
+  alCancelar,
+  pendiente,
+}: {
+  valor: string;
+  alCambiar: (v: string) => void;
+  alGuardar: () => void;
+  alCancelar: () => void;
+  pendiente: boolean;
+}) {
+  return (
+    <span className="flex min-w-0 items-center gap-1">
+      <Input
+        autoFocus
+        value={valor}
+        aria-label="Nombre de la categoría"
+        onChange={(e) => alCambiar(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") alGuardar();
+          if (e.key === "Escape") alCancelar();
+        }}
+        className="h-8 w-48"
+      />
+      <Button
+        variant="ghost"
+        size="icon"
+        disabled={pendiente || valor.trim() === ""}
+        onClick={alGuardar}
+        aria-label="Guardar nombre"
+      >
+        {pendiente ? (
+          <Loader2 className="size-4 animate-spin" aria-hidden />
+        ) : (
+          <Check className="size-4" aria-hidden />
+        )}
+      </Button>
+      <Button variant="ghost" size="icon" onClick={alCancelar} aria-label="Cancelar">
+        <X className="size-4" aria-hidden />
+      </Button>
+    </span>
   );
 }

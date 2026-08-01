@@ -3,7 +3,9 @@ import type {
   DashboardRepository,
   FiltroPanel,
   GastoPorCategoria,
+  FlujoRecientePorProyecto,
   TotalesGlobales,
+  TotalesPorProyecto,
 } from "../domain/dashboard.repository";
 
 /**
@@ -26,12 +28,33 @@ export class DashboardRepositoryEnMemoria implements DashboardRepository {
   flujo: FlujoMensual[] = [];
   proyectado: FlujoMensual[] = [];
   gastos: GastoPorCategoria[] = [];
+  /**
+   * RF-74, RF-77: cifras por proyecto del rango. Vacio significa «ningun
+   * proyecto tuvo movimientos pagados en el rango», que es un caso real y el que
+   * mas facil es equivocar al componer el panel.
+   */
+  porProyecto: TotalesPorProyecto[] = [];
   /** Filtros con los que se llamo, para comprobar que el panel los propaga. */
   filtrosRecibidos: FiltroPanel[] = [];
 
   async totalesGlobales(filtro: FiltroPanel = {}): Promise<TotalesGlobales> {
     this.filtrosRecibidos.push(filtro);
     return this.totales;
+  }
+
+  async totalesPorProyecto(filtro: FiltroPanel = {}): Promise<TotalesPorProyecto[]> {
+    this.filtrosRecibidos.push(filtro);
+    return this.porProyecto;
+  }
+
+  /** §5.5: flujo neto reciente por proyecto, para el semáforo. */
+  flujoReciente: FlujoRecientePorProyecto[] = [];
+  /** Meses desde los que se pidió: el semáforo mira hoy, no el rango. */
+  mesesRecibidos: string[] = [];
+
+  async flujoRecientePorProyecto(desdeMes: string): Promise<FlujoRecientePorProyecto[]> {
+    this.mesesRecibidos.push(desdeMes);
+    return this.flujoReciente;
   }
 
   async flujoMensual(filtro: FiltroPanel = {}): Promise<FlujoMensual[]> {

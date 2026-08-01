@@ -117,6 +117,180 @@ describe("ObtenerPanel", () => {
     ]);
   });
 
+  /**
+   * El defecto que estas tres pruebas cierran: el panel presentaba las cifras de
+   * cada proyecto tomadas del resumen historico junto a los totales del rango,
+   * con las mismas etiquetas. «Total invertido» arriba y «Invertido» en la
+   * tarjeta significaban cosas distintas y nada lo decia.
+   */
+  describe("todas las cifras del panel son del rango (RF-79)", () => {
+    const P1 = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1";
+
+    it("las cifras por proyecto salen del rango, no del historico", async () => {
+      const { panel, proyectos, dashboard } = montar();
+      await proyectos.guardar(proyectoDePrueba({ id: P1 }));
+      // Lo que diria v_resumen_proyecto: toda la historia.
+      proyectos.historico.set(P1, {
+        totalInvertido: 900,
+        totalIngresos: 800,
+        totalEgresos: 950,
+        balance: -150,
+      });
+      // Lo que de verdad ocurrio dentro del rango consultado.
+      dashboard.porProyecto = [
+        {
+          proyectoId: P1,
+          totalInvertido: 100,
+          totalGastosOperativos: 20,
+          totalFinanciacion: 0,
+          totalIngresos: 300,
+          totalEgresos: 120,
+          balance: 180,
+        },
+      ];
+
+      const resultado = await panel.ejecutar({
+        filtro: { desde: "2026-01-01", hasta: "2026-06-30" },
+      });
+
+      expect(resultado.proyectos[0]).toMatchObject({
+        totalInvertido: 100,
+        totalIngresos: 300,
+        totalEgresos: 120,
+        balance: 180,
+      });
+    });
+
+    it("un proyecto sin movimientos en el rango queda en cero, no en su historico", async () => {
+      const { panel, proyectos } = montar();
+      await proyectos.guardar(proyectoDePrueba({ id: P1 }));
+      proyectos.historico.set(P1, { totalInvertido: 900, totalIngresos: 800 });
+      // dashboard.porProyecto queda vacio: nada pagado en el rango.
+
+      const resultado = await panel.ejecutar({
+        filtro: { desde: "2020-01-01", hasta: "2020-12-31" },
+      });
+
+      expect(resultado.proyectos[0]).toMatchObject({ totalInvertido: 0, totalIngresos: 0 });
+    });
+
+    it("conserva ultimoMovimiento, que es de la historia y no del rango", async () => {
+      const { panel, proyectos } = montar();
+      await proyectos.guardar(proyectoDePrueba({ id: P1 }));
+      proyectos.historico.set(P1, { ultimoMovimiento: "2026-07-12" });
+
+      const resultado = await panel.ejecutar({
+        filtro: { desde: "2020-01-01", hasta: "2020-12-31" },
+      });
+
+      // Acotarlo diria «sin movimientos» de un proyecto que si los tiene.
+      expect(resultado.proyectos[0]!.ultimoMovimiento).toBe("2026-07-12");
+    });
+
+    it("la rentabilidad se calcula sobre las cifras del rango", async () => {
+      const { panel, proyectos, dashboard } = montar();
+      await proyectos.guardar(proyectoDePrueba({ id: P1 }));
+      // Sin ingresos historicos no habria fila; con ingresos en el rango, si.
+      dashboard.porProyecto = [
+        {
+          proyectoId: P1,
+          totalInvertido: 100,
+          totalGastosOperativos: 0,
+          totalFinanciacion: 0,
+          totalIngresos: 150,
+          totalEgresos: 100,
+          balance: 50,
+        },
+      ];
+
+      const resultado = await panel.ejecutar({});
+
+      expect(resultado.rentabilidad).toHaveLength(1);
+      expect(resultado.rentabilidad[0]!.roi).toBeCloseTo(0.5);
+    });
+  });
+
+  /**
+   * «¿Qué cambió?» es una de las tres preguntas que un panel debe responder, y era
+   * la única que no se respondía en ninguna parte del producto.
+   */
+  describe("variacion frente al periodo anterior (RF-70)", () => {
+    it("compara con el periodo inmediatamente anterior de igual longitud en meses", async () => {
+      const { panel, dashboard } = montar();
+
+      await panel.ejecutar({ filtro: { desde: "2026-04-01", hasta: "2026-06-30" } });
+
+      // Tres meses consultados ⇒ los tres meses anteriores, completos.
+      expect(dashboard.filtrosRecibidos).toContainEqual({
+        proyectoId: undefined,
+        desde: "2026-01-01",
+        hasta: "2026-03-31",
+      });
+    });
+
+    it("cuenta en meses y no en dias, porque las vistas agregan por mes", async () => {
+      const { panel, dashboard } = montar();
+
+      // Un rango de doce meses debe compararse con los doce anteriores.
+      await panel.ejecutar({ filtro: { desde: "2026-01-01", hasta: "2026-12-31" } });
+
+      expect(dashboard.filtrosRecibidos).toContainEqual({
+        proyectoId: undefined,
+        desde: "2025-01-01",
+        hasta: "2025-12-31",
+      });
+    });
+
+    it("propaga el proyecto del filtro a la comparacion", async () => {
+      const { panel, dashboard } = montar();
+
+      await panel.ejecutar({
+        filtro: { proyectoId: "p1", desde: "2026-06-01", hasta: "2026-06-30" },
+      });
+
+      expect(dashboard.filtrosRecibidos).toContainEqual({
+        proyectoId: "p1",
+        desde: "2026-05-01",
+        hasta: "2026-05-31",
+      });
+    });
+
+    it("sin rango no hay con que comparar y la variacion queda vacia", async () => {
+      const { panel } = montar();
+
+      const resultado = await panel.ejecutar({});
+
+      expect(resultado.variacion.periodoAnterior).toBeNull();
+      expect(resultado.variacion.totalIngresos).toBeNull();
+    });
+
+    it("con periodo anterior en cero la variacion es null, no un porcentaje inventado", async () => {
+      const { panel, dashboard } = montar();
+      // El doble devuelve los mismos totales para los dos periodos; con ceros en
+      // la base, §5.3 exige «—» y no «+100 %».
+      dashboard.totales = { ...dashboard.totales, totalIngresos: 0, totalEgresos: 0, balance: 0 };
+
+      const resultado = await panel.ejecutar({
+        filtro: { desde: "2026-06-01", hasta: "2026-06-30" },
+      });
+
+      expect(resultado.variacion.totalIngresos).toBeNull();
+      expect(resultado.variacion.balance).toBeNull();
+    });
+
+    it("calcula el tanto por uno cuando la base no es cero", async () => {
+      const { panel, dashboard } = montar();
+      dashboard.totales = { ...dashboard.totales, totalIngresos: 150, totalEgresos: 50 };
+
+      const resultado = await panel.ejecutar({
+        filtro: { desde: "2026-06-01", hasta: "2026-06-30" },
+      });
+
+      // Mismo doble para los dos periodos ⇒ variación nula, no null.
+      expect(resultado.variacion.totalIngresos).toBe(0);
+    });
+  });
+
   it("acumula el flujo y la evolucion del gasto a partir de la serie mensual", async () => {
     const { panel, dashboard } = montar();
     dashboard.flujo = [

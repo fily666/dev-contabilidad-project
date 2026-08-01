@@ -24,6 +24,39 @@ export function nivelDeAlerta(ejecucion: number | null): NivelAlerta | null {
   return "ok";
 }
 
+/**
+ * Ritmo de ejecución: cuánto se ha gastado frente a cuánto periodo ha pasado.
+ *
+ * Es la pregunta que faltaba. Un 60 % de ejecución no dice nada por sí solo: en
+ * octubre es sano y en marzo es una alarma, y la vista mostraba el 60 % sin más.
+ * Con el ritmo, `1,0` es ir al día, `1,5` es gastar a vez y media la velocidad del
+ * calendario y `0,5` es ir sobrado.
+ *
+ * `null` cuando no hay ejecución calculable, cuando el periodo no ha empezado —no
+ * se puede ir rápido antes de empezar— o cuando ya terminó, porque entonces el
+ * ritmo deja de ser una advertencia y la cifra que importa es la ejecución final.
+ */
+export function ritmoDeEjecucion(entrada: {
+  ejecucion: number | null;
+  periodoInicio: string;
+  periodoFin: string;
+  hoy: string;
+}): number | null {
+  const { ejecucion, periodoInicio, periodoFin, hoy } = entrada;
+  if (ejecucion === null || !Number.isFinite(ejecucion)) return null;
+  if (hoy < periodoInicio || hoy > periodoFin) return null;
+
+  const dia = (iso: string) => Date.parse(`${iso}T00:00:00Z`);
+  const total = dia(periodoFin) - dia(periodoInicio);
+  if (!Number.isFinite(total) || total <= 0) return null;
+
+  // +1 día: el primer día del periodo ya cuenta como transcurrido.
+  const transcurrido = (dia(hoy) - dia(periodoInicio)) / total;
+  const fraccion = Math.min(1, Math.max(1 / 365, transcurrido));
+
+  return ejecucion / fraccion;
+}
+
 export type ResumenEjecucion = {
   planeado: number;
   real: number;

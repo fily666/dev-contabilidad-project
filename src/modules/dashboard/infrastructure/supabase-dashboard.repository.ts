@@ -5,8 +5,53 @@ import type {
   DashboardRepository,
   FiltroPanel,
   GastoPorCategoria,
+  FlujoRecientePorProyecto,
   TotalesGlobales,
+  TotalesPorProyecto,
 } from "../domain/dashboard.repository";
+
+/**
+ * Las columnas de `v_movimientos_mensual` que consume el panel. Se derivan del
+ * tipo verificado contra la base (`npm run db:verify-types`) en lugar de
+ * redeclararse, para que una columna renombrada rompa la compilacion.
+ */
+type FilaMensual = Pick<
+  Database["public"]["Views"]["v_movimientos_mensual"]["Row"],
+  "proyecto_id" | "mes" | "tipo" | "naturaleza" | "total"
+>;
+
+/** Acumulador de los agregados de §5.1 mientras se recorren las filas. */
+type Acumulado = {
+  totalInvertido: number;
+  totalGastosOperativos: number;
+  totalFinanciacion: number;
+  totalIngresos: number;
+  totalEgresos: number;
+};
+
+const CERO: () => Acumulado = () => ({
+  totalInvertido: 0,
+  totalGastosOperativos: 0,
+  totalFinanciacion: 0,
+  totalIngresos: 0,
+  totalEgresos: 0,
+});
+
+/**
+ * Reparto de §5.1: el tipo decide el lado y la naturaleza decide el cajon. Vive
+ * en una sola funcion porque la usan el total global y el total por proyecto, y
+ * dos copias eran dos sitios donde el capex podia dejar de contar como egreso.
+ */
+function acumular(acc: Acumulado, tipo: string, naturaleza: string, valor: number): void {
+  if (tipo === "ingreso") {
+    acc.totalIngresos += valor;
+    return;
+  }
+  acc.totalEgresos += valor;
+  if (naturaleza === "capex") acc.totalInvertido += valor;
+  else if (naturaleza === "opex") acc.totalGastosOperativos += valor;
+  else if (naturaleza === "financiacion") acc.totalFinanciacion += valor;
+}
 
 /**
  * ADAPTADOR del puerto DashboardRepository (Contexto.md §7.3).
@@ -16,39 +61,90 @@ import type {
  * aplicar el rango de fechas de RF-79 sin duplicar definiciones (ADR-11).
  */
 export class SupabaseDashboardRepository implements DashboardRepository {
+  /**
+   * Memoria de las lecturas de `v_movimientos_mensual` dentro de este request.
+   *
+   * Tres metodos del panel —totales globales, flujo mensual y totales por
+   * proyecto— se sirven de la misma consulta con el mismo filtro. Sin esto, una
+   * sola carga del dashboard la pedia tres veces.
+   *
+   * Es seguro porque el contenedor se construye por request (§7.2): el adaptador
+   * no vive mas alla de la peticion, asi que no puede servir datos rancios.
+   */
+  private readonly mensualPorFiltro = new Map<string, Promise<FilaMensual[]>>();
+
   constructor(private readonly supabase: SupabaseClient<Database>) {}
 
   async totalesGlobales(filtro: FiltroPanel = {}): Promise<TotalesGlobales> {
     const filas = await this.leerMensual(filtro);
 
-    const totales = filas.reduce(
-      (acc, fila) => {
-        const total = Number(fila.total);
-        if (fila.tipo === "ingreso") return { ...acc, totalIngresos: acc.totalIngresos + total };
-        return {
-          ...acc,
-          totalEgresos: acc.totalEgresos + total,
-          totalInvertido: acc.totalInvertido + (fila.naturaleza === "capex" ? total : 0),
-          totalGastosOperativos:
-            acc.totalGastosOperativos + (fila.naturaleza === "opex" ? total : 0),
-          totalFinanciacion:
-            acc.totalFinanciacion + (fila.naturaleza === "financiacion" ? total : 0),
-        };
-      },
-      {
-        totalInvertido: 0,
-        totalGastosOperativos: 0,
-        totalFinanciacion: 0,
-        totalIngresos: 0,
-        totalEgresos: 0,
-      },
-    );
+    const totales = CERO();
+    for (const fila of filas) {
+      acumular(totales, fila.tipo, fila.naturaleza, Number(fila.total));
+    }
 
     return {
       ...totales,
       balance: totales.totalIngresos - totales.totalEgresos,
       moneda: await this.monedaDeReferencia(filtro.proyectoId),
     };
+  }
+
+  /**
+   * RF-74, RF-77: los mismos totales del rango, desglosados por proyecto.
+   *
+   * Solo devuelve proyectos con movimientos pagados en el rango; los demas no
+   * aparecen en la vista. Quien compone el panel debe tratar la ausencia como
+   * ceros, no como «proyecto inexistente».
+   */
+  async totalesPorProyecto(filtro: FiltroPanel = {}): Promise<TotalesPorProyecto[]> {
+    const filas = await this.leerMensual(filtro);
+    const porProyecto = new Map<string, Acumulado>();
+
+    for (const fila of filas) {
+      let acc = porProyecto.get(fila.proyecto_id);
+      if (!acc) {
+        acc = CERO();
+        porProyecto.set(fila.proyecto_id, acc);
+      }
+      acumular(acc, fila.tipo, fila.naturaleza, Number(fila.total));
+    }
+
+    return [...porProyecto.entries()].map(([proyectoId, acc]) => ({
+      proyectoId,
+      ...acc,
+      balance: acc.totalIngresos - acc.totalEgresos,
+    }));
+  }
+
+  /**
+   * §5.5: una sola consulta para el flujo reciente de TODOS los proyectos.
+   *
+   * No reutiliza `leerMensual` a propósito: aquella lleva el rango del panel y
+   * esta necesita una ventana anclada a hoy. Compartir la caché entre las dos
+   * habría devuelto la serie equivocada en cuanto el usuario cambiara el rango.
+   */
+  async flujoRecientePorProyecto(desdeMes: string): Promise<FlujoRecientePorProyecto[]> {
+    const { data, error } = await this.supabase
+      .from("v_movimientos_mensual")
+      .select("proyecto_id, tipo, total")
+      .gte("mes", primerDiaDelMes(desdeMes));
+
+    if (error) throw error;
+
+    const porProyecto = new Map<string, number>();
+    for (const fila of data ?? []) {
+      const signo = fila.tipo === "ingreso" ? 1 : -1;
+      porProyecto.set(
+        fila.proyecto_id,
+        (porProyecto.get(fila.proyecto_id) ?? 0) + signo * Number(fila.total),
+      );
+    }
+
+    return [...porProyecto.entries()].map(([proyectoId, flujoNeto]) => ({
+      proyectoId,
+      flujoNeto,
+    }));
   }
 
   async flujoMensual(filtro: FiltroPanel = {}): Promise<FlujoMensual[]> {
@@ -128,10 +224,26 @@ export class SupabaseDashboardRepository implements DashboardRepository {
     return [...porCategoria.values()].sort((a, b) => b.total - a.total);
   }
 
-  private async leerMensual(filtro: FiltroPanel) {
+  /**
+   * Lectura unica de `v_movimientos_mensual` por filtro, memorizada para este
+   * request. Se guarda la promesa y no el resultado, de modo que dos llamadas
+   * concurrentes —el panel las lanza en `Promise.all`— compartan la misma
+   * peticion en vuelo en lugar de disparar dos.
+   */
+  private leerMensual(filtro: FiltroPanel): Promise<FilaMensual[]> {
+    const clave = `${filtro.proyectoId ?? ""}|${filtro.desde ?? ""}|${filtro.hasta ?? ""}`;
+    const memorizada = this.mensualPorFiltro.get(clave);
+    if (memorizada) return memorizada;
+
+    const pendiente = this.consultarMensual(filtro);
+    this.mensualPorFiltro.set(clave, pendiente);
+    return pendiente;
+  }
+
+  private async consultarMensual(filtro: FiltroPanel): Promise<FilaMensual[]> {
     let consulta = this.supabase
       .from("v_movimientos_mensual")
-      .select("mes, tipo, naturaleza, total")
+      .select("proyecto_id, mes, tipo, naturaleza, total")
       .order("mes", { ascending: true });
 
     if (filtro.proyectoId) consulta = consulta.eq("proyecto_id", filtro.proyectoId);

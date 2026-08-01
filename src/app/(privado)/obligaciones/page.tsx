@@ -6,22 +6,31 @@ import { EnlaceBoton } from "@/shared/ui/enlace-boton";
 import { EstadoVacio } from "@/shared/ui/estado-vacio";
 import { TarjetaIndicador } from "@/shared/ui/tarjeta-indicador";
 import { formatearDineroCompacto } from "@/shared/utils/formato";
+import { leerVentana, resumirAgenda } from "@/modules/obligaciones/domain/agenda";
 import { DialogoObligacion } from "@/modules/obligaciones/presentation/components/dialogo-obligacion";
 import { PanelAgenda } from "@/modules/obligaciones/presentation/components/panel-agenda";
+import { SelectorVentana } from "@/modules/obligaciones/presentation/components/selector-ventana";
 import { TablaObligaciones } from "@/modules/obligaciones/presentation/components/tabla-obligaciones";
 
 export const metadata: Metadata = { title: "Obligaciones" };
 
+type Props = {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
+
 /** RF-50 a RF-58. */
-export default async function PaginaObligaciones() {
+export default async function PaginaObligaciones({ searchParams }: Props) {
+  const parametros = await searchParams;
   const { contenedor, ajustes } = await contenedorPrivado();
+
+  // RF-58: la ventana la elige el usuario (7, 30 o 90 dias) y viaja en la URL.
+  const ventana = leerVentana(parametros.dias);
 
   const [obligaciones, agenda, proyectos, categorias, metodosPago] = await Promise.all([
     contenedor.obligaciones.listar.ejecutar({}),
-    // RF-58: la ventana de 30 dias incluye lo ya vencido, que es lo que hay que
-    // ver primero.
+    // La ventana incluye siempre lo ya vencido, que es lo que hay que ver primero.
     contenedor.obligaciones.listarAgenda.ejecutar({
-      filtro: { dentroDeDias: 30, incluirVencidas: true },
+      filtro: { dentroDeDias: ventana, incluirVencidas: true },
     }),
     contenedor.proyectos.listar.ejecutar({ filtro: { estados: ["activo", "pausado"] } }),
     contenedor.categorias.listar.ejecutar({}),
@@ -29,13 +38,12 @@ export default async function PaginaObligaciones() {
   ]);
 
   const hoy = contenedor.reloj.hoy();
-  const moneda = proyectos[0]?.moneda ?? ajustes.moneda;
 
-  const vencidas = agenda.filter((e) => e.diasRestantes < 0);
-  const proximas7 = agenda.filter((e) => e.diasRestantes >= 0 && e.diasRestantes <= 7);
-  const comprometido30 = agenda
-    .filter((e) => e.diasRestantes >= 0)
-    .reduce((suma, e) => suma + e.valorEstimado, 0);
+  // Las cifras de la agenda las define el dominio, no esta página (ADR-11): las
+  // mismas tres se necesitan aquí, en el panel y en el detalle de proyecto, y
+  // tres derivaciones locales eran tres fórmulas que podían discrepar —y lo
+  // hacían—. Ver `obligaciones/domain/agenda.ts`.
+  const resumen = resumirAgenda(agenda, ajustes.moneda);
 
   // `tipoProyectoId` acota las categorias del dialogo: aqui se cargan todas
   // porque el proyecto se elige dentro del formulario.
@@ -73,23 +81,44 @@ export default async function PaginaObligaciones() {
         />
       ) : (
         <>
-          <div className="grid gap-3 sm:grid-cols-3">
+          {/*
+            Cada tarjeta lleva el conteo Y el importe: «2 vencidas» y «$ 1,8 M»
+            responden preguntas distintas, y antes solo se respondía la primera.
+            Los importes salen de la misma medida que los subtotales del panel de
+            abajo, así que no pueden discrepar de ellos.
+          */}
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <TarjetaIndicador
               etiqueta="Vencidas"
-              valor={String(vencidas.length)}
-              detalle={vencidas.length > 0 ? "Requieren atención inmediata" : "Ninguna vencida"}
-              tono={vencidas.length > 0 ? "negativo" : "positivo"}
+              valor={String(resumen.vencidas)}
+              detalle={
+                resumen.vencidas > 0
+                  ? `${formatearDineroCompacto(resumen.importeVencido, resumen.moneda)} sin pagar`
+                  : "Ninguna vencida"
+              }
+              tono={resumen.vencidas > 0 ? "negativo" : "positivo"}
             />
             <TarjetaIndicador
               etiqueta="Vencen en 7 días"
-              valor={String(proximas7.length)}
-              detalle="Próximas a vencer"
+              valor={String(resumen.proximas7)}
+              detalle={formatearDineroCompacto(resumen.importe7, resumen.moneda)}
+              tono={resumen.proximas7 > 0 ? "advertencia" : "neutro"}
             />
             <TarjetaIndicador
-              etiqueta="Comprometido a 30 días"
-              valor={formatearDineroCompacto(comprometido30, moneda)}
-              detalle="Suma de vencimientos pendientes"
+              etiqueta={`Comprometido a ${ventana} días`}
+              valor={formatearDineroCompacto(resumen.importePorVencer, resumen.moneda)}
+              detalle={`${resumen.porVencer} vencimiento(s) por pagar`}
             />
+            <TarjetaIndicador
+              etiqueta="Obligaciones activas"
+              valor={String(obligaciones.filter((o) => o.activa).length)}
+              detalle={`de ${obligaciones.length} registrada(s)`}
+            />
+          </div>
+
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="etiqueta-dato">Agenda de vencimientos</h2>
+            <SelectorVentana ventana={ventana} />
           </div>
 
           <PanelAgenda
@@ -97,8 +126,10 @@ export default async function PaginaObligaciones() {
             metodosPago={metodosPago}
             hoy={hoy}
             formatoFecha={ajustes.formatoFecha}
+            moneda={ajustes.moneda}
+            titulo={`Vencidas y próximas (${ventana} días)`}
             vacio={{
-              titulo: "Sin vencimientos en 30 días",
+              titulo: `Sin vencimientos en ${ventana} días`,
               descripcion: "Las obligaciones activas generan sus ocurrencias automáticamente.",
             }}
           />

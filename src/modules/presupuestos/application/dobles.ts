@@ -17,12 +17,27 @@ export class PresupuestoRepositoryEnMemoria implements PresupuestoRepository {
   readonly filas = new Map<string, Presupuesto>();
   readonly realPorCategoria = new Map<string, number>();
   eliminados: string[] = [];
+  /** Filtros con los que se llamo, para comprobar que quien consulta los acota. */
+  filtrosRecibidos: FiltroPresupuestos[] = [];
+  /**
+   * Ejecucion declarada tal cual, sin pasar por `filas`.
+   *
+   * Para probar la *composicion* —el semaforo de §5.5, que solo mira el
+   * porcentaje— construir entidades `Presupuesto` y sembrar `realPorCategoria`
+   * obliga a montar cuatro cosas para afirmar una. Cuando se prueba la desviacion
+   * o la copia de periodo sigue usandose el camino derivado, que es el que
+   * ejercita la logica del doble.
+   */
+  ejecucionDeclarada: EjecucionPresupuesto[] | null = null;
 
   async buscarPorId(id: string): Promise<Presupuesto | null> {
     return this.filas.get(id) ?? null;
   }
 
   async listarEjecucion(filtro: FiltroPresupuestos = {}): Promise<EjecucionPresupuesto[]> {
+    this.filtrosRecibidos.push(filtro);
+    if (this.ejecucionDeclarada) return this.ejecucionDeclarada;
+
     return [...this.filas.values()]
       .filter((p) => !filtro.proyectoId || p.proyectoId === filtro.proyectoId)
       .filter((p) => !filtro.hasta || p.periodoInicio <= filtro.hasta)

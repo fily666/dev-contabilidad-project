@@ -49,6 +49,7 @@ import {
 } from "@/modules/proyectos/application/administrar-tipos-proyecto.use-case";
 import { ObtenerProyecto } from "@/modules/proyectos/application/obtener-proyecto.use-case";
 import { ObtenerResumenProyecto } from "@/modules/proyectos/application/obtener-resumen-proyecto.use-case";
+import { ObtenerSemaforos } from "@/modules/proyectos/application/obtener-semaforos.use-case";
 
 import { ObtenerCalendario } from "@/modules/calendario/application/obtener-calendario.use-case";
 
@@ -244,6 +245,8 @@ export function crearContenedor(zonaHoraria = AJUSTES_POR_OMISION.zonaHoraria) {
 
     dashboard: {
       panel: new ObtenerPanel(panel, proyectos, obligaciones, reloj),
+      // §5.5: el semáforo de todos los proyectos con tres lecturas agregadas.
+      semaforos: new ObtenerSemaforos(panel, obligaciones, presupuestos, tiposProyecto, reloj),
     },
 
     calendario: {

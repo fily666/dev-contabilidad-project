@@ -6,14 +6,13 @@ import { EnlaceBoton } from "@/shared/ui/enlace-boton";
 import { EstadoVacio } from "@/shared/ui/estado-vacio";
 import { TarjetaIndicador } from "@/shared/ui/tarjeta-indicador";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/ui/table";
-import { PanelGrafica } from "@/shared/ui/viz/panel-grafica";
-import { BarrasComparativas } from "@/shared/ui/viz/barras-comparativas";
 import {
   formatearDineroCompacto,
   formatearFecha,
-  formatearDinero,
   formatearPorcentaje,
 } from "@/shared/utils/formato";
+import { cn } from "@/shared/utils/cn";
+import { ltvDelProyecto, plusvaliaDelProyecto } from "@/modules/patrimonio/domain/consolidado";
 import { GestorPatrimonio } from "@/modules/patrimonio/presentation/components/gestor-patrimonio";
 
 export const metadata: Metadata = { title: "Patrimonio" };
@@ -53,16 +52,30 @@ export default async function PaginaPatrimonio() {
       ) : (
         <>
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            {/*
+              La salvedad va DENTRO de la tarjeta que invalida. Antes era un `<p>`
+              de 12 px suelto entre la fila de tarjetas y la gráfica: una
+              advertencia sobre la validez de este total, colocada donde no se lee.
+            */}
             <TarjetaIndicador
               etiqueta="Activos"
               valor={formatearDineroCompacto(consolidado.activos, consolidado.moneda)}
-              detalle="Última valoración de cada proyecto"
+              detalle={
+                consolidado.sinValoracion > 0
+                  ? `Sin contar ${consolidado.sinValoracion} proyecto(s) sin valoración`
+                  : "Última valoración de cada proyecto"
+              }
+              tono={consolidado.sinValoracion > 0 ? "advertencia" : "neutro"}
               icono={<Building2 className="size-4" />}
             />
             <TarjetaIndicador
               etiqueta="Pasivos"
               valor={formatearDineroCompacto(consolidado.pasivos, consolidado.moneda)}
-              detalle="Saldo de los créditos vigentes"
+              detalle={
+                consolidado.ltv === null
+                  ? "Saldo de los créditos vigentes"
+                  : `LTV ${formatearPorcentaje(consolidado.ltv, 0)} del valor de los activos`
+              }
               tono={consolidado.pasivos > 0 ? "advertencia" : "neutro"}
               icono={<Landmark className="size-4" />}
             />
@@ -76,51 +89,18 @@ export default async function PaginaPatrimonio() {
             <TarjetaIndicador
               etiqueta="Retorno total"
               valor={formatearPorcentaje(consolidado.retornoTotal, 1)}
-              detalle="Resultado + plusvalía sobre lo invertido"
+              detalle={`Plusvalía ${formatearDineroCompacto(consolidado.plusvalia, consolidado.moneda)}`}
               tono={(consolidado.retornoTotal ?? 0) >= 0 ? "positivo" : "negativo"}
               icono={<TrendingUp className="size-4" />}
             />
           </div>
 
-          {consolidado.sinValoracion > 0 ? (
-            <p className="text-xs text-muted-foreground">
-              {consolidado.sinValoracion} proyecto(s) sin valoración registrada: su activo no está
-              contado en el total.
-            </p>
-          ) : null}
-
-          <PanelGrafica
-            titulo="Activo y pasivo por proyecto"
-            descripcion="Lo que vale cada proyecto frente a lo que se debe por él."
-            leyenda={[
-              { etiqueta: "Valoración", serie: 1 },
-              { etiqueta: "Pasivo", serie: 2 },
-            ]}
-          >
-            {patrimonio.proyectos.length === 0 ? (
-              <EstadoVacio
-                titulo="Sin datos de patrimonio"
-                descripcion="Registra una valoración o un pasivo para ver la comparación."
-              />
-            ) : (
-              <BarrasComparativas
-                categorias={patrimonio.proyectos.map((p) => ({
-                  clave: p.proyectoId,
-                  etiqueta: p.proyecto,
-                  valores: [p.valoracionActual ?? 0, p.pasivoTotal],
-                }))}
-                series={[
-                  { etiqueta: "Valoración", serie: 1 },
-                  { etiqueta: "Pasivo", serie: 2 },
-                ]}
-                moneda={consolidado.moneda}
-                tituloTabla="Activo y pasivo por proyecto"
-              />
-            )}
-          </PanelGrafica>
-
           <section className="space-y-3">
             <h2 className="text-lg font-medium">Detalle por proyecto</h2>
+            <p className="text-xs text-muted-foreground">
+              Aquí estaba también un panel «Activo y pasivo por proyecto» que dibujaba dos de estas
+              columnas: era un subconjunto visual de esta tabla, veinte píxeles más arriba.
+            </p>
             <div className="panel overflow-x-auto">
               <Table>
                 <TableHeader>
@@ -128,41 +108,65 @@ export default async function PaginaPatrimonio() {
                     <TableHead>Proyecto</TableHead>
                     <TableHead className="text-right">Invertido</TableHead>
                     <TableHead className="text-right">Valoración</TableHead>
+                    <TableHead className="text-right">Plusvalía</TableHead>
                     <TableHead className="text-right">Pasivo</TableHead>
+                    <TableHead className="text-right">LTV</TableHead>
                     <TableHead className="text-right">Patrimonio neto</TableHead>
                     <TableHead className="text-right">Retorno</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {patrimonio.proyectos.map((fila) => (
-                    <TableRow key={fila.proyectoId}>
-                      <TableCell className="max-w-56">
-                        <p className="truncate font-medium">{fila.proyecto}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {fila.valoracionFecha
-                            ? `Valorado el ${formatearFecha(fila.valoracionFecha, ajustes.formatoFecha)}`
-                            : "Sin valoración"}
-                        </p>
-                      </TableCell>
-                      <TableCell className="text-right tabular-nums">
-                        {formatearDinero(fila.totalInvertido, fila.moneda)}
-                      </TableCell>
-                      <TableCell className="text-right tabular-nums">
-                        {fila.valoracionActual === null
-                          ? "—"
-                          : formatearDinero(fila.valoracionActual, fila.moneda)}
-                      </TableCell>
-                      <TableCell className="text-right tabular-nums">
-                        {formatearDinero(fila.pasivoTotal, fila.moneda)}
-                      </TableCell>
-                      <TableCell className="text-right font-medium tabular-nums">
-                        {formatearDinero(fila.patrimonioNeto, fila.moneda)}
-                      </TableCell>
-                      <TableCell className="text-right tabular-nums">
-                        {formatearPorcentaje(fila.retorno, 1)}
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  {patrimonio.proyectos.map((fila) => {
+                    const plusvalia = plusvaliaDelProyecto(fila);
+                    const ltv = ltvDelProyecto(fila);
+
+                    return (
+                      <TableRow key={fila.proyectoId}>
+                        <TableCell className="max-w-56">
+                          <p className="truncate font-medium">{fila.proyecto}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {fila.valoracionFecha
+                              ? `Valorado el ${formatearFecha(fila.valoracionFecha, ajustes.formatoFecha)}`
+                              : "Sin valoración"}
+                          </p>
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {formatearDineroCompacto(fila.totalInvertido, fila.moneda)}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {fila.valoracionActual === null
+                            ? "—"
+                            : formatearDineroCompacto(fila.valoracionActual, fila.moneda)}
+                        </TableCell>
+                        <TableCell
+                          className={cn(
+                            "text-right tabular-nums",
+                            plusvalia === null
+                              ? "text-muted-foreground"
+                              : plusvalia >= 0
+                                ? "text-success"
+                                : "text-destructive",
+                          )}
+                        >
+                          {plusvalia === null
+                            ? "—"
+                            : formatearDineroCompacto(plusvalia, fila.moneda)}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {formatearDineroCompacto(fila.pasivoTotal, fila.moneda)}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {formatearPorcentaje(ltv, 0)}
+                        </TableCell>
+                        <TableCell className="text-right font-medium tabular-nums">
+                          {formatearDineroCompacto(fila.patrimonioNeto, fila.moneda)}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {formatearPorcentaje(fila.retorno, 1)}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </div>
