@@ -298,7 +298,7 @@ de fecha y horizonte de proyección van en `ajustes.preferencias` (JSONB), porqu
 preferencias de presentación y agregar una más no debe costar una migración. El tema
 no se persiste en la base: vive en el navegador vía `next-themes`, que es lo que
 evita el parpadeo del tema equivocado en la primera pintura. El horizonte alimenta
-`generar_ocurrencias(p_horizonte_meses)` ([§5.6](#56-recurrencias), [§10.1](#101-tareas-vercel-cron)).
+`generar_ocurrencias(p_horizonte_meses)` ([§5.6](#56-recurrencias), [§10.1](#101-tareas-programadas)).
 | RF-102 | Canales de notificación y días de anticipación por defecto. | 4 |
 | RF-103 | Exportación completa de los datos en JSON. | 5 |
 
@@ -841,7 +841,7 @@ Lo que hay que vigilar tras cada migración es que no aparezcan permisos nuevos:
 
 ### 6.8 Migraciones
 
-- Carpeta `supabase/migrations/`, archivos `YYYYMMDDHHMMSS_descripcion.sql`, versionados y aplicados con Supabase CLI. Las aplicadas hoy son once:
+- Carpeta `supabase/migrations/`, archivos `YYYYMMDDHHMMSS_descripcion.sql`, versionados y aplicados con Supabase CLI. Las aplicadas hoy son doce:
 
   | Migración                                    | Qué introduce                                                                                                                    |
   | -------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
@@ -855,7 +855,8 @@ Lo que hay que vigilar tras cada migración es que no aparezcan permisos nuevos:
   | `20260731120000_soportes_veinte_mb`          | Sube el límite por archivo de 10 a 20 MB (RF-42)                                                                                 |
   | `20260731130000_fecha_de_negocio`            | `fecha_de_negocio()` y el fin de `current_date` en la base ([§8.5](#85-fechas))                                                  |
   | `20260731140000_bandeja_de_avisos`           | `notificaciones.leida_en`, su restricción de canal y el índice de la campana ([§10.2](#102-canales))                             |
-  | `20260731150000_avisos_idempotentes`         | `notificaciones_unicas_idx` deja de ser parcial: sin eso la tarea de avisos fallaba con 42P10 ([§10.1](#101-tareas-vercel-cron)) |
+  | `20260731150000_avisos_idempotentes`         | `notificaciones_unicas_idx` deja de ser parcial: sin eso la tarea de avisos fallaba con 42P10 ([§10.1](#101-tareas-programadas)) |
+  | `20260803120000_tareas_en_postgres`          | `pg_cron` y las dos tareas que ya eran SQL: el plan Hobby no admitía cuatro crones ([§10.1](#101-tareas-programadas))            |
 
 - **El límite de tamaño de un soporte vive en tres capas y las tres deben decir lo mismo:** la entidad (`documento.entity.ts`), el `check` de `documentos.tamano_bytes` y el `file_size_limit` del bucket. La última migración las movió juntas por eso: si el bucket admitiera menos que el `check`, el objeto se rechazaría después de que la entidad lo dio por bueno y el usuario vería un error opaco. La migración busca el `check` original **por su definición y no por su nombre**, porque el DDL inicial lo declaró sin nombrar y Postgres le puso uno derivado.
 - Nunca se edita una migración ya aplicada: se crea una nueva. **Única excepción admitida hasta ahora:** el paso a monousuario ([ADR-14](#16-decisiones-técnicas-adr)) reescribió el juego completo de migraciones en lugar de encadenar cuatro migraciones de deshacer. Se hizo porque la base no tenía ningún dato, las migraciones originales llevaban horas aplicadas y el esquema anterior queda en el historial de git. La regla vuelve a estar en vigor: de aquí en adelante, migración nueva.
@@ -1284,27 +1285,52 @@ Lo que sigue protegido pase lo que pase, incluso con el token comprometido: nada
 
 ## 10. Notificaciones y tareas programadas
 
-### 10.1 Tareas (Vercel Cron)
+### 10.1 Tareas programadas
 
-| Tarea                 | Frecuencia       | Endpoint                            | Responsabilidad                                                                         |
-| --------------------- | ---------------- | ----------------------------------- | --------------------------------------------------------------------------------------- |
-| Generar ocurrencias   | diaria 05:00 COT | `/api/cron/obligaciones`            | Materializar ocurrencias faltantes en el horizonte de 12 meses.                         |
-| Actualizar vencidos   | diaria 05:10 COT | `/api/cron/estados`                 | Pasar a `vencido` movimientos y ocurrencias `pendiente` con vencimiento anterior a hoy. |
-| Programar avisos      | diaria 05:20 COT | `/api/cron/notificaciones`          | Crear notificaciones según `dias_aviso`.                                                |
-| Enviar notificaciones | cada hora        | `/api/cron/notificaciones?enviar=1` | Enviar pendientes, marcar enviadas, reintentar fallidas (máx. 3).                       |
+Las tareas viven en **dos programadores**, y la línea que las separa es si necesitan el runtime de la aplicación:
 
-Todas las tareas son **idempotentes**: ejecutarlas dos veces el mismo día no duplica ocurrencias ni correos (garantizado por los índices únicos de [§6.3](#63-esquema)).
+| Tarea                 | Programador | Frecuencia             | Qué ejecuta                         | Responsabilidad                                                                         |
+| --------------------- | ----------- | ---------------------- | ----------------------------------- | --------------------------------------------------------------------------------------- |
+| Generar ocurrencias   | pg_cron     | diaria 04:00 COT       | `generar_ocurrencias(horizonte)`    | Materializar ocurrencias faltantes en el horizonte de 12 meses.                         |
+| Actualizar vencidos   | pg_cron     | diaria 04:05 COT       | `marcar_vencidos()`                 | Pasar a `vencido` movimientos y ocurrencias `pendiente` con vencimiento anterior a hoy. |
+| Programar avisos      | Vercel Cron | diaria 05:00–05:59 COT | `/api/cron/notificaciones`          | Crear notificaciones según `dias_aviso`.                                                |
+| Enviar notificaciones | Vercel Cron | diaria 07:00–07:59 COT | `/api/cron/notificaciones?enviar=1` | Enviar pendientes, marcar enviadas, reintentar fallidas (máx. 3).                       |
+
+**Las dos primeras bajaron a la base porque ya eran SQL.** `generar_ocurrencias()` y `marcar_vencidos()` son funciones completas ([§5.6](#56-recurrencias)); los endpoints `/api/cron/obligaciones` y `/api/cron/estados` eran un envoltorio de una línea sobre un caso de uso de una línea. Siguen existiendo como **disparadores manuales** —es lo que usa el README para poblar una base recién sembrada— pero salieron de `vercel.json`. Las dos de avisos se quedan en Vercel porque las plantillas de [§10.3](#103-plantillas-de-correo) y el proveedor de correo viven en la aplicación.
+
+> **El motivo del reparto fue el plan Hobby, y el defecto no era un retraso.** Hobby limita cada cron job a **una ejecución al día** con precisión de una hora: un `0 10 * * *` dispara en cualquier minuto entre las 10:00 y las 10:59 UTC. De ahí salían dos cosas. La primera: `"0 * * * *"` —el envío horario— **fallaba el despliegue** («Hobby accounts are limited to daily cron jobs»); no corría tarde, no llegaba a existir. La segunda, más silenciosa: los tres diarios de las 10:00, 10:10 y 10:20 UTC compartían ventana, así que programar avisos podía ejecutarse **antes** de generar las ocurrencias que los motivan. El orden importaba y los minutos escalonados solo lo hacían parecer garantizado. En pg_cron el minuto es exacto y el orden se cumple. El límite que queda es el que separa las dos mitades, y se resolvió con la misma lógica: las tareas de la base van a las 09:00/09:05 UTC, una hora entera antes del comienzo de la ventana de las 10:00 en la que puede caer la de programar avisos, en lugar de confiar otra vez en unos minutos de diferencia.
+
+**Bajar el envío a diario no retrasa ningún aviso**, y no por suerte: **todo instante programado en este sistema es mediodía UTC** —el de `instanteDeAviso` y el del resumen semanal—, así que una corrida que empieza dentro de la hora de las 12:00 siempre cae después y recoge todo el día. El cron horario nunca aprovechó su frecuencia: veintitrés de sus veinticuatro corridas no encontraban nada. Lo único que se pierde es el reintento rápido de una fallida, que pasa de una hora a veinticuatro (con el máximo de tres intentos, hasta tres días). **El canal in-app no se ve afectado en absoluto**, por la decisión 2 de [§10.2](#102-canales): la campana muestra el aviso desde que su instante se cumple, no desde que la tarea lo marca `enviada`.
+
+Todas las tareas son **idempotentes**: ejecutarlas dos veces el mismo día no duplica ocurrencias ni correos (garantizado por los índices únicos de [§6.3](#63-esquema)). Eso es lo que hace inofensivo disparar un endpoint a mano el mismo día que corrió su tarea.
 
 > **Y conviene saber cómo se descubrió que esa frase era falsa.** `notificaciones_unicas_idx` nació parcial (`where ocurrencia_id is not null`). Un índice parcial no sirve para inferir un `on conflict (columnas)` a menos que la sentencia repita el predicado, y PostgREST —que traduce el `upsert` del adaptador— solo puede enviar la lista de columnas. Así que la tarea no era idempotente: **era imposible**. Respondía `42P10` y programaba cero avisos, con 121 ocurrencias en la base esperando. Lo tapaba una asimetría entre el doble y el esquema: el repositorio en memoria construye la clave con un centinela (`ocurrencia_id ?? "sin-ocurrencia"`), tratando los nulos como iguales, así que sus pruebas pasaban en verde describiendo una regla que la base no tenía. La undécima migración pone el índice como el doble ya lo suponía, y la prueba de esquema verifica **el `on conflict` real** y no la existencia del índice, porque el índice existía y aun así no servía.
 
-**Los horarios de `vercel.json` van en UTC**, que es lo único que Vercel Cron entiende:
-las 05:00 COT de la tabla son `0 10 * * *`. Escribirlos en hora local es el error que
-hace que la tarea corra a mediodía y nadie lo note hasta que un aviso llega tarde.
+**Los horarios van en UTC en los dos programadores**: es lo único que Vercel Cron
+entiende, y es la zona con la que pg_cron evalúa sus expresiones. Las 04:00 COT de la
+tabla son `0 9 * * *`. Escribirlos en hora local es el error que hace que la tarea corra
+a mediodía y nadie lo note hasta que un aviso llega tarde.
+
+Las dos tareas de la base van a las 09:00 UTC y no antes por una razón que no es
+estética: la fecha de negocio cambia de día a las 05:00 UTC ([§8.5](#85-fechas)), así que
+adelantarlas a las 04:00 UTC las haría correr todavía en el día COT anterior y dejaría un
+día de vencidos sin marcar. Sus comandos **cualifican los nombres con `public.`**, porque
+pg_cron ejecuta con el `search_path` del rol que programó la tarea y no con el de la
+sesión que aplicó la migración: un `select generar_ocurrencias(...)` a secas es la forma
+de que falle en producción habiendo funcionado en la migración. El horizonte lo lee de
+`ajustes.preferencias`, la misma clave que mapea el adaptador, para que el valor siga
+teniendo una sola fuente ahora que quien invoca la función ya no es la aplicación.
+
+El esquema `cron` que crea la extensión queda **cerrado a los tres roles de la
+aplicación**, `service_role` incluido ([§6.5](#65-blindaje-de-acceso-a-la-base)):
+programar tareas no es una capacidad que la aplicación necesite por ninguna de sus
+credenciales.
 
 Los tres endpoints comparten guardia (`src/app/api/cron/autorizacion.ts`): comparan el
 digesto de `CRON_SECRET` en tiempo constante y **rechazan la petición si el secreto no
 está configurado**, en lugar de quedar abiertos. Un cron que no corre se nota; uno que
-cualquiera puede disparar, no.
+cualquiera puede disparar, no. Sigue valiendo para los dos que ya no tienen horario: un
+disparador manual alcanzable sin credencial es igual de disparable por cualquiera.
 
 ### 10.2 Canales
 

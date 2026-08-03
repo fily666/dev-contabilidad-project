@@ -37,6 +37,39 @@ create or replace function storage.foldername(name text) returns text[]
 language sql immutable
 as $$ select string_to_array(name, '/') $$;
 
+-- pg_cron tampoco viene con PostgreSQL desnudo, y las dos tareas diarias de
+-- §10.1 viven ahi. Se apuntala lo que la migracion usa —el esquema, la tabla de
+-- trabajos y las dos funciones— para que las tareas se verifiquen de verdad en
+-- lugar de excluir de las pruebas la migracion que las declara.
+--
+-- cron.schedule reemplaza el trabajo del mismo nombre, como pg_cron desde 1.4:
+-- si el stub admitiera duplicados, la prueba no veria la tarea repetida que la
+-- migracion se molesta en evitar desprogramando antes de crear.
+create schema if not exists cron;
+
+create table cron.job (
+  jobid    bigserial primary key,
+  jobname  text unique,
+  schedule text not null,
+  command  text not null
+);
+
+create or replace function cron.schedule(p_nombre text, p_horario text, p_comando text)
+returns bigint
+language sql
+as $$
+  insert into cron.job (jobname, schedule, command)
+  values (p_nombre, p_horario, p_comando)
+  on conflict (jobname) do update
+    set schedule = excluded.schedule, command = excluded.command
+  returning jobid;
+$$;
+
+create or replace function cron.unschedule(p_jobid bigint)
+returns boolean
+language sql
+as $$ delete from cron.job where jobid = p_jobid returning true; $$;
+
 do $$ begin
   if not exists (select 1 from pg_roles where rolname = 'anon') then create role anon; end if;
   if not exists (select 1 from pg_roles where rolname = 'authenticated') then create role authenticated; end if;

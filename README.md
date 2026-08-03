@@ -324,5 +324,7 @@ El degradado de cada marca va del paso base a `--marca-realce` (blanco en oscuro
 
 - **Aplicación:** Vercel. Configura las mismas variables de `.env.example` en el proyecto de Vercel; `TOKEN_ACCESO`, `SECRETO_SESION`, `SUPABASE_SERVICE_ROLE_KEY` y `CRON_SECRET` como secretas.
 - **Base de datos y archivos:** Supabase.
+- **Las tareas programadas viven en dos sitios** ([Contexto.md §10.1](Contexto.md)): generar ocurrencias y marcar vencidos las programa `pg_cron` dentro de Supabase, así que **quedan activas al aplicar las migraciones** (`npm run db:push`) y no hay nada que configurar en Vercel; las dos de avisos las declara `vercel.json`. Si desplegaste la aplicación pero no aplicaste las migraciones, las ocurrencias no se generan y no hay ningún error a la vista.
+- El plan Hobby de Vercel admite **una ejecución al día por cron job**, con precisión de una hora. Una expresión más frecuente que eso —`0 * * * *`, por ejemplo— **falla el despliegue**, no se retrasa.
 - Antes de cada despliegue, `npm run verify` debe pasar.
 - Al desplegar en un dominio público, el token queda expuesto a intentos desde internet. Es el momento de que sea largo y aleatorio.

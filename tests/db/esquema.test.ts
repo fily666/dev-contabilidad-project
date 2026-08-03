@@ -1,3 +1,5 @@
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { crearBaseDePrueba, type BaseDePrueba } from "./harness";
 
@@ -906,6 +908,80 @@ describe("esquema de base de datos", () => {
           [proyecto.rows[0]!.id, `${proyecto.rows[0]!.id}/grande.pdf`],
         ),
       ).rejects.toThrow(/tamano_bytes/);
+    });
+  });
+
+  describe("tareas programadas en la base (§10.1)", () => {
+    /** Las dos tareas que dejaron Vercel Cron por el limite del plan Hobby. */
+    async function tareas() {
+      const r = await base.db.query<{ jobname: string; schedule: string; command: string }>(
+        `select jobname, schedule, command from cron.job order by schedule`,
+      );
+      return r.rows;
+    }
+
+    it("declara las dos tareas diarias con su horario en UTC", async () => {
+      expect(await tareas()).toMatchObject([
+        { jobname: "generar-ocurrencias", schedule: "0 9 * * *" },
+        { jobname: "marcar-vencidos", schedule: "5 9 * * *" },
+      ]);
+    });
+
+    it("genera las ocurrencias antes de marcar los vencidos", async () => {
+      // El orden es la razon del cambio: en Vercel los minutos escalonados no lo
+      // garantizaban. Aqui si, y la prueba lo fija para que nadie los reordene
+      // creyendo que el intervalo es lo unico que importa.
+      const [primera, segunda] = await tareas();
+      expect(primera!.jobname).toBe("generar-ocurrencias");
+      expect(segunda!.jobname).toBe("marcar-vencidos");
+    });
+
+    it("no adelanta las tareas al dia de negocio anterior (§8.5)", async () => {
+      // La fecha de negocio cambia de dia a las 05:00 UTC. Una tarea antes de esa
+      // hora compara contra el hoy de ayer y deja un dia de vencidos sin marcar.
+      for (const tarea of await tareas()) {
+        const hora = Number(tarea.schedule.split(" ")[1]);
+        expect(hora).toBeGreaterThanOrEqual(5);
+      }
+    });
+
+    it("cualifica los nombres con public. porque pg_cron no hereda el search_path", async () => {
+      for (const tarea of await tareas()) {
+        expect(tarea.command).toMatch(/public\./);
+      }
+    });
+
+    it("lee el horizonte de ajustes y no de una constante", async () => {
+      const [generar] = await tareas();
+      expect(generar!.command).toContain("horizonte_proyeccion_meses");
+
+      // Y el comando debe funcionar: es lo que la tarea ejecutara cada dia.
+      const r = await base.db.query<{ generar_ocurrencias: number }>(generar!.command);
+      expect(typeof r.rows[0]!.generar_ocurrencias).toBe("number");
+    });
+
+    it("cierra el esquema cron a los tres roles de la aplicacion (§6.5)", async () => {
+      const r = await base.db.query<{ rol: string; puede: boolean }>(
+        `select rol, has_schema_privilege(rol, 'cron', 'usage') as puede
+           from unnest(array['anon', 'authenticated', 'service_role']) as rol`,
+      );
+      expect(r.rows).toHaveLength(3);
+      for (const fila of r.rows) expect(fila.puede).toBe(false);
+    });
+
+    // Va al final del archivo a proposito: reaplica una migracion y deja el
+    // estado tocado.
+    it("reaplicar la migracion no duplica las tareas", async () => {
+      // Un trabajo duplicado no es un error visible: es la misma tarea corriendo
+      // dos veces. Por eso la migracion desprograma antes de crear, y por eso la
+      // propiedad se verifica en lugar de confiar en la version de pg_cron.
+      const sql = await readFile(
+        join(process.cwd(), "supabase/migrations/20260803120000_tareas_en_postgres.sql"),
+        "utf8",
+      );
+      await base.db.exec(sql);
+
+      expect(await tareas()).toHaveLength(2);
     });
   });
 });

@@ -2,20 +2,12 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "crons": [
     {
-      "path": "/api/cron/obligaciones",
+      "path": "/api/cron/notificaciones",
       "schedule": "0 10 * * *"
     },
     {
-      "path": "/api/cron/estados",
-      "schedule": "10 10 * * *"
-    },
-    {
-      "path": "/api/cron/notificaciones",
-      "schedule": "20 10 * * *"
-    },
-    {
       "path": "/api/cron/notificaciones?enviar=1",
-      "schedule": "0 * * * *"
+      "schedule": "0 12 * * *"
     }
   ]
 }

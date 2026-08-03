@@ -11,6 +11,17 @@ import { cronAutorizado, noAutorizado } from "../autorizacion";
  * diferencian en una sola decisión. Las dos son idempotentes: programar dos veces
  * el mismo aviso lo descarta el índice único de §6.3, y enviar dos veces no
  * duplica correos porque la fila ya quedó en `enviada`.
+ *
+ * **Son las dos únicas tareas que siguen en `vercel.json`**, porque son las dos
+ * que necesitan este runtime: las plantillas de §10.3 y el proveedor de correo
+ * viven en la aplicación. Las otras dos pasaron a pg_cron (§10.1).
+ *
+ * El envío es diario a las 12:00 UTC y no cada hora —el plan Hobby no admite más
+ * de una ejecución al día— y aun así ningún aviso espera: todo instante
+ * programado en este sistema es **mediodía UTC**, el de `instanteDeAviso` y el
+ * del resumen semanal. Una corrida que empieza dentro de la hora de las 12:00
+ * siempre cae después, así que recoge todo lo del día. Lo que se pierde es el
+ * reintento rápido de una fallida: pasa de una hora a veinticuatro.
  */
 export const dynamic = "force-dynamic";
 

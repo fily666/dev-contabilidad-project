@@ -2,7 +2,11 @@ import { crearContenedor } from "@/di/container";
 import { cronAutorizado, noAutorizado } from "../autorizacion";
 
 /**
- * Tarea diaria de sincronizacion de vencidos (Contexto.md §10.1, RF-25, RF-55).
+ * Sincronizacion de vencidos (Contexto.md §10.1, RF-25, RF-55).
+ *
+ * **Disparador manual: el horario vive en pg_cron, no aqui.** La tarea diaria la
+ * programa la base (`marcar-vencidos`, §10.1); `marcar_vencidos()` es una
+ * funcion SQL y este endpoint solo la invocaba.
  *
  * Pasa a `vencido` los movimientos y a `vencida` las ocurrencias que siguen
  * pendientes con fecha anterior a hoy. La interfaz ya los presenta asi sin
