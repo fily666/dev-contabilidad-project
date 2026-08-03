@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Building2, FolderPlus, Landmark, Scale, TrendingUp } from "lucide-react";
 
 import { contenedorPrivado } from "@/di/container";
+import { CabeceraPagina, CabeceraSeccion } from "@/shared/ui/cabeceras";
 import { EnlaceBoton } from "@/shared/ui/enlace-boton";
 import { EstadoVacio } from "@/shared/ui/estado-vacio";
 import { TarjetaIndicador } from "@/shared/ui/tarjeta-indicador";
@@ -32,15 +33,14 @@ export default async function PaginaPatrimonio() {
   const hoy = contenedor.reloj.hoy();
 
   return (
-    <div className="space-y-8">
-      <div>
-        <p className="etiqueta-dato">Balance patrimonial</p>
-        <h1 className="mt-1 text-2xl font-semibold tracking-tight">Patrimonio</h1>
-        <p className="text-sm text-muted-foreground">
-          Activos por valoración, pasivos por saldo y el neto entre los dos. Lo invertido y lo que
-          vale hoy son cifras distintas: aquí se ven las dos.
-        </p>
-      </div>
+    // `space-y-6` como todas las demás vistas: Patrimonio y Presupuestos usaban
+    // `space-y-8` y su ritmo vertical no coincidía con el del resto al navegar.
+    <div className="space-y-6">
+      <CabeceraPagina
+        ambito="Balance patrimonial"
+        titulo="Patrimonio"
+        descripcion="Activos por valoración, pasivos por saldo y el neto entre los dos. Lo invertido y lo que vale hoy son cifras distintas: aquí se ven las dos."
+      />
 
       {proyectos.length === 0 ? (
         <EstadoVacio
@@ -96,11 +96,17 @@ export default async function PaginaPatrimonio() {
           </div>
 
           <section className="space-y-3">
-            <h2 className="text-lg font-medium">Detalle por proyecto</h2>
-            <p className="text-xs text-muted-foreground">
-              Aquí estaba también un panel «Activo y pasivo por proyecto» que dibujaba dos de estas
-              columnas: era un subconjunto visual de esta tabla, veinte píxeles más arriba.
-            </p>
+            {/*
+              El párrafo que había aquí describía al lector un panel que se retiró
+              en la revisión anterior —«aquí estaba también…»—: historia del
+              refactor, publicada en la interfaz. Lo que el usuario necesita de
+              esta tabla es cómo leer la columna de LTV, que es la única cifra de
+              la fila que no es un importe ni se explica por su nombre.
+            */}
+            <CabeceraSeccion
+              titulo="Detalle por proyecto"
+              descripcion="El LTV es el saldo del crédito sobre el valor del activo: por encima del 80 % queda poco margen si el precio baja."
+            />
             <div className="panel overflow-x-auto">
               <Table>
                 <TableHeader>

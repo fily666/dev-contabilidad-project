@@ -22,6 +22,11 @@ export type DatosNotificacion = {
   estado: EstadoNotificacion;
   error: string | null;
   intentos: number;
+  /**
+   * Instante en que el dueño vio el aviso en la campana; null si no lo ha visto
+   * (§10.2). Eje distinto de `estado`: ese describe el envío, este la lectura.
+   */
+  leidaEn: string | null;
 };
 
 /**
@@ -58,6 +63,7 @@ export class Notificacion {
       estado: "programada",
       error: null,
       intentos: 0,
+      leidaEn: null,
     });
   }
 
@@ -86,6 +92,9 @@ export class Notificacion {
   get programadaPara(): string {
     return this.datos.programadaPara;
   }
+  get leidaEn(): string | null {
+    return this.datos.leidaEn;
+  }
 
   /** ¿Toca enviarla ya? */
   vencida(ahora: Date): boolean {
@@ -94,6 +103,41 @@ export class Notificacion {
       Date.parse(this.datos.programadaPara) <= ahora.getTime() &&
       this.datos.intentos < INTENTOS_MAXIMOS
     );
+  }
+
+  /**
+   * ¿Se muestra en la campana? (§10.2, RF-59.)
+   *
+   * Desde que su instante se cumple, no desde que la tarea horaria la marca
+   * `enviada`: el aviso in-app no tiene proveedor al que esperar, y esperar a la
+   * tarea lo retrasaría hasta una hora. Las canceladas quedan fuera, que es lo
+   * que hace que pagar una obligación limpie sus avisos sin código extra
+   * (`cancelarDeOcurrencia`).
+   */
+  publicada(ahora: Date): boolean {
+    return (
+      this.datos.canal === "in_app" &&
+      this.datos.estado !== "cancelada" &&
+      Date.parse(this.datos.programadaPara) <= ahora.getTime()
+    );
+  }
+
+  /**
+   * §10.2: marcar el aviso como visto. Idempotente —volver a leer no mueve el
+   * instante— y limitado al canal in-app, igual que la restricción de la base:
+   * un correo se lee en el cliente de correo y de eso aquí no se puede saber
+   * nada, así que anotarlo sería inventar un dato.
+   */
+  marcarLeida(ahora: Date): void {
+    if (this.datos.canal !== "in_app") {
+      throw new ReglaDeNegocioViolada(
+        "AVISO_NO_LEIBLE",
+        "Solo los avisos in-app se leen dentro de la aplicación.",
+      );
+    }
+    if (this.datos.leidaEn !== null) return;
+
+    this.datos.leidaEn = ahora.toISOString();
   }
 
   marcarEnviada(ahora: Date): void {

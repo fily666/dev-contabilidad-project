@@ -13,29 +13,19 @@ import {
   DialogTitle,
 } from "@/shared/ui/dialog";
 import { EnlaceBoton } from "@/shared/ui/enlace-boton";
+import { InsigniaEstadoMovimiento, InsigniaEstadoOcurrencia } from "@/shared/ui/insignias";
+import type { EstadoMovimiento, EstadoOcurrencia } from "@/shared/domain/enumeraciones";
 import { cn } from "@/shared/utils/cn";
 import { formatearDinero, formatearFechaLarga } from "@/shared/utils/formato";
 import type { MetodoPagoVista } from "@/modules/metodos-pago/domain/metodo-pago.repository";
 import { DialogoPagoOcurrencia } from "@/modules/obligaciones/presentation/components/dialogo-pago-ocurrencia";
 import type { EventoCalendario } from "../../domain/mes";
+import { CLASES_ESTADO_EVENTO } from "../estilos-evento";
 
 type Props = {
   evento: EventoCalendario;
   metodosPago: MetodoPagoVista[];
   hoy: string;
-};
-
-/**
- * RF-61: color por estado y por tipo. El pagado se apaga a proposito: lo que
- * necesita atencion es lo que sigue pendiente.
- */
-const CLASES: Record<string, string> = {
-  pagado: "border-success/30 bg-success-soft text-success-foreground",
-  pagada: "border-success/30 bg-success-soft text-success-foreground",
-  pendiente: "border-info/30 bg-info-soft text-foreground",
-  vencido: "border-destructive/40 bg-danger-soft text-destructive",
-  vencida: "border-destructive/40 bg-danger-soft text-destructive",
-  omitida: "border-border bg-muted text-muted-foreground line-through",
 };
 
 /** RF-64: al abrir el evento se ofrece el pago o el detalle. */
@@ -51,7 +41,7 @@ export function ChipEvento({ evento, metodosPago, hoy }: Props) {
         title={`${evento.concepto} · ${formatearDinero(evento.valor, evento.moneda)}`}
         className={cn(
           "flex w-full items-center gap-1 rounded-md border px-1.5 py-0.5 text-left text-[11px] leading-4 transition-colors hover:brightness-110",
-          CLASES[evento.estado] ?? "border-border bg-muted",
+          CLASES_ESTADO_EVENTO[evento.estado] ?? "border-border bg-muted",
         )}
       >
         {evento.tipo === "ingreso" ? (
@@ -80,7 +70,20 @@ export function ChipEvento({ evento, metodosPago, hoy }: Props) {
             </div>
             <div>
               <dt className="etiqueta-dato">Estado</dt>
-              <dd className="mt-1 font-medium capitalize">{evento.estado}</dd>
+              {/*
+                La insignia del resto del producto, no el valor crudo del enum
+                capitalizado. Este diálogo escribía «Vencida» en texto negro
+                mientras la misma ocurrencia se pintaba en rojo en la rejilla de
+                detrás y como insignia roja en Obligaciones: tres presentaciones
+                del mismo estado, una de ellas sin color.
+              */}
+              <dd className="mt-1">
+                {evento.clase === "ocurrencia" ? (
+                  <InsigniaEstadoOcurrencia estado={evento.estado as EstadoOcurrencia} />
+                ) : (
+                  <InsigniaEstadoMovimiento estado={evento.estado as EstadoMovimiento} />
+                )}
+              </dd>
             </div>
             <div>
               <dt className="etiqueta-dato">Origen</dt>

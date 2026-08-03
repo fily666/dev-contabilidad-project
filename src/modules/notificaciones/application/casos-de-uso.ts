@@ -1,7 +1,12 @@
+import { NoEncontrado } from "@/shared/domain/errores";
 import type { Reloj } from "@/shared/domain/reloj";
 import type { ObligacionRepository } from "@/modules/obligaciones/domain/obligacion.repository";
 
-import { Notificacion, type CanalNotificacion } from "../domain/notificacion.entity";
+import {
+  Notificacion,
+  type CanalNotificacion,
+  type EstadoNotificacion,
+} from "../domain/notificacion.entity";
 import type {
   NotificacionListada,
   NotificacionRepository,
@@ -129,9 +134,10 @@ export class ProgramarAvisos {
     const creada = await this.notificaciones.programarSiFalta(
       Notificacion.programar({
         id: this.nuevoId(),
-        // Sin ocurrencia: el resumen no pertenece a un vencimiento concreto, y
-        // por eso el indice unico de §6.3 no le aplica; la unicidad la da el
-        // instante, que es el mismo para todo el dia.
+        // Sin ocurrencia: el resumen no pertenece a un vencimiento concreto. Su
+        // unicidad la da el instante, que es el mismo para todo el dia, y desde
+        // que el indice de §6.3 es `nulls not distinct` la base la hace cumplir
+        // en lugar de confiar en que no coincida.
         ocurrenciaId: null,
         canal: "email",
         asunto: plantilla.asunto,
@@ -206,12 +212,90 @@ export class EnviarNotificaciones {
   }
 }
 
-/** Campana in-app (§10.2, Fase 3): lo que está programado o ya se envió. */
+/**
+ * Historial completo de avisos (§10.2, RF-59): todos los canales y estados, para
+ * la pantalla que responde «¿se envió o no?». La campana no usa este caso de uso
+ * sino `ObtenerBandejaAvisos`, porque son dos preguntas distintas: aquí interesa
+ * el envío, allí lo que queda por ver.
+ */
 export class ListarNotificaciones {
   constructor(private readonly notificaciones: NotificacionRepository) {}
 
-  async ejecutar(entrada: { limite?: number } = {}): Promise<NotificacionListada[]> {
-    return this.notificaciones.listar({ limite: entrada.limite ?? 20 });
+  async ejecutar(
+    entrada: {
+      limite?: number;
+      estados?: EstadoNotificacion[];
+      canal?: CanalNotificacion;
+    } = {},
+  ): Promise<NotificacionListada[]> {
+    return this.notificaciones.listar({
+      limite: entrada.limite ?? 20,
+      estados: entrada.estados,
+      canal: entrada.canal,
+    });
+  }
+}
+
+/**
+ * Bandeja de la campana (§10.2, RF-59).
+ *
+ * Devuelve las dos cosas juntas porque la campana necesita las dos y en una sola
+ * navegación: el contador para la insignia y los últimos avisos para el panel.
+ * El conteo no se deriva de la lista —la lista viene recortada por `limite`, y
+ * «9 sin leer» con ocho filas visibles es correcto, mientras que contar las
+ * visibles daría ocho y mentiría—.
+ */
+export class ObtenerBandejaAvisos {
+  constructor(
+    private readonly notificaciones: NotificacionRepository,
+    private readonly reloj: Reloj,
+  ) {}
+
+  async ejecutar(
+    entrada: { limite?: number; soloNoLeidos?: boolean } = {},
+  ): Promise<{ avisos: NotificacionListada[]; noLeidos: number }> {
+    const ahora = this.reloj.ahora();
+
+    const [avisos, noLeidos] = await Promise.all([
+      this.notificaciones.bandeja(ahora, {
+        limite: entrada.limite ?? 10,
+        soloNoLeidos: entrada.soloNoLeidos,
+      }),
+      this.notificaciones.contarNoLeidos(ahora),
+    ]);
+
+    return { avisos, noLeidos };
+  }
+}
+
+/** §10.2: el dueño vio un aviso concreto. */
+export class MarcarAvisoLeido {
+  constructor(
+    private readonly notificaciones: NotificacionRepository,
+    private readonly reloj: Reloj,
+  ) {}
+
+  async ejecutar(entrada: { id: string }): Promise<{ id: string }> {
+    const aviso = await this.notificaciones.buscarPorId(entrada.id);
+    if (!aviso) throw new NoEncontrado("aviso", entrada.id);
+
+    // La regla del canal vive en la entidad, no aquí (§7.4).
+    aviso.marcarLeida(this.reloj.ahora());
+    await this.notificaciones.actualizar(aviso);
+
+    return { id: aviso.id };
+  }
+}
+
+/** §10.2: «marcar todo como leído». Ver por qué es una operación de conjunto en el puerto. */
+export class MarcarAvisosLeidos {
+  constructor(
+    private readonly notificaciones: NotificacionRepository,
+    private readonly reloj: Reloj,
+  ) {}
+
+  async ejecutar(): Promise<{ leidos: number }> {
+    return { leidos: await this.notificaciones.marcarTodosLeidos(this.reloj.ahora()) };
   }
 }
 

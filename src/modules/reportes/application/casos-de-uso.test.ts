@@ -115,6 +115,12 @@ describe("ReporteMovimientos (RF-90)", () => {
     expect(canon?.egreso).toBeNull();
     expect(reporte.totales.find((t) => t.etiqueta === "Ingresos")?.valor).toBe("2000000");
     expect(reporte.generadoEn).toContain("2026-07-30");
+
+    // §11: cada total declara si es dinero o un conteo. Sin esto, los tres
+    // consumidores lo adivinaban por el tamaño del numero y el PDF imprimia
+    // «$ 1.200» donde habia 1.200 movimientos contados.
+    expect(reporte.totales.find((t) => t.etiqueta === "Ingresos")?.tipo).toBe("dinero");
+    expect(reporte.totales.find((t) => t.etiqueta === "Movimientos")?.tipo).toBe("numero");
   });
 
   it("deja constancia de los filtros aplicados (RF-94, RF-95)", async () => {
@@ -173,6 +179,8 @@ describe("ReporteObligaciones (RF-93)", () => {
     expect(reporte.filas).toHaveLength(1);
     expect(reporte.filas[0]?.vencidas).toBe(2);
     expect(reporte.totales.find((t) => t.etiqueta === "Obligaciones")?.valor).toBe("1");
+    // Un conteo de obligaciones no es un importe (§11).
+    expect(reporte.totales.every((t) => t.tipo === "numero")).toBe(true);
   });
 });
 

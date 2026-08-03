@@ -29,6 +29,34 @@ export function TarjetaProyecto({
 }) {
   const balancePositivo = proyecto.balance >= 0;
 
+  /*
+    El medidor cambia de pregunta según el proyecto tenga ingresos o no.
+
+    Era siempre «Cobertura de egresos» = ingresos / egresos, y en un vehículo
+    —que por definición no genera ingresos (§5.4)— marcaba **0 % en todas las
+    tarjetas, siempre**: una barra vacía y un rojo implícito que no describían
+    ningún problema, solo un indicador que no aplica. §5.4 saca el yield y el ROI
+    de esos tipos por esta misma razón, y este medidor se había quedado fuera de
+    esa regla.
+
+    Sin ingresos la pregunta útil con los datos de la tarjeta es qué parte de lo
+    desembolsado capitaliza: en una moto, cuánto es la compra y cuánto se ha ido en
+    mantenimiento. La barra ocupa lo mismo, así que las tarjetas de la rejilla
+    siguen midiendo igual de alto.
+  */
+  const generaIngresos = proyecto.totalIngresos > 0;
+  const medidor = generaIngresos
+    ? {
+        etiqueta: "Cobertura de egresos",
+        valor: proyecto.totalIngresos,
+        texto: proyecto.totalEgresos > 0 ? proyecto.totalIngresos / proyecto.totalEgresos : null,
+      }
+    : {
+        etiqueta: "Capitalizado del gasto",
+        valor: proyecto.totalInvertido,
+        texto: proyecto.totalEgresos > 0 ? proyecto.totalInvertido / proyecto.totalEgresos : null,
+      };
+
   return (
     // `min-w-0` no es decorativo: como item de grid, la tarjeta tiene
     // `min-width: auto`, asi que el titulo en `white-space: nowrap` fijaba su
@@ -83,12 +111,9 @@ export function TarjetaProyecto({
 
       <MedidorLineal
         className="mt-4"
-        etiqueta="Cobertura de egresos"
-        razon={razonAcotada(proyecto.totalIngresos, proyecto.totalEgresos)}
-        valorTexto={formatearPorcentaje(
-          proyecto.totalEgresos > 0 ? proyecto.totalIngresos / proyecto.totalEgresos : null,
-          0,
-        )}
+        etiqueta={medidor.etiqueta}
+        razon={razonAcotada(medidor.valor, proyecto.totalEgresos)}
+        valorTexto={formatearPorcentaje(medidor.texto, 0)}
         serie={1}
       />
 

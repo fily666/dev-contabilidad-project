@@ -1,11 +1,13 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
-import { FolderPlus } from "lucide-react";
+import { FolderPlus, Upload } from "lucide-react";
 
 import { contenedorPrivado } from "@/di/container";
+import { CabeceraPagina, CabeceraSeccion } from "@/shared/ui/cabeceras";
 import { EnlaceBoton } from "@/shared/ui/enlace-boton";
 import { EstadoVacio } from "@/shared/ui/estado-vacio";
 import { Skeleton } from "@/shared/ui/skeleton";
+import { formatearTamano } from "@/shared/utils/formato";
 import { FiltrosDocumentos } from "@/modules/documentos/presentation/components/filtros-documentos";
 import { ListaDocumentos } from "@/modules/documentos/presentation/components/lista-documentos";
 import {
@@ -29,17 +31,28 @@ export default async function PaginaDocumentos({ searchParams }: Props) {
   ]);
 
   const tamanoTotal = documentos.reduce((suma, d) => suma + d.tamanoBytes, 0);
+  const proyectoFiltrado = filtro.proyectoId
+    ? (proyectos.find((p) => p.proyectoId === filtro.proyectoId) ?? null)
+    : null;
 
   return (
     <div className="space-y-6">
-      <div>
-        <p className="etiqueta-dato">Soportes</p>
-        <h1 className="mt-1 text-2xl font-semibold tracking-tight">Documentos</h1>
-        <p className="text-sm text-muted-foreground">
-          Escrituras, contratos, facturas y comprobantes de todos los proyectos. Los archivos se
-          sirven con enlaces firmados temporales.
-        </p>
-      </div>
+      <CabeceraPagina
+        ambito="Soportes"
+        titulo="Documentos"
+        descripcion="Escrituras, contratos, facturas y comprobantes de todos los proyectos. Los archivos se sirven con enlaces firmados temporales."
+        // La subida vive en el ámbito del proyecto, porque un soporte sin proyecto
+        // no existe (§5.7). Con un proyecto ya filtrado, el destino es inequívoco:
+        // antes esta vista se limitaba a decir «entra al proyecto correspondiente»
+        // y dejaba al usuario buscarlo por su cuenta.
+        acciones={
+          proyectoFiltrado ? (
+            <EnlaceBoton href={`/proyectos/${proyectoFiltrado.proyectoId}/documentos`}>
+              <Upload className="size-4" aria-hidden /> Subir a {proyectoFiltrado.nombre}
+            </EnlaceBoton>
+          ) : null
+        }
+      />
 
       {proyectos.length === 0 ? (
         <EstadoVacio
@@ -56,14 +69,19 @@ export default async function PaginaDocumentos({ searchParams }: Props) {
             />
           </Suspense>
 
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className="text-sm text-muted-foreground">
-              {documentos.length} soporte(s) · {(tamanoTotal / (1024 * 1024)).toFixed(1)} MB
-            </p>
-            <p className="text-xs text-muted-foreground">
-              Para subir un soporte entra al proyecto o al movimiento correspondiente.
-            </p>
-          </div>
+          {/*
+            Una cabecera de sección con el recuento, en lugar de dos párrafos
+            sueltos enfrentados. El de la derecha —«para subir un soporte entra al
+            proyecto o al movimiento correspondiente»— era una instrucción sin
+            enlace: mandaba al usuario a buscar a mano el destino que la propia
+            vista ya conocía. Ahora es el botón de la cabecera, y el tamaño usa el
+            mismo `formatearTamano` que cada tarjeta de la lista en lugar de una
+            división por 1024 escrita aquí.
+          */}
+          <CabeceraSeccion
+            titulo="Resultados"
+            descripcion={`${documentos.length} soporte(s) · ${formatearTamano(tamanoTotal)}`}
+          />
 
           <ListaDocumentos documentos={documentos} formatoFecha={ajustes.formatoFecha} />
         </>

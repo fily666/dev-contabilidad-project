@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { ArrowLeft, FolderPlus } from "lucide-react";
 
 import { contenedorPrivado } from "@/di/container";
+import { CabeceraPagina } from "@/shared/ui/cabeceras";
 import { EnlaceBoton } from "@/shared/ui/enlace-boton";
 import { EstadoVacio } from "@/shared/ui/estado-vacio";
 import { ImportadorCsv } from "@/modules/movimientos/presentation/components/importador-csv";
@@ -19,16 +20,21 @@ export default async function PaginaImportarMovimientos() {
   return (
     <div className="space-y-6">
       <div>
-        <EnlaceBoton href="/movimientos" variant="ghost" size="sm" className="mb-2 -ml-2">
+        {/*
+          `sm:hidden`, como el de las secciones de proyecto: desde 640 px la miga
+          de pan de la barra superior ya dice «Movimientos › Importar» y es
+          navegable, así que este botón era el segundo camino de vuelta al mismo
+          sitio, uno encima del otro.
+        */}
+        <EnlaceBoton href="/movimientos" variant="ghost" size="sm" className="mb-2 -ml-2 sm:hidden">
           <ArrowLeft className="size-4" aria-hidden /> Movimientos
         </EnlaceBoton>
 
-        <p className="etiqueta-dato">Carga en lote</p>
-        <h1 className="mt-1 text-2xl font-semibold tracking-tight">Importar movimientos</h1>
-        <p className="text-sm text-muted-foreground">
-          Se valida fila por fila y se previsualiza antes de escribir. Las categorías y los métodos
-          de pago se buscan por nombre; los que no existan se señalan sin detener el resto.
-        </p>
+        <CabeceraPagina
+          ambito="Carga en lote"
+          titulo="Importar movimientos"
+          descripcion="Se valida fila por fila y se previsualiza antes de escribir. Las categorías y los métodos de pago se buscan por nombre; los que no existan se señalan sin detener el resto."
+        />
       </div>
 
       {proyectos.length === 0 ? (

@@ -14,6 +14,7 @@ test.describe("RNF-01 responsive", () => {
     "/movimientos/importar",
     "/obligaciones",
     "/calendario",
+    "/avisos",
     "/documentos",
     "/presupuestos",
     "/patrimonio",

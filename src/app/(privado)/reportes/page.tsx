@@ -3,8 +3,10 @@ import type { Metadata } from "next";
 import { FileText } from "lucide-react";
 
 import { contenedorPrivado } from "@/di/container";
+import { CabeceraPagina, CabeceraSeccion } from "@/shared/ui/cabeceras";
 import { EstadoVacio } from "@/shared/ui/estado-vacio";
 import { Skeleton } from "@/shared/ui/skeleton";
+import { TarjetaIndicador } from "@/shared/ui/tarjeta-indicador";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/ui/table";
 import { cn } from "@/shared/utils/cn";
 import { formatearDinero, formatearFecha } from "@/shared/utils/formato";
@@ -55,13 +57,11 @@ export default async function PaginaReportes({ searchParams }: Props) {
 
   return (
     <div className="space-y-6">
-      <div>
-        <p className="etiqueta-dato">Exportación</p>
-        <h1 className="mt-1 text-2xl font-semibold tracking-tight">Reportes</h1>
-        <p className="text-sm text-muted-foreground">
-          Los reportes se construyen con las mismas cifras del dashboard, así que nunca discrepan.
-        </p>
-      </div>
+      <CabeceraPagina
+        ambito="Exportación"
+        titulo="Reportes"
+        descripcion="Los reportes se construyen con las mismas cifras del panel, así que nunca discrepan."
+      />
 
       <Suspense fallback={<Skeleton className="h-48 w-full" />}>
         <SelectorReporte
@@ -71,18 +71,20 @@ export default async function PaginaReportes({ searchParams }: Props) {
         />
       </Suspense>
 
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h2 className="text-lg font-medium">{reporte.titulo}</h2>
-        <p className="text-xs text-muted-foreground">
-          {reporte.filas.length} fila(s)
-          {reporte.filas.length > FILAS_VISIBLES
-            ? ` · se previsualizan las primeras ${FILAS_VISIBLES}`
-            : ""}
-          {reporte.filas.length > MAXIMO_FILAS_EXPORTACION
-            ? " · excede el máximo exportable: refina los filtros"
-            : ""}
-        </p>
-      </div>
+      <CabeceraSeccion
+        titulo={reporte.titulo}
+        descripcion={
+          <>
+            {reporte.filas.length} fila(s)
+            {reporte.filas.length > FILAS_VISIBLES
+              ? ` · se previsualizan las primeras ${FILAS_VISIBLES}`
+              : ""}
+            {reporte.filas.length > MAXIMO_FILAS_EXPORTACION
+              ? " · excede el máximo exportable: refina los filtros"
+              : ""}
+          </>
+        }
+      />
 
       {reporte.filas.length === 0 ? (
         <EstadoVacio
@@ -92,6 +94,28 @@ export default async function PaginaReportes({ searchParams }: Props) {
         />
       ) : (
         <>
+          {/*
+            Los totales, ARRIBA de la tabla.
+            Estaban al pie, después de cincuenta filas de previsualización: la
+            respuesta detrás de la evidencia. Y el formato lo decidía la vista con
+            un umbral —«si pasa de 999 es dinero»—, que convertía un conteo de
+            1.200 movimientos en «$ 1.200» y dejaba un importe de 800 sin moneda.
+            Ahora cada total trae su tipo desde el dominio (§11).
+          */}
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            {reporte.totales.map((total) => (
+              <TarjetaIndicador
+                key={total.etiqueta}
+                etiqueta={total.etiqueta}
+                valor={
+                  total.tipo === "dinero"
+                    ? formatearDinero(Number(total.valor), reporte.moneda)
+                    : Number(total.valor).toLocaleString("es-CO")
+                }
+              />
+            ))}
+          </div>
+
           <div className="panel overflow-x-auto">
             <Table>
               <TableHeader>
@@ -127,19 +151,6 @@ export default async function PaginaReportes({ searchParams }: Props) {
               </TableBody>
             </Table>
           </div>
-
-          <dl className="panel grid gap-4 p-5 sm:grid-cols-2 lg:grid-cols-4">
-            {reporte.totales.map((total) => (
-              <div key={total.etiqueta}>
-                <dt className="etiqueta-dato">{total.etiqueta}</dt>
-                <dd className="cifra mt-1 text-lg">
-                  {Number.isFinite(Number(total.valor)) && Number(total.valor) > 999
-                    ? formatearDinero(Number(total.valor), reporte.moneda)
-                    : total.valor}
-                </dd>
-              </div>
-            ))}
-          </dl>
         </>
       )}
     </div>

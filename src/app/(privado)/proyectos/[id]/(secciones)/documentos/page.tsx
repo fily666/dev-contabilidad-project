@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { contenedorPrivado } from "@/di/container";
+import { CabeceraSeccion } from "@/shared/ui/cabeceras";
 import { ListaDocumentos } from "@/modules/documentos/presentation/components/lista-documentos";
 import { SubidaDocumento } from "@/modules/documentos/presentation/components/subida-documento";
 
@@ -34,7 +35,10 @@ export default async function PaginaDocumentosProyecto({ params }: Props) {
       <SubidaDocumento proyectoId={proyecto.id} etiqueta="Subir al proyecto" />
 
       <section className="space-y-3">
-        <h2 className="text-lg font-medium">Del proyecto</h2>
+        <CabeceraSeccion
+          titulo="Del proyecto"
+          descripcion="Escrituras, contratos y documentos que no cuelgan de un movimiento."
+        />
         <ListaDocumentos
           documentos={deProyecto}
           formatoFecha={ajustes.formatoFecha}
@@ -44,7 +48,10 @@ export default async function PaginaDocumentosProyecto({ params }: Props) {
 
       {deMovimientos.length > 0 ? (
         <section className="space-y-3">
-          <h2 className="text-lg font-medium">Soportes de movimientos</h2>
+          <CabeceraSeccion
+            titulo="Soportes de movimientos"
+            descripcion={`${deMovimientos.length} archivo(s) adjuntos al registro de un movimiento.`}
+          />
           <ListaDocumentos
             documentos={deMovimientos}
             formatoFecha={ajustes.formatoFecha}

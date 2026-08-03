@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { ArrowLeftRight } from "lucide-react";
 
 import { contenedorPrivado } from "@/di/container";
+import { CabeceraSeccion } from "@/shared/ui/cabeceras";
 import { EnlaceBoton } from "@/shared/ui/enlace-boton";
 import { EstadoVacio } from "@/shared/ui/estado-vacio";
 import { formatearDineroCompacto } from "@/shared/utils/formato";
@@ -142,14 +143,16 @@ export default async function PaginaProyecto({ params }: Props) {
       />
 
       <section className="space-y-3">
-        <div className="flex items-end justify-between gap-3">
-          <h2 className="etiqueta-dato">Últimos movimientos</h2>
-          {ultimos.total > 0 ? (
-            <EnlaceBoton href={`/proyectos/${proyecto.id}/movimientos`} variant="ghost" size="sm">
-              Ver todos ({ultimos.total})
-            </EnlaceBoton>
-          ) : null}
-        </div>
+        <CabeceraSeccion
+          titulo="Últimos movimientos"
+          acciones={
+            ultimos.total > 0 ? (
+              <EnlaceBoton href={`/proyectos/${proyecto.id}/movimientos`} variant="ghost" size="sm">
+                Ver todos ({ultimos.total})
+              </EnlaceBoton>
+            ) : null
+          }
+        />
 
         {ultimos.filas.length === 0 ? (
           <EstadoVacio

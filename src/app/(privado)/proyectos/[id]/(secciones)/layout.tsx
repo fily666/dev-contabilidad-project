@@ -40,20 +40,23 @@ export default async function LayoutSeccionesProyecto({ children, params }: Prop
   const proyecto = await contenedor.proyectos.obtener.buscar({ id });
   if (!proyecto) notFound();
 
-  const [tipos, categorias, metodosPago] = await Promise.all([
+  // El semáforo entra en el MISMO `Promise.all` que el resto: necesita el
+  // `tipoProyectoId` del proyecto —ya leído—, no los otros tres resultados, así
+  // que esperar a que llegasen para pedirlo añadía una ida y vuelta a cada una de
+  // las cinco secciones del proyecto.
+  const [tipos, categorias, metodosPago, semaforos] = await Promise.all([
     contenedor.proyectos.listarTipos.ejecutar(),
     contenedor.categorias.listar.ejecutar({ filtro: { tipoProyectoId: proyecto.tipoProyectoId } }),
     contenedor.metodosPago.listar.ejecutar(),
+    // §5.5: el indicador que §3 exige y que ninguna pantalla mostraba. Va en la
+    // cabecera, junto al estado: la señal antes que cualquier cifra.
+    contenedor.dashboard.semaforos.ejecutar([
+      { proyectoId: proyecto.id, tipoProyectoId: proyecto.tipoProyectoId },
+    ]),
   ]);
 
   const tipo = tipos.find((t) => t.id === proyecto.tipoProyectoId);
   const hoy = contenedor.reloj.hoy();
-
-  // §5.5: el indicador que §3 exige y que ninguna pantalla mostraba. Va en la
-  // cabecera, junto al estado: la señal antes que cualquier cifra.
-  const semaforos = await contenedor.dashboard.semaforos.ejecutar([
-    { proyectoId: proyecto.id, tipoProyectoId: proyecto.tipoProyectoId },
-  ]);
   const semaforo = semaforos.get(proyecto.id);
 
   return (

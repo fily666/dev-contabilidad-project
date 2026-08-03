@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 
 import { contenedorPrivado } from "@/di/container";
+import { CabeceraPagina } from "@/shared/ui/cabeceras";
 import { EnlaceBoton } from "@/shared/ui/enlace-boton";
 import { EstadoVacio } from "@/shared/ui/estado-vacio";
 import { Skeleton } from "@/shared/ui/skeleton";
@@ -63,27 +64,25 @@ export default async function PaginaMovimientos({ searchParams }: Props) {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <p className="etiqueta-dato">Flujo de caja</p>
-          <h1 className="mt-1 text-2xl font-semibold tracking-tight">Movimientos</h1>
-          <p className="text-sm text-muted-foreground">
-            Ingresos y egresos de todos tus proyectos.
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {/* RF-27 */}
-          <EnlaceBoton href="/movimientos/importar" variant="secondary">
-            <Upload className="size-4" aria-hidden /> Importar CSV
-          </EnlaceBoton>
-          <DialogoNuevoMovimiento
-            proyectos={opcionesProyecto}
-            categorias={categorias}
-            metodosPago={metodosPago}
-            hoy={hoy}
-          />
-        </div>
-      </div>
+      <CabeceraPagina
+        ambito="Flujo de caja"
+        titulo="Movimientos"
+        descripcion="Ingresos y egresos de todos tus proyectos."
+        acciones={
+          <>
+            {/* RF-27 */}
+            <EnlaceBoton href="/movimientos/importar" variant="secondary">
+              <Upload className="size-4" aria-hidden /> Importar CSV
+            </EnlaceBoton>
+            <DialogoNuevoMovimiento
+              proyectos={opcionesProyecto}
+              categorias={categorias}
+              metodosPago={metodosPago}
+              hoy={hoy}
+            />
+          </>
+        }
+      />
 
       {proyectos.length === 0 ? (
         <EstadoVacio

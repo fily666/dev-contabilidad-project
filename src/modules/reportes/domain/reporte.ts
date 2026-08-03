@@ -23,6 +23,24 @@ export type ColumnaReporte = {
 
 export type FilaReporte = Record<string, string | number | null>;
 
+/**
+ * Un total del pie del reporte, **con su tipo**.
+ *
+ * Antes era `{ etiqueta, valor: string }` y cada consumidor adivinaba el formato:
+ * la previsualización aplicaba moneda si el número pasaba de 999 y el PDF a todo lo
+ * que fuera numérico. Con eso, «Movimientos: 1.200» —un conteo— se imprimía como
+ * «$ 1.200» en el PDF y en la pantalla, y unos «Ingresos: 800» se quedaban sin
+ * símbolo de moneda. Tres superficies, tres reglas, dos de ellas equivocadas.
+ *
+ * El tipo lo declara quien construye el reporte, que es el único que sabe si está
+ * contando cosas o sumando dinero.
+ */
+export type TotalReporte = {
+  etiqueta: string;
+  valor: string;
+  tipo: "dinero" | "numero";
+};
+
 export type Reporte = {
   tipo: TipoReporte;
   titulo: string;
@@ -32,7 +50,7 @@ export type Reporte = {
   filtros: Array<{ etiqueta: string; valor: string }>;
   columnas: ColumnaReporte[];
   filas: FilaReporte[];
-  totales: Array<{ etiqueta: string; valor: string }>;
+  totales: TotalReporte[];
   moneda: string;
 };
 

@@ -7,6 +7,7 @@ import { Loader2, Plus, TrendingUp, Trash2 } from "lucide-react";
 
 import { Badge } from "@/shared/ui/badge";
 import { Button } from "@/shared/ui/button";
+import { CabeceraSeccion } from "@/shared/ui/cabeceras";
 import {
   Dialog,
   DialogContent,
@@ -147,20 +148,18 @@ export function GestorPatrimonio({
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       {/* ─── Pasivos (RF-17) ─────────────────────────────────────────────── */}
       <section className="space-y-3">
-        <div className="flex flex-wrap items-end justify-between gap-2">
-          <div>
-            <h2 className="text-lg font-medium">Pasivos</h2>
-            <p className="text-sm text-muted-foreground">
-              Créditos y deudas del proyecto. El saldo se actualiza al abonar a capital.
-            </p>
-          </div>
-          <Button onClick={abrirAltaPasivo} disabled={proyectos.length === 0}>
-            <Plus className="size-4" aria-hidden /> Nuevo pasivo
-          </Button>
-        </div>
+        <CabeceraSeccion
+          titulo="Pasivos"
+          descripcion="Créditos y deudas del proyecto. El saldo se actualiza al abonar a capital."
+          acciones={
+            <Button onClick={abrirAltaPasivo} disabled={proyectos.length === 0}>
+              <Plus className="size-4" aria-hidden /> Nuevo pasivo
+            </Button>
+          }
+        />
 
         {pasivos.length === 0 ? (
           <EstadoVacio
@@ -279,30 +278,28 @@ export function GestorPatrimonio({
 
       {/* ─── Valoraciones (RF-16) ────────────────────────────────────────── */}
       <section className="space-y-3">
-        <div className="flex flex-wrap items-end justify-between gap-2">
-          <div>
-            <h2 className="text-lg font-medium">Valoraciones</h2>
-            <p className="text-sm text-muted-foreground">
-              Valor comercial estimado en el tiempo. De aquí sale la plusvalía; no se calcula sola.
-            </p>
-          </div>
-          <div className="flex items-center gap-3">
-            {variacion !== null ? (
-              <span
-                className={cn(
-                  "flex items-center gap-1 text-sm tabular-nums",
-                  variacion >= 0 ? "text-success" : "text-destructive",
-                )}
-              >
-                <TrendingUp className="size-4" aria-hidden />
-                {formatearPorcentaje(variacion, 1)} desde la primera
-              </span>
-            ) : null}
-            <Button onClick={() => setValoracionAbierta(true)} disabled={proyectos.length === 0}>
-              <Plus className="size-4" aria-hidden /> Nueva valoración
-            </Button>
-          </div>
-        </div>
+        <CabeceraSeccion
+          titulo="Valoraciones"
+          descripcion="Valor comercial estimado en el tiempo. De aquí sale la plusvalía; no se calcula sola."
+          acciones={
+            <>
+              {variacion !== null ? (
+                <span
+                  className={cn(
+                    "flex items-center gap-1 text-sm tabular-nums",
+                    variacion >= 0 ? "text-success" : "text-destructive",
+                  )}
+                >
+                  <TrendingUp className="size-4" aria-hidden />
+                  {formatearPorcentaje(variacion, 1)} desde la primera
+                </span>
+              ) : null}
+              <Button onClick={() => setValoracionAbierta(true)} disabled={proyectos.length === 0}>
+                <Plus className="size-4" aria-hidden /> Nueva valoración
+              </Button>
+            </>
+          }
+        />
 
         {valoraciones.length === 0 ? (
           <EstadoVacio

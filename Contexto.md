@@ -2,8 +2,131 @@
 
 > **Documento fuente de verdad del proyecto.** Toda decisión de implementación debe poder rastrearse a una sección de este archivo. Si algo no está aquí, se define aquí antes de codificarse.
 
-**Versión:** 1.3 · **Fecha:** 2026-07-31 · **Estado:** fases 0 a 5 implementadas; ver [§14](#14-roadmap-por-fases) y los cinco huecos de [§17](#17-supuestos-y-pendientes-por-definir)
+**Versión:** 1.5 · **Fecha:** 2026-08-03 · **Estado:** fases 0 a 5 implementadas y los cinco huecos de [§17](#17-supuestos-y-pendientes-por-definir) cerrados; ver [§14](#14-roadmap-por-fases)
 
+> **Cambios de la 1.5** (auditoría de experiencia de usuario, segunda vuelta). La primera
+> —la 1.3— corrigió las cifras y retiró la duplicación de contenido. Esta va detrás de lo
+> que quedaba: **el armazón compartido, el vocabulario y los huecos que se pintan cuando
+> no hay datos.** Ningún dato nuevo y ninguna regla de negocio tocada.
+>
+> 1. **Tres primitivos de composición y una sola gramática por nivel**
+>    ([§7.2](#72-estructura-de-carpetas)): `CabeceraPagina`, `CabeceraSeccion` y
+>    `PanelDatos`. La cabecera de página estaba copiada a mano en las quince páginas
+>    —cuatro sin acotar el ancho de la descripción, que en pantalla ancha llegaba a los
+>    1.400 px de renglón—, los `h2` se repartían entre dos estilos y **el marco de panel
+>    entre dos componentes**: `PanelGrafica` y el `Card` de shadcn, con dos tipografías de
+>    título, y ambos lado a lado en la misma fila del panel general. `PanelGrafica` es
+>    ahora `PanelDatos` más la leyenda; la agenda usa el mismo marco.
+> 2. **Una vista, un nombre.** El panel se llamaba «Dashboard» en el menú, «Panel» en la
+>    miga de pan, «Panel general» en la línea de ámbito y «Resumen» en el `h1`: cuatro
+>    nombres para una pantalla, ninguno igual al que el usuario acababa de pulsar. Es
+>    «Panel» en los cuatro sitios.
+> 3. **La navegación se agrupa por la pregunta que responde cada módulo** —Análisis,
+>    Registro, Compromisos, Sistema—. Eran once entradas planas bajo un rótulo «Módulos»
+>    y ordenadas por fase de implementación, que es historia del proyecto y no una
+>    categoría del producto. Avisos sube junto a lo que lo origina.
+> 4. **Se dejan de pintar los armazones vacíos.** El panel de agenda usaba el estado vacío
+>    de página dentro de una tarjeta: unos 320 px para decir «nada pendiente» en el sitio
+>    donde lo normal es no tener nada vencido. Y Presupuestos sin ninguna partida mostraba
+>    cuatro tarjetas en «—» y una gráfica vacía —unos 400 px para decir cuatro veces que no
+>    hay nada— antes del estado vacío que sí lleva la acción.
+> 5. **Texto de interfaz que era documentación interna.** Patrimonio publicaba un párrafo
+>    que le contaba al usuario qué panel se había retirado en la revisión anterior
+>    («aquí estaba también…»), y dos vistas citaban secciones de este documento —«(§10.1)»,
+>    «(§5.3)»— que el usuario no tiene delante.
+> 6. **Cifras que había que contar a mano.** `resumirMes` ([§5.2](#52-flujo-de-caja))
+>    publica lo vencido y lo ejecutado del mes, que se pintaban celda a celda en la rejilla
+>    y no se sumaban en ninguna parte; el calendario pasa de una cifra suelta con
+>    tipografía propia a las tres tarjetas del resto del producto. La cartera del panel
+>    resume su semáforo («2 en riesgo») en lugar de obligar a recorrer la columna. Y las
+>    pastillas de estado de Proyectos llevan su recuento, con **una** consulta en vez de
+>    dos: antes había que pulsarlas para descubrir que no llevaban a nada.
+> 7. **La leyenda del calendario se dibuja con los colores que usa** y va antes de la
+>    rejilla. Era un párrafo al pie que **nombraba los colores por escrito** —«azul
+>    pendiente, rojo vencido»—, debajo de la rejilla que explicaba y visible incluso con el
+>    mes vacío. El mapa de estilos vive en `presentation/estilos-evento.ts` y lo comparten
+>    el chip y la leyenda, así que no pueden discrepar. El diálogo de un evento pinta la
+>    insignia del producto en lugar del valor crudo del enum capitalizado.
+> 8. **Los totales de un reporte declaran su tipo** ([§11](#11-reportes-y-exportación)).
+>    Los tres consumidores lo adivinaban con reglas distintas y dos estaban mal: un conteo
+>    de 1.200 movimientos se imprimía como `$ 1.200` en el PDF y en la pantalla. En
+>    pantalla, además, los totales suben por encima de la tabla.
+> 9. **El medidor de la tarjeta de proyecto cambia de pregunta según el tipo.** Era siempre
+>    «Cobertura de egresos» = ingresos / egresos, y en un vehículo —que por definición no
+>    genera ingresos— marcaba 0 % en todas las tarjetas, siempre: [§5.4](#54-visibilidad-de-indicadores-por-tipo)
+>    saca el yield y el ROI de esos tipos por este motivo y este medidor se había quedado
+>    fuera de la regla. Sin ingresos mide qué parte del gasto capitaliza.
+> 10. **Tres controles vuelven al bloque que modifican:** el selector de ventana de RF-58
+>     entra en la cabecera del panel de agenda —tenía un `h2` propio encima y el título del
+>     panel cuarenta píxeles debajo, dos rótulos para el mismo bloque—, y `/documentos`
+>     cambia «entra al proyecto correspondiente» por el botón que lleva allí cuando hay un
+>     proyecto filtrado.
+> 11. **El hueco bajo la gráfica del panel general.** En una rejilla los dos paneles de
+>     una fila miden lo que el más alto, así que la agenda con diez vencimientos llegaba a
+>     693 px y estiraba al panel del flujo, que dibujaba su trazo de 240 px fijos arriba y
+>     dejaba **más de 400 px en blanco debajo**. Se corrige por los dos lados, porque
+>     arreglar uno solo deja el mismo hueco en el caso contrario —dos vencimientos y una
+>     gráfica más alta que ellos—: `GraficoFlujo` gana modo `flexible` (el trazo ocupa el
+>     alto que le deje el panel, con un piso de 200 px) y `PanelAgenda` gana `maximo`, que
+>     lista los tres vencimientos más urgentes y enlaza el resto en `/obligaciones`. Medido
+>     a 1440 px: la fila pasa de 693 px con 240 de trazo a 530 px con 403.
+>
+>     **El tope recorta filas, no cifras.** Los tres grupos por urgencia siguen mostrando
+>     su conteo y su subtotal de la ventana completa, y la línea de un grupo se pinta
+>     aunque no le toque ninguna fila: son unos 30 px, y sin ella los subtotales a la vista
+>     no suman el total de la cabecera —una resta que el lector hace y no le cuadra—.
+>     Agrupar la lista ya recortada habría vuelto a partir en dos una cifra que el dominio
+>     define una sola vez ([ADR-11](#16-decisiones-técnicas-adr)).
+>
+> 12. **Dos idas y vueltas menos por navegación:** el calendario pedía la lista de
+>     proyectos y los métodos de pago **después** de resolver el mes, sin necesitarlo, y el
+>     layout de las secciones de proyecto pedía el semáforo después de sus otras tres
+>     lecturas. Las dos son ahora un solo `Promise.all`.
+>
+> **Cambios de la 1.4** (cierre del último hueco de [§17](#17-supuestos-y-pendientes-por-definir)):
+> los avisos in-app ya tienen quien los lea.
+>
+> 1. **Campana en la barra superior y pantalla `/avisos`** (RF-59, nuevo). El canal
+>    `in_app` estaba completo por el lado de la escritura desde la Fase 4 —la tarea diaria
+>    programaba las filas y la horaria las marcaba enviadas— y **ninguna pantalla
+>    consultaba la tabla**. Era el quinto hueco de §17, y el único que quedaba: el patrón
+>    que esa lista describe, «implementado medido por módulo y no por camino completo»,
+>    en su forma más pura.
+> 2. **`notificaciones.leida_en`, columna nueva** ([§6.3](#63-esquema), décima migración
+>    en [§6.8](#68-migraciones)). Los cuatro valores de `estado` describen el **envío**
+>    (`programada`, `enviada`, `fallida`, `cancelada`), no la lectura: reutilizarlo para
+>    marcar lo visto habría hecho un aviso leído indistinguible de uno que nunca salió.
+>    Son dos ejes y llevan dos columnas. Una restricción limita `leida_en` al canal
+>    in-app, porque un correo se lee en el cliente de correo y de eso la base no puede
+>    saber nada.
+> 3. **La campana muestra el aviso desde que su instante se cumple**, sin esperar a que la
+>    tarea horaria lo pase a `enviada`. Un aviso in-app no tiene proveedor al que esperar,
+>    y esperar a la tarea lo retrasaría hasta una hora: un aviso que llega tarde a quien
+>    debe reaccionar es justo el defecto que el canal existe para evitar. El efecto
+>    secundario es gratis y útil: como las canceladas quedan fuera y pagar una ocurrencia
+>    ya cancela sus avisos, **la campana se limpia sola** al pagar la obligación.
+> 4. **`Popover` nuevo en `shared/ui`** ([§7.2](#72-estructura-de-carpetas)). No se resolvió
+>    con `DropdownMenu` porque un menú cierra al activar cualquier elemento, y marcar un
+>    aviso como leído cerraba el panel y obligaba a reabrirlo por cada aviso.
+> 5. **Y el hallazgo que importa más que la función:** cablear el lector obligó a ejecutar
+>    la tarea que escribe, y **la tarea nunca había funcionado.**
+>    `notificaciones_unicas_idx` era un índice **parcial**, y un índice parcial no sirve
+>    para inferir el `on conflict (columnas)` del adaptador si la sentencia no repite su
+>    predicado —cosa que PostgREST no puede enviar—. `/api/cron/notificaciones` respondía
+>    **500 con `42P10`** y programaba cero avisos: la base tenía 121 ocurrencias y ninguna
+>    notificación. La undécima migración lo corrige con `nulls not distinct`, que además da
+>    al resumen semanal de [§10.3](#103-plantillas-de-correo) la idempotencia que el código
+>    ya daba por hecha.
+>
+>    **Lo tapaba una asimetría entre el doble y el esquema**: el repositorio en memoria
+>    construye la clave con un centinela (`ocurrencia_id ?? "sin-ocurrencia"`), tratando los
+>    nulos como iguales, así que sus siete pruebas pasaban en verde describiendo una regla
+>    que la base no tenía. Es el mismo patrón de [§17](#17-supuestos-y-pendientes-por-definir)
+>    visto desde el otro lado: allí el módulo existía y nadie lo llamaba; aquí el módulo se
+>    llamaba y la base lo rechazaba. **Las dos veces la prueba estaba verde.** Por eso la
+>    prueba de regresión verifica el `on conflict` real contra el esquema y no la existencia
+>    del índice: el índice existía.
+>
 > **Cambios de la 1.3** (auditoría de experiencia de usuario, primera tanda: la verdad
 > de las cifras). Cuatro correcciones y ninguna de alcance:
 >
@@ -335,6 +458,7 @@ Cada requerimiento tiene ID estable (`RF-xx`), módulo y criterios de aceptació
 | RF-56 | Marcar una ocurrencia como omitida sin afectar las siguientes.                                                  | 2    |
 | RF-57 | Suspender o reactivar una obligación recurrente.                                                                | 2    |
 | RF-58 | Vista de obligaciones vencidas y próximas a vencer (7, 30 y 90 días).                                           | 2    |
+| RF-59 | Bandeja de avisos: campana con el conteo de no leídos e historial de envíos por canal.                          | 4    |
 
 ### 4.7 Módulo: Calendario financiero
 
@@ -427,6 +551,21 @@ flujo_proyectado_mes(m)   = ingresos_esperados(m) − obligaciones_estimadas(m)
 ```
 
 `ingresos_esperados` y `obligaciones_estimadas` provienen de ocurrencias en estado `pendiente` y de movimientos `pendiente`/`vencido`.
+
+**Cifras del mes del calendario** (`calendario/domain/mes.ts`, RF-63):
+
+```
+comprometido_mes   = Σ valor de eventos del mes en estado pendiente | vencido
+vencido_mes        = Σ valor de eventos del mes ya pasados de fecha   (subconjunto del anterior)
+ejecutado_mes      = Σ valor de eventos del mes en estado pagado
+```
+
+Lo vencido **no se resta** del comprometido: sigue siendo dinero que no ha salido. Se publica
+aparte porque responde otra pregunta —«¿qué requiere atención?»— y se pintaba celda a celda en
+la rejilla sin sumarse en ninguna parte, así que contestarla exigía contar cuadros en seis
+semanas de calendario. El relleno de las semanas de los extremos no entra en ninguna de las
+tres: pertenece a otro mes ([ADR-11](#16-decisiones-técnicas-adr), las cifras se definen una
+sola vez en el dominio).
 
 ### 5.3 Rentabilidad
 
@@ -760,14 +899,32 @@ create table notificaciones (
   enviada_en      timestamptz,
   estado          estado_notificacion not null default 'programada',
   error           text,
-  intentos        int not null default 0 check (intentos >= 0)
+  intentos        int not null default 0 check (intentos >= 0),
+  -- §10.2, RF-59. Eje independiente de `estado`: ese describe el envío y este la
+  -- lectura. Solo el canal in-app se lee dentro de la aplicación; un correo se lee
+  -- en el cliente de correo y anotarlo aquí sería inventar un dato.
+  leida_en        timestamptz,
+  constraint notificaciones_solo_in_app_se_lee
+    check (leida_en is null or canal = 'in_app')
 );
 
 create index notificaciones_cola_idx on notificaciones (estado, programada_para);
--- Idempotencia del job de notificaciones (§10.1)
+-- Idempotencia del job de notificaciones (§10.1).
+--
+-- `nulls not distinct` y NO parcial. Nació con `where ocurrencia_id is not null` y
+-- eso lo hacía inservible para el `on conflict (columnas)` que lo usa: PostgreSQL
+-- no infiere un índice parcial si la sentencia no repite su predicado, y PostgREST
+-- solo sabe enviar la lista de columnas. La tarea diaria respondía 42P10 y no
+-- programaba ni un aviso (§10.1).
 create unique index notificaciones_unicas_idx
   on notificaciones (ocurrencia_id, canal, programada_para)
-  where ocurrencia_id is not null;
+  nulls not distinct;
+-- Lectura de la campana (§10.2): in-app no canceladas, por instante descendente.
+-- `estado <> 'cancelada'` y no `estado = 'enviada'` a propósito: ver §10.2.
+create index notificaciones_bandeja_idx
+  on notificaciones (programada_para desc)
+  include (leida_en)
+  where canal = 'in_app' and estado <> 'cancelada';
 
 -- Rastro de cambios. Sin actor: hay un solo operador, así que la pregunta que
 -- responde es "qué cambió y cuándo", no "quién lo cambió".
@@ -905,19 +1062,21 @@ Lo que hay que vigilar tras cada migración es que no aparezcan permisos nuevos:
 
 ### 6.8 Migraciones
 
-- Carpeta `supabase/migrations/`, archivos `YYYYMMDDHHMMSS_descripcion.sql`, versionados y aplicados con Supabase CLI. Las aplicadas hoy son nueve:
+- Carpeta `supabase/migrations/`, archivos `YYYYMMDDHHMMSS_descripcion.sql`, versionados y aplicados con Supabase CLI. Las aplicadas hoy son once:
 
-  | Migración                                    | Qué introduce                                                                                      |
-  | -------------------------------------------- | -------------------------------------------------------------------------------------------------- |
-  | `20260730120000_esquema_inicial`             | Enumerados, catorce tablas, índices y restricciones ([§6.3](#63-esquema))                          |
-  | `20260730120100_funciones_y_triggers`        | Los cinco triggers de [§6.6](#66-triggers) y `generar_ocurrencias`                                 |
-  | `20260730120200_vistas_agregacion`           | Las siete primeras vistas de [§6.4](#64-vistas-de-agregación)                                      |
-  | `20260730120300_blindaje_acceso`             | RLS en las catorce tablas y cierre a los roles públicos ([§6.5](#65-blindaje-de-acceso-a-la-base)) |
-  | `20260730120400_storage_soportes`            | Bucket privado `soportes` ([§6.7](#67-almacenamiento-supabase-storage))                            |
-  | `20260730130000_acentos_del_catalogo`        | Tildes del catálogo sembrado (RNF-13)                                                              |
-  | `20260730140000_vistas_agenda_y_presupuesto` | Las tres vistas restantes y la redefinición de `v_agenda_obligaciones`                             |
-  | `20260731120000_soportes_veinte_mb`          | Sube el límite por archivo de 10 a 20 MB (RF-42)                                                   |
-  | `20260731130000_fecha_de_negocio`            | `fecha_de_negocio()` y el fin de `current_date` en la base ([§8.5](#85-fechas))                    |
+  | Migración                                    | Qué introduce                                                                                                                    |
+  | -------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+  | `20260730120000_esquema_inicial`             | Enumerados, catorce tablas, índices y restricciones ([§6.3](#63-esquema))                                                        |
+  | `20260730120100_funciones_y_triggers`        | Los cinco triggers de [§6.6](#66-triggers) y `generar_ocurrencias`                                                               |
+  | `20260730120200_vistas_agregacion`           | Las siete primeras vistas de [§6.4](#64-vistas-de-agregación)                                                                    |
+  | `20260730120300_blindaje_acceso`             | RLS en las catorce tablas y cierre a los roles públicos ([§6.5](#65-blindaje-de-acceso-a-la-base))                               |
+  | `20260730120400_storage_soportes`            | Bucket privado `soportes` ([§6.7](#67-almacenamiento-supabase-storage))                                                          |
+  | `20260730130000_acentos_del_catalogo`        | Tildes del catálogo sembrado (RNF-13)                                                                                            |
+  | `20260730140000_vistas_agenda_y_presupuesto` | Las tres vistas restantes y la redefinición de `v_agenda_obligaciones`                                                           |
+  | `20260731120000_soportes_veinte_mb`          | Sube el límite por archivo de 10 a 20 MB (RF-42)                                                                                 |
+  | `20260731130000_fecha_de_negocio`            | `fecha_de_negocio()` y el fin de `current_date` en la base ([§8.5](#85-fechas))                                                  |
+  | `20260731140000_bandeja_de_avisos`           | `notificaciones.leida_en`, su restricción de canal y el índice de la campana ([§10.2](#102-canales))                             |
+  | `20260731150000_avisos_idempotentes`         | `notificaciones_unicas_idx` deja de ser parcial: sin eso la tarea de avisos fallaba con 42P10 ([§10.1](#101-tareas-vercel-cron)) |
 
 - **El límite de tamaño de un soporte vive en tres capas y las tres deben decir lo mismo:** la entidad (`documento.entity.ts`), el `check` de `documentos.tamano_bytes` y el `file_size_limit` del bucket. La última migración las movió juntas por eso: si el bucket admitiera menos que el `check`, el objeto se rechazaría después de que la entidad lo dio por bueno y el usuario vería un error opaco. La migración busca el `check` original **por su definición y no por su nombre**, porque el DDL inicial lo declaró sin nombrar y Postgres le puso uno derivado.
 - Nunca se edita una migración ya aplicada: se crea una nueva. **Única excepción admitida hasta ahora:** el paso a monousuario ([ADR-14](#16-decisiones-técnicas-adr)) reescribió el juego completo de migraciones en lugar de encadenar cuatro migraciones de deshacer. Se hizo porque la base no tenía ningún dato, las migraciones originales llevaban horas aplicadas y el esquema anterior queda en el historial de git. La regla vuelve a estar en vigor: de aquí en adelante, migración nueva.
@@ -955,6 +1114,7 @@ src/
 │   │   ├── movimientos/(importar)/         # RF-27 carga en lote
 │   │   ├── obligaciones/
 │   │   ├── calendario/
+│   │   ├── avisos/                        # RF-59: historial de avisos por canal (§10.2)
 │   │   ├── documentos/
 │   │   ├── presupuestos/
 │   │   ├── patrimonio/
@@ -1002,7 +1162,7 @@ src/
 │   ├── obligaciones/
 │   ├── presupuestos/
 │   ├── patrimonio/
-│   ├── notificaciones/
+│   ├── notificaciones/                     # con presentation/ desde RF-59: campana y tabla
 │   ├── reportes/
 │   ├── dashboard/
 │   ├── calendario/
@@ -1019,6 +1179,8 @@ src/
 │   ├── presentation/                      # ejecutarAccion: envoltura de Server Actions
 │   ├── testing/reloj-fijo.ts              # el Reloj determinista de las pruebas
 │   ├── ui/                                # shadcn/ui + componentes propios
+│   │   ├── cabeceras.tsx                  # CabeceraPagina (h1) y CabeceraSeccion (h2)
+│   │   ├── panel-datos.tsx                # marco único de los paneles con título
 │   │   └── viz/                           # capa de gráficas en SVG (§8.1)
 │   └── utils/                             # cn, formato de moneda y fechas, etiquetas es-CO
 │
@@ -1035,6 +1197,7 @@ src/
 - Los métodos de pago viven en su propio módulo (`metodos-pago/`) aunque comparten pantalla de configuración con las categorías: son dos catálogos con ciclos de vida distintos.
 - Las reglas de frontera de §7.1 están codificadas como reglas `no-restricted-imports` en `eslint.config.mjs`: violarlas rompe el lint, no solo la convención.
 - Los componentes de `shared/ui` provienen de shadcn/ui sobre **Base UI**, que compone con la prop `render` en lugar de `asChild`. Para enlaces con apariencia de botón se usa el helper `EnlaceBoton`.
+- **Tres primitivos de composición, y ninguna vista escribe su propio armazón:** `CabeceraPagina` (el `h1` con ámbito, descripción y acciones), `CabeceraSeccion` (el `h2` en versalitas) y `PanelDatos` (el marco de todo bloque con título propio, del que `PanelGrafica` es la especialización con leyenda). Estaban escritos a mano en quince páginas y seis componentes, y cada nivel había desarrollado **dos** gramáticas: `h2` en versalitas mono en unas vistas y en `text-lg` en otras, y el marco de panel repartido entre `PanelGrafica` y el `Card` de shadcn —mismo fondo, distinta tipografía de título y sin la línea de acento—, ambos en la misma fila del panel general. La raíz de toda página es `space-y-6`; Patrimonio y Presupuestos usaban `space-y-8` y su ritmo vertical no coincidía con el del resto al navegar.
 - **`metodos-pago/` tiene las cuatro capas, aunque comparta pantalla con las categorías.** Nació con solo `domain/` e `infrastructure/`, y la consecuencia fue que las Server Actions llamaban al repositorio y la regla «no eliminar un método en uso» vivía en la acción, justo donde §7.4 dice que no debe estar. Es el ejemplo de por qué la frontera se codifica en el lint y no en la costumbre.
 - **El contenedor expone casos de uso, nunca repositorios ni el cliente de Supabase.** Alcanzar `contenedor.<modulo>.repositorio` desde una página salta la capa de aplicación sin que ningún `import` lo delate; por eso hay además una regla `no-restricted-syntax` que lo prohíbe.
 - Hay un solo cliente de Supabase (`cliente-servidor.ts`) y usa `service_role`. Lleva `import "server-only"`, así que si un componente con `"use client"` lo importara, **la compilación falla** en vez de enviar la clave al navegador. Ya no existen `cliente-navegador.ts` ni `admin.ts`: sin clave anónima no hay cliente de navegador, y el administrativo dejó de ser un caso especial.
@@ -1357,6 +1520,8 @@ Lo que sigue protegido pase lo que pase, incluso con el token comprometido: nada
 
 Todas las tareas son **idempotentes**: ejecutarlas dos veces el mismo día no duplica ocurrencias ni correos (garantizado por los índices únicos de [§6.3](#63-esquema)).
 
+> **Y conviene saber cómo se descubrió que esa frase era falsa.** `notificaciones_unicas_idx` nació parcial (`where ocurrencia_id is not null`). Un índice parcial no sirve para inferir un `on conflict (columnas)` a menos que la sentencia repita el predicado, y PostgREST —que traduce el `upsert` del adaptador— solo puede enviar la lista de columnas. Así que la tarea no era idempotente: **era imposible**. Respondía `42P10` y programaba cero avisos, con 121 ocurrencias en la base esperando. Lo tapaba una asimetría entre el doble y el esquema: el repositorio en memoria construye la clave con un centinela (`ocurrencia_id ?? "sin-ocurrencia"`), tratando los nulos como iguales, así que sus pruebas pasaban en verde describiendo una regla que la base no tenía. La undécima migración pone el índice como el doble ya lo suponía, y la prueba de esquema verifica **el `on conflict` real** y no la existencia del índice, porque el índice existía y aun así no servía.
+
 **Los horarios de `vercel.json` van en UTC**, que es lo único que Vercel Cron entiende:
 las 05:00 COT de la tabla son `0 10 * * *`. Escribirlos en hora local es el error que
 hace que la tarea corra a mediodía y nadie lo note hasta que un aviso llega tarde.
@@ -1369,7 +1534,18 @@ cualquiera puede disparar, no.
 ### 10.2 Canales
 
 - **Email (Resend)**: resumen de próximos vencimientos y aviso individual. Sin `RESEND_API_KEY` ni `EMAIL_REMITENTE` el canal queda desactivado y los avisos se quedan `programada` en lugar de marcarse `fallida` ([§15.1](#151-variables-de-entorno)).
-- **In-app**: las filas con `canal = 'in_app'` se crean y se marcan enviadas sin proveedor, porque publicarlas es solo dejarlas legibles. **Lo que todavía no existe es quien las lea:** no hay campana en la barra superior, y `notificaciones` se escribe sin que ninguna pantalla la consulte ([§17](#17-supuestos-y-pendientes-por-definir)). Lo que sí está resuelto es la necesidad de fondo —ver qué vence y qué está vencido— por el panel de agenda de RF-58.
+- **In-app (RF-59)**: las filas con `canal = 'in_app'` se crean y se marcan enviadas sin proveedor, porque publicarlas es solo dejarlas legibles. **Ya existe quien las lea:** la campana de la barra superior —con el conteo de no leídos— y el historial de `/avisos`.
+
+  Tres decisiones que conviene no deshacer sin leer el motivo:
+
+  1. **La lectura no es un estado de envío.** Los cuatro valores de `estado` describen si el aviso salió; la lectura vive en `leida_en` ([§6.3](#63-esquema)). Marcar `cancelada` al leer —la alternativa sin migración— habría hecho un aviso leído indistinguible de uno que nunca se envió, y `cancelada` es justo el estado que la cola excluye.
+  2. **La campana muestra el aviso desde que su instante se cumple**, no desde que la tarea horaria lo marca `enviada`. No hay proveedor al que esperar, y esperar a la tarea retrasaría el aviso hasta una hora: llegar tarde a quien debe reaccionar es el defecto que el canal existe para evitar. El predicado vive en `Notificacion.publicada()` y se repite —en el mismo orden— en el índice parcial de §6.3 y en el adaptador.
+  3. **Las canceladas quedan fuera, y de ahí sale gratis una propiedad útil:** `cancelarDeOcurrencia` ya cancela los avisos de una ocurrencia al pagarla u omitirla, así que pagar la obligación limpia su aviso de la campana sin una línea de código dedicada.
+
+  Leer **uno** pasa por la entidad (`MarcarAvisoLeido` carga, aplica la regla del canal y guarda); marcar **todos** es una operación de conjunto en el puerto, porque cargar N avisos para poner la misma marca es ceremonia sin invariante que proteger.
+
+  La necesidad de fondo —ver qué vence y qué está vencido— la sigue resolviendo el panel de agenda de RF-58: la campana avisa, la agenda es donde se actúa, y por eso el panel enlaza a `/obligaciones`.
+
 - **WhatsApp**: el puerto `NotificadorWhatsApp` existe y el caso de uso lo trata como canal opcional; **falta el adaptador**, así que esos avisos quedan programados sin enviarse en lugar de fallar. Decidir el proveedor es lo único pendiente ([§17](#17-supuestos-y-pendientes-por-definir)).
 
 ### 10.3 Plantillas de correo
@@ -1382,8 +1558,10 @@ Resumen semanal (lunes), aviso individual N días antes, y aviso de obligación 
 
 - Los reportes se construyen sobre los mismos casos de uso de consulta del dashboard: una sola definición de cifras.
 - Filtros comunes: proyecto, rango de fechas, tipo de movimiento, categoría, estado.
-- **Excel:** una hoja de datos con encabezados y una hoja de resumen con totales; columnas de valor con formato de moneda.
+- **Excel:** una hoja de datos con encabezados y una hoja de resumen con totales; columnas de valor con formato de moneda —**la del reporte**, no un `$` fijo, que era lo que hacía la hoja de datos mientras la de resumen sí respetaba `reporte.moneda`—.
 - **PDF:** encabezado con el título del reporte, los filtros aplicados y la fecha de generación; tabla paginada; totales al cierre. **Sin nombre de usuario:** no hay ninguno que poner ([ADR-14](#16-decisiones-técnicas-adr)).
+- **Cada total del pie declara su tipo** (`dinero` o `numero`), igual que cada columna. Era `{ etiqueta, valor: string }` y los tres consumidores adivinaban el formato con reglas distintas: la previsualización aplicaba moneda por encima de 999 y el PDF a todo lo numérico, así que «Movimientos: 1.200» —un conteo de filas— se imprimía como `$ 1.200` y unos «Ingresos: 800» se quedaban sin símbolo. El tipo lo pone quien construye el reporte, que es el único que sabe si cuenta cosas o suma dinero.
+- **En pantalla los totales van encima de la tabla**, como tarjetas de indicador: son la respuesta, y estaban al pie, detrás de cincuenta filas de previsualización.
 - Generación en API Route (`/api/exportar/[formato]`, un solo handler para `xlsx` y `pdf`); nombre de archivo `{reporte}_{proyecto}_{yyyyMMdd}.{ext}`.
 - **RF-103 va por su propia ruta**, `/api/exportar/datos`: exporta el volcado completo en JSON y no comparte ni filtros ni formato con los reportes.
 - Límite de 10.000 filas por exportación; si se excede, se solicita refinar los filtros.
@@ -1531,13 +1709,13 @@ RF-28, RF-47, RF-60 a RF-64, RF-70, RF-71, RF-73 a RF-77, RF-79, RF-90 a RF-95, 
 
 ### Fase 4 — Planeación y patrimonio
 
-RF-16, RF-17, RF-29, RF-53, RF-72, RF-78, RF-80 a RF-83, RF-102.
+RF-16, RF-17, RF-29, RF-53, RF-59, RF-72, RF-78, RF-80 a RF-83, RF-102.
 
 - Pasivos y valoraciones.
 - Flujo de caja proyectado a 12 meses.
 - Presupuestos con comparativo y alertas.
 - Dashboard de patrimonio (activos, pasivos, patrimonio neto, retorno).
-- Notificaciones por correo.
+- Notificaciones por correo, y campana e historial de avisos in-app ([§10.2](#102-canales)).
 
 ### Fase 5 — Ampliaciones
 
@@ -1674,9 +1852,12 @@ cada entrada tenía su dominio escrito, su caso de uso y sus pruebas en verde, y
 pantalla la llamaba**. Es la deuda más fácil de perder de vista, porque el módulo existe, la
 prueba pasa y el requerimiento parece cerrado.
 
-La revisión 1.3 cerró cuatro de las cinco. Se conserva la tabla porque el patrón vale más
-que la lista: **«implementado» medido por módulo y no por camino completo esconde
-exactamente este tipo de deuda**, y conviene recordar cuánto tiempo pasó inadvertida.
+La revisión 1.3 cerró cuatro de las cinco y la 1.4 la que faltaba. **La lista queda sin
+huecos abiertos, y aun así se conserva**, porque el patrón vale más que la lista:
+**«implementado» medido por módulo y no por camino completo esconde exactamente este tipo
+de deuda**, y conviene recordar cuánto tiempo pasó inadvertida. El de los avisos in-app
+duró dos revisiones enteras con el módulo escrito, las pruebas en verde y el requerimiento
+dado por cerrado.
 
 | Hueco                                                                 | Estado                                                                                               |
 | --------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
@@ -1684,12 +1865,17 @@ exactamente este tipo de deuda**, y conviene recordar cuánto tiempo pasó inadv
 | **RF-17, corregir un pasivo**                                         | **Cerrado.** El diálogo de alta sirve también para editar                                            |
 | **RF-80, corregir un presupuesto**                                    | **Cerrado.** Igual, reconstruyendo la periodicidad desde el rango guardado                           |
 | **[§5.5](#55-estado-financiero-del-proyecto), semáforo del proyecto** | **Cerrado.** `ObtenerSemaforos` en dashboard, listado y detalle                                      |
-| **[§10.2](#102-canales), avisos in-app**                              | **Abierto.** Sigue sin campana ni pantalla que lea `notificaciones`                                  |
+| **[§10.2](#102-canales), avisos in-app**                              | **Cerrado.** Campana en la barra superior e historial en `/avisos` (RF-59)                           |
 
-Cuatro de los cinco huecos están cerrados. El que queda es el de los avisos in-app, y la
-decisión sigue siendo la misma: **cablearlo o retirar el requerimiento.** Lo que sí está
-resuelto es la necesidad de fondo —ver qué vence y qué está vencido— por el panel de agenda
-de RF-58, que ahora además agrupa por urgencia y da subtotales.
+Los cinco huecos están cerrados. El último —los avisos in-app— se cableó en lugar de
+retirar el requerimiento, y eso obligó a lo que la decisión escondía: la tabla no tenía
+dónde anotar la lectura, porque `estado` describe el envío. La columna `leida_en` y su
+restricción de canal son el costo real que la opción «cablearlo» tenía sin decirlo
+([§10.2](#102-canales), [§6.3](#63-esquema)).
+
+La necesidad de fondo —ver qué vence y qué está vencido— la sigue resolviendo el panel de
+agenda de RF-58, que agrupa por urgencia y da subtotales. La campana no la reemplaza: avisa,
+y enlaza a la agenda, que es donde se actúa.
 
 ### Pendientes por confirmar
 

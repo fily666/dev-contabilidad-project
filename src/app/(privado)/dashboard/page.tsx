@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { Banknote, FileDown, FolderKanban, Landmark, Plus, Receipt, Scale } from "lucide-react";
 
 import { contenedorPrivado } from "@/di/container";
+import { CabeceraPagina, CabeceraSeccion } from "@/shared/ui/cabeceras";
 import { EnlaceBoton } from "@/shared/ui/enlace-boton";
 import { EstadoVacio } from "@/shared/ui/estado-vacio";
 import { Skeleton } from "@/shared/ui/skeleton";
@@ -19,12 +20,30 @@ import {
   type ParametrosBusqueda,
 } from "@/modules/dashboard/presentation/leer-filtros";
 
-export const metadata: Metadata = { title: "Dashboard" };
+// «Panel» en el título, en el `h1`, en la miga y en la navegación lateral. La
+// misma vista se llamaba «Dashboard» en el menú, «Panel» en la miga de pan,
+// «Panel general» en la línea de ámbito y «Resumen» en el `h1`: cuatro nombres
+// para una pantalla, y ninguno coincidía con el que el usuario acababa de pulsar.
+export const metadata: Metadata = { title: "Panel" };
 
 type Props = { searchParams: Promise<ParametrosBusqueda> };
 
 /** Categorías que se listan antes de agrupar el resto en «otras». */
 const CATEGORIAS_VISIBLES = 8;
+
+/**
+ * Vencimientos listados en el panel de agenda.
+ *
+ * Tres es lo medido a 1440 px: la fila queda en ~530 px con un trazo de ~400 px,
+ * que es la proporción en la que doce puntos mensuales se leen —una serie temporal
+ * pide ancho, no alto—. Sin tope la agenda llegaba a 693 px y arrastraba a la
+ * gráfica con ella.
+ *
+ * **El tope recorta filas, no cifras:** los tres grupos siguen mostrando su
+ * conteo y su subtotal de la ventana completa, así que lo que se lee sigue
+ * sumando, y el pie enlaza el resto en `/obligaciones`.
+ */
+const AGENDA_EN_PANEL = 3;
 
 /**
  * RF-70 a RF-79.
@@ -111,19 +130,16 @@ export default async function PaginaDashboard({ searchParams }: Props) {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <p className="etiqueta-dato">Panel general</p>
-          <h1 className="mt-1 text-2xl font-semibold tracking-tight">Resumen</h1>
-          <p className="text-sm text-muted-foreground">
-            Cifras ejecutadas del rango seleccionado: solo los movimientos pagados alimentan la
-            caja.
-          </p>
-        </div>
-        <EnlaceBoton href={`/reportes?${consultaDelPanel}`} variant="secondary">
-          <FileDown className="size-4" aria-hidden /> Exportar esta vista
-        </EnlaceBoton>
-      </div>
+      <CabeceraPagina
+        ambito="Resumen general"
+        titulo="Panel"
+        descripcion="Cifras ejecutadas del rango seleccionado: solo los movimientos pagados alimentan la caja."
+        acciones={
+          <EnlaceBoton href={`/reportes?${consultaDelPanel}`} variant="secondary">
+            <FileDown className="size-4" aria-hidden /> Exportar esta vista
+          </EnlaceBoton>
+        }
+      />
 
       {proyectos.length === 0 ? (
         <EstadoVacio
@@ -191,7 +207,18 @@ export default async function PaginaDashboard({ searchParams }: Props) {
             </div>
           </section>
 
-          {/* RF-71 y RF-73: lo que pasa y lo que urge, en la misma pantalla. */}
+          {/*
+            RF-71 y RF-73: lo que pasa y lo que urge, en la misma pantalla.
+
+            Los dos paneles comparten fila, así que miden lo que el más alto. Con
+            diez vencimientos la agenda llegaba a ~700 px y estiraba al panel del
+            flujo, que dibujaba su trazo de 240 px arriba y dejaba el resto en
+            blanco: el hueco no era de la gráfica, era de la fila. Se corrige por
+            los dos lados —la agenda se acota a los cinco más urgentes con el resto
+            a un clic, y el trazo pasa a `flexible` para absorber la diferencia que
+            quede—, porque arreglar solo uno deja el mismo hueco en el caso
+            contrario: dos vencimientos y una gráfica más alta que ellos.
+          */}
           <div className="grid gap-4 xl:grid-cols-3">
             <PanelGrafica
               className="xl:col-span-2"
@@ -205,11 +232,12 @@ export default async function PaginaDashboard({ searchParams }: Props) {
               {panel.flujoMensual.length === 0 ? (
                 <EstadoVacio
                   denso
+                  className="flex-1"
                   titulo="Sin movimientos pagados en el rango"
                   descripcion="Amplía el rango o registra movimientos."
                 />
               ) : (
-                <GraficoFlujo puntos={panel.flujoMensual} moneda={moneda} />
+                <GraficoFlujo flexible puntos={panel.flujoMensual} moneda={moneda} />
               )}
             </PanelGrafica>
 
@@ -220,6 +248,8 @@ export default async function PaginaDashboard({ searchParams }: Props) {
               formatoFecha={ajustes.formatoFecha}
               moneda={ajustes.moneda}
               titulo="Requiere atención"
+              maximo={AGENDA_EN_PANEL}
+              verTodo={{ href: "/obligaciones", etiqueta: "Obligaciones" }}
               vacio={{
                 titulo: "Nada pendiente",
                 descripcion: "Sin obligaciones vencidas ni vencimientos en los próximos 30 días.",
@@ -252,32 +282,39 @@ export default async function PaginaDashboard({ searchParams }: Props) {
                 { etiqueta: "Estimado", serie: 2 },
               ]}
             >
+              {/*
+                `flexible` también aquí: el ranking de la izquierda mide lo que le
+                dicten sus categorías —hasta nueve barras—, y esta gráfica es la
+                que tiene que dar de sí para que la fila no repita el hueco.
+              */}
               {panel.flujoProyectado.length === 0 ? (
                 <EstadoVacio
                   denso
+                  className="flex-1"
                   titulo="Sin compromisos futuros"
                   descripcion="Registra obligaciones para ver la proyección de los próximos meses."
                 />
               ) : (
-                <GraficoFlujo puntos={panel.flujoProyectado} moneda={moneda} />
+                <GraficoFlujo flexible puntos={panel.flujoProyectado} moneda={moneda} />
               )}
             </PanelGrafica>
           </div>
 
           {/* RF-74 + RF-77 fusionados, con el semáforo de §5.5. */}
           <section className="space-y-3">
-            <div className="flex flex-wrap items-end justify-between gap-3">
-              <div>
-                <h2 className="etiqueta-dato">Cartera</h2>
-                <p className="text-xs text-muted-foreground">
-                  {panel.proyectosActivos} de {proyectos.length} activos. El ROI aparece como «—»
-                  donde no es calculable (§5.3).
-                </p>
-              </div>
-              <EnlaceBoton href="/proyectos" variant="ghost" size="sm">
-                Gestionar proyectos
-              </EnlaceBoton>
-            </div>
+            <CabeceraSeccion
+              titulo="Cartera"
+              // El semáforo de cada proyecto ya se leía fila a fila, pero con diez
+              // proyectos «¿alguno necesita atención?» exigía recorrer la columna
+              // entera. El recuento sale del mismo mapa que pinta las insignias:
+              // ningún dato nuevo y ninguna consulta más.
+              descripcion={`${panel.proyectosActivos} de ${proyectos.length} activos · ${textoSemaforos(semaforos)}. El ROI aparece como «—» cuando no hay inversión sobre la que calcularlo.`}
+              acciones={
+                <EnlaceBoton href="/proyectos" variant="ghost" size="sm">
+                  Gestionar proyectos
+                </EnlaceBoton>
+              }
+            />
 
             <TablaCartera
               proyectos={proyectos}
@@ -290,6 +327,29 @@ export default async function PaginaDashboard({ searchParams }: Props) {
       )}
     </div>
   );
+}
+
+/**
+ * Resume el semáforo de §5.5 de toda la cartera en una línea.
+ *
+ * Se nombra solo lo que requiere acción: «8 saludables» es la ausencia de noticia
+ * y ocupa el mismo espacio que la noticia.
+ */
+function textoSemaforos(semaforos: Map<string, { estado: string }>): string {
+  let riesgo = 0;
+  let observacion = 0;
+
+  for (const { estado } of semaforos.values()) {
+    if (estado === "riesgo") riesgo += 1;
+    else if (estado === "observacion") observacion += 1;
+  }
+
+  const partes = [
+    riesgo > 0 ? `${riesgo} en riesgo` : null,
+    observacion > 0 ? `${observacion} en observación` : null,
+  ].filter(Boolean);
+
+  return partes.length > 0 ? partes.join(" y ") : "ninguno en riesgo";
 }
 
 /** Dice contra qué se compara, para que la flecha no sea un dato huérfano. */

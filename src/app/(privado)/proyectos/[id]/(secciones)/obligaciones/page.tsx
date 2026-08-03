@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { BellRing } from "lucide-react";
 
 import { contenedorPrivado } from "@/di/container";
+import { CabeceraSeccion } from "@/shared/ui/cabeceras";
 import { EstadoVacio } from "@/shared/ui/estado-vacio";
 import { TarjetaIndicador } from "@/shared/ui/tarjeta-indicador";
 import { formatearDineroCompacto } from "@/shared/utils/formato";
@@ -83,30 +84,38 @@ export default async function PaginaObligacionesProyecto({ params, searchParams 
         />
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <SelectorVentana ventana={ventana} />
-        <DialogoObligacion
-          proyectos={[{ id: proyecto.id, nombre: proyecto.nombre }]}
-          categorias={categorias}
-          hoy={hoy}
-          horizonteMeses={ajustes.horizonteProyeccionMeses}
-          formatoFecha={ajustes.formatoFecha}
-          proyectoFijo={proyecto.id}
-        />
-      </div>
-
+      {/*
+        El selector de ventana viaja DENTRO del panel que cambia, igual que en la
+        vista global: estaba en una fila propia encima, emparejado con el botón de
+        alta —dos controles sin relación entre sí compartiendo renglón—.
+      */}
       <PanelAgenda
         eventos={agenda}
         metodosPago={metodosPago}
         hoy={hoy}
         formatoFecha={ajustes.formatoFecha}
         moneda={proyecto.moneda}
-        titulo={`Vencidas y próximas (${ventana} días)`}
+        titulo={`Agenda · vencidas y próximas ${ventana} días`}
+        accion={<SelectorVentana ventana={ventana} />}
         ocultarProyecto
         vacio={{
           titulo: `Sin vencimientos en ${ventana} días`,
           descripcion: "Este proyecto no tiene ocurrencias pendientes en la ventana consultada.",
         }}
+      />
+
+      <CabeceraSeccion
+        titulo="Obligaciones del proyecto"
+        acciones={
+          <DialogoObligacion
+            proyectos={[{ id: proyecto.id, nombre: proyecto.nombre }]}
+            categorias={categorias}
+            hoy={hoy}
+            horizonteMeses={ajustes.horizonteProyeccionMeses}
+            formatoFecha={ajustes.formatoFecha}
+            proyectoFijo={proyecto.id}
+          />
+        }
       />
 
       {obligaciones.length === 0 ? (

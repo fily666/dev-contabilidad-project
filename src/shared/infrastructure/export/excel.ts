@@ -27,8 +27,10 @@ export class ExcelJsGenerador implements GeneradorExcel {
       key: columna.clave,
       width: columna.ancho ?? 18,
       style:
+        // La moneda del reporte, no un `$` fijo: el resumen ya la usaba y las dos
+        // hojas del mismo archivo se contradecían si la instalación no era en COP.
         columna.tipo === "dinero"
-          ? { numFmt: `"$"#,##0;[Red]-"$"#,##0` }
+          ? { numFmt: `"${reporte.moneda}" #,##0;[Red]-"${reporte.moneda}" #,##0` }
           : columna.tipo === "porcentaje"
             ? { numFmt: "0.0%" }
             : {},
@@ -66,10 +68,17 @@ export class ExcelJsGenerador implements GeneradorExcel {
     resumen.addRow({ concepto: "Totales", valor: "" }).font = { bold: true };
     for (const total of reporte.totales) {
       const numero = Number(total.valor);
-      resumen.addRow({
+      const fila = resumen.addRow({
         concepto: total.etiqueta,
         valor: Number.isFinite(numero) ? numero : total.valor,
       });
+
+      // El formato lo dice el total, no el tamaño del número: un conteo se
+      // escribía como número suelto y un importe también, así que en la hoja de
+      // resumen «Egresos» y «Movimientos» eran indistinguibles.
+      if (total.tipo === "dinero" && Number.isFinite(numero)) {
+        fila.getCell("valor").numFmt = `"${reporte.moneda}" #,##0`;
+      }
     }
 
     const buffer = await libro.xlsx.writeBuffer();

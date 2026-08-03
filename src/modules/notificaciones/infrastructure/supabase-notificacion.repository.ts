@@ -20,7 +20,24 @@ function aNotificacion(fila: Fila): Notificacion {
     estado: fila.estado,
     error: fila.error,
     intentos: fila.intentos,
+    leidaEn: fila.leida_en,
   });
+}
+
+function aListada(fila: Fila): NotificacionListada {
+  return {
+    id: fila.id,
+    ocurrenciaId: fila.ocurrencia_id,
+    canal: fila.canal,
+    asunto: fila.asunto,
+    cuerpo: fila.cuerpo,
+    programadaPara: fila.programada_para,
+    enviadaEn: fila.enviada_en,
+    estado: fila.estado,
+    intentos: fila.intentos,
+    error: fila.error,
+    leidaEn: fila.leida_en,
+  };
 }
 
 /** ADAPTADOR del puerto NotificacionRepository (Contexto.md §7.3, §10). */
@@ -60,17 +77,73 @@ export class SupabaseNotificacionRepository implements NotificacionRepository {
     const { data, error } = await consulta;
     if (error) throw error;
 
-    return (data ?? []).map((f) => ({
-      id: f.id,
-      ocurrenciaId: f.ocurrencia_id,
-      canal: f.canal,
-      asunto: f.asunto,
-      programadaPara: f.programada_para,
-      enviadaEn: f.enviada_en,
-      estado: f.estado,
-      intentos: f.intentos,
-      error: f.error,
-    }));
+    return (data ?? []).map(aListada);
+  }
+
+  async buscarPorId(id: string): Promise<Notificacion | null> {
+    const { data, error } = await this.supabase
+      .from("notificaciones")
+      .select("*")
+      .eq("id", id)
+      .maybeSingle();
+
+    if (error) throw error;
+    return data ? aNotificacion(data) : null;
+  }
+
+  /**
+   * §10.2, RF-59. Los tres predicados son los del indice parcial
+   * `notificaciones_bandeja_idx`, en el mismo orden; cambiarlos aqui sin cambiar
+   * el indice deja la campana leyendo la tabla entera.
+   */
+  async bandeja(
+    ahora: Date,
+    filtro: { soloNoLeidos?: boolean; limite?: number } = {},
+  ): Promise<NotificacionListada[]> {
+    let consulta = this.supabase
+      .from("notificaciones")
+      .select("*")
+      .eq("canal", "in_app")
+      .neq("estado", "cancelada")
+      .lte("programada_para", ahora.toISOString())
+      .order("programada_para", { ascending: false })
+      .limit(filtro.limite ?? 20);
+
+    if (filtro.soloNoLeidos) consulta = consulta.is("leida_en", null);
+
+    const { data, error } = await consulta;
+    if (error) throw error;
+
+    return (data ?? []).map(aListada);
+  }
+
+  async contarNoLeidos(ahora: Date): Promise<number> {
+    // `head: true` pide solo el conteo: la campana necesita el numero, no las
+    // filas, y las filas ya vienen por `bandeja`.
+    const { count, error } = await this.supabase
+      .from("notificaciones")
+      .select("id", { count: "exact", head: true })
+      .eq("canal", "in_app")
+      .neq("estado", "cancelada")
+      .lte("programada_para", ahora.toISOString())
+      .is("leida_en", null);
+
+    if (error) throw error;
+    return count ?? 0;
+  }
+
+  async marcarTodosLeidos(ahora: Date): Promise<number> {
+    const { data, error } = await this.supabase
+      .from("notificaciones")
+      .update({ leida_en: ahora.toISOString() })
+      .eq("canal", "in_app")
+      .neq("estado", "cancelada")
+      .lte("programada_para", ahora.toISOString())
+      .is("leida_en", null)
+      .select("id");
+
+    if (error) throw error;
+    return (data ?? []).length;
   }
 
   /**
@@ -109,6 +182,7 @@ export class SupabaseNotificacionRepository implements NotificacionRepository {
         enviada_en: d.enviadaEn,
         error: d.error,
         intentos: d.intentos,
+        leida_en: d.leidaEn,
       })
       .eq("id", d.id)
       .select("*")

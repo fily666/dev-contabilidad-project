@@ -106,10 +106,10 @@ export class ReporteMovimientos {
         egreso: fila.tipo === "egreso" ? fila.valor : null,
       })),
       totales: [
-        { etiqueta: "Movimientos", valor: String(pagina.total) },
-        { etiqueta: "Ingresos", valor: String(pagina.totales.ingresos) },
-        { etiqueta: "Egresos", valor: String(pagina.totales.egresos) },
-        { etiqueta: "Del cual inversión", valor: String(pagina.totales.invertido) },
+        { etiqueta: "Movimientos", valor: String(pagina.total), tipo: "numero" },
+        { etiqueta: "Ingresos", valor: String(pagina.totales.ingresos), tipo: "dinero" },
+        { etiqueta: "Egresos", valor: String(pagina.totales.egresos), tipo: "dinero" },
+        { etiqueta: "Del cual inversión", valor: String(pagina.totales.invertido), tipo: "dinero" },
       ],
     };
   }
@@ -156,9 +156,9 @@ export class ReporteFlujoCaja {
       ],
       filas,
       totales: [
-        { etiqueta: "Ingresos", valor: String(totales.totalIngresos) },
-        { etiqueta: "Egresos", valor: String(totales.totalEgresos) },
-        { etiqueta: "Balance", valor: String(totales.balance) },
+        { etiqueta: "Ingresos", valor: String(totales.totalIngresos), tipo: "dinero" },
+        { etiqueta: "Egresos", valor: String(totales.totalEgresos), tipo: "dinero" },
+        { etiqueta: "Balance", valor: String(totales.balance), tipo: "dinero" },
       ],
     };
   }
@@ -207,9 +207,9 @@ export class ReporteObligaciones {
         estado: o.activa ? "Activa" : "Suspendida",
       })),
       totales: [
-        { etiqueta: "Obligaciones", valor: String(listado.length) },
-        { etiqueta: "Ocurrencias pendientes", valor: String(pendientes) },
-        { etiqueta: "Ocurrencias vencidas", valor: String(vencidas) },
+        { etiqueta: "Obligaciones", valor: String(listado.length), tipo: "numero" },
+        { etiqueta: "Ocurrencias pendientes", valor: String(pendientes), tipo: "numero" },
+        { etiqueta: "Ocurrencias vencidas", valor: String(vencidas), tipo: "numero" },
       ],
     };
   }
@@ -256,12 +256,17 @@ export class ReporteEstadoFinanciero {
         balance: p.balance,
       })),
       totales: [
-        { etiqueta: "Proyectos", valor: String(filtrados.length) },
+        { etiqueta: "Proyectos", valor: String(filtrados.length), tipo: "numero" },
         {
           etiqueta: "Invertido",
           valor: String(filtrados.reduce((s, p) => s + p.totalInvertido, 0)),
+          tipo: "dinero",
         },
-        { etiqueta: "Balance", valor: String(filtrados.reduce((s, p) => s + p.balance, 0)) },
+        {
+          etiqueta: "Balance",
+          valor: String(filtrados.reduce((s, p) => s + p.balance, 0)),
+          tipo: "dinero",
+        },
       ],
     };
   }

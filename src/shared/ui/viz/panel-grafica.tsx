@@ -1,4 +1,4 @@
-import { cn } from "@/shared/utils/cn";
+import { PanelDatos } from "@/shared/ui/panel-datos";
 import { colorSerie, type SerieColor } from "./definiciones";
 
 type Props = {
@@ -11,35 +11,41 @@ type Props = {
   className?: string;
 };
 
-/** Marco comun de las graficas: titulo, leyenda y superficie. */
+/**
+ * Marco de las graficas: es `PanelDatos` mas la leyenda de series.
+ *
+ * El marco lo comparte con la agenda y con cualquier panel con titulo propio, para
+ * que dos paneles vecinos no puedan tener dos tipografias de titulo.
+ */
 export function PanelGrafica({ titulo, descripcion, leyenda, accion, children, className }: Props) {
   return (
-    <section className={cn("panel panel-acento flex flex-col gap-4 p-5", className)}>
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
-          <h3 className="etiqueta-dato">{titulo}</h3>
-          {descripcion ? <p className="mt-1 text-xs text-muted-foreground">{descripcion}</p> : null}
-        </div>
-        {accion}
-      </div>
-
-      {leyenda && leyenda.length > 1 ? (
-        <ul className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
-          {leyenda.map(({ etiqueta, serie }) => (
-            <li key={etiqueta} className="flex items-center gap-2 text-xs text-muted-foreground">
-              <span
-                aria-hidden
-                className="size-2 rounded-full"
-                style={{ background: colorSerie(serie) }}
-              />
-              {etiqueta}
-            </li>
-          ))}
-        </ul>
-      ) : null}
-
+    <PanelDatos
+      titulo={titulo}
+      descripcion={descripcion}
+      accion={accion}
+      className={className}
+      cintillo={leyenda && leyenda.length > 1 ? <Leyenda series={leyenda} /> : null}
+    >
       {children}
-    </section>
+    </PanelDatos>
+  );
+}
+
+/** Identidad de cada serie. Nunca solo el color: siempre color + etiqueta. */
+function Leyenda({ series }: { series: Array<{ etiqueta: string; serie: SerieColor }> }) {
+  return (
+    <ul className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
+      {series.map(({ etiqueta, serie }) => (
+        <li key={etiqueta} className="flex items-center gap-2 text-xs text-muted-foreground">
+          <span
+            aria-hidden
+            className="size-2 rounded-full"
+            style={{ background: colorSerie(serie) }}
+          />
+          {etiqueta}
+        </li>
+      ))}
+    </ul>
   );
 }
 

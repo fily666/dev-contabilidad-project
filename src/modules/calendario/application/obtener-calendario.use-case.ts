@@ -5,13 +5,14 @@ import type { ObligacionRepository } from "@/modules/obligaciones/domain/obligac
 
 import {
   claveDeMes,
-  comprometidoDelMes,
   construirMes,
   primerDiaDelMes,
+  resumirMes,
   ultimoDiaDelMes,
   type ClaveMes,
   type DiaCalendario,
   type EventoCalendario,
+  type ResumenMes,
 } from "../domain/mes";
 
 export type FiltroCalendario = {
@@ -27,6 +28,8 @@ export type Calendario = {
   comprometido: number;
   moneda: string;
   totalEventos: number;
+  /** Cifras del mes de §5.2, calculadas en el dominio (ADR-11). */
+  resumen: ResumenMes;
 };
 
 /**
@@ -114,13 +117,15 @@ export class ObtenerCalendario {
     // Un movimiento creado al pagar una ocurrencia apunta a ella; la ocurrencia
     // ya salio de la agenda al quedar pagada, asi que no hay doble conteo.
     const dias = construirMes({ mes, hoy, eventos });
+    const resumen = resumirMes(dias);
 
     return {
       mes,
       dias,
-      comprometido: comprometidoDelMes(dias),
+      comprometido: resumen.comprometido,
       moneda: eventos[0]?.moneda ?? "COP",
       totalEventos: eventos.length,
+      resumen,
     };
   }
 }

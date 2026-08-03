@@ -3,6 +3,7 @@ import Link from "next/link";
 import { FolderKanban, Plus } from "lucide-react";
 
 import { contenedorPrivado } from "@/di/container";
+import { CabeceraPagina } from "@/shared/ui/cabeceras";
 import { EnlaceBoton } from "@/shared/ui/enlace-boton";
 import { EstadoVacio } from "@/shared/ui/estado-vacio";
 import { TarjetaProyecto } from "@/modules/proyectos/presentation/components/tarjeta-proyecto";
@@ -24,12 +25,29 @@ export default async function PaginaProyectos({ searchParams }: Props) {
     ? (estado as EstadoProyecto)
     : undefined;
 
-  const proyectos = await contenedor.proyectos.listar.ejecutar({
-    filtro: {
-      // Por defecto se ocultan los archivados.
-      estados: estadoFiltro ? [estadoFiltro] : ["activo", "pausado", "finalizado"],
-    },
+  /*
+    Una sola lectura con los cuatro estados, y el filtro se aplica en memoria.
+
+    Antes la consulta llevaba el estado pedido, así que la vista no sabía cuántos
+    proyectos había fuera del filtro: las pastillas de estado eran cinco etiquetas
+    sin cifra y había que pulsarlas una por una para descubrir que «Archivado»
+    estaba vacío. Con la lista completa —que en una instalación de un solo dueño son
+    decenas de filas, no miles— cada pastilla lleva su recuento y el usuario elige
+    sabiendo lo que va a encontrar. Es además una consulta y no dos.
+  */
+  const todos = await contenedor.proyectos.listar.ejecutar({
+    filtro: { estados: [...ESTADOS_PROYECTO] },
   });
+
+  const conteos = new Map<EstadoProyecto, number>();
+  for (const proyecto of todos) {
+    conteos.set(proyecto.estado, (conteos.get(proyecto.estado) ?? 0) + 1);
+  }
+
+  // Vigentes = todo lo que no está archivado. Es el filtro por omisión.
+  const proyectos = estadoFiltro
+    ? todos.filter((p) => p.estado === estadoFiltro)
+    : todos.filter((p) => p.estado !== "archivado");
 
   // §5.5: la señal que dice cuál de los proyectos necesita atención. Una sola
   // llamada para toda la lista, no una por tarjeta.
@@ -56,31 +74,34 @@ export default async function PaginaProyectos({ searchParams }: Props) {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <p className="etiqueta-dato">Cartera</p>
-          <h1 className="mt-1 text-2xl font-semibold tracking-tight">Proyectos</h1>
-          <p className="text-sm text-muted-foreground">
-            {proyectos.length === 1 ? "1 proyecto" : `${proyectos.length} proyectos`} en el filtro
-            actual.
-          </p>
-        </div>
-        <EnlaceBoton href="/proyectos/nuevo">
-          <Plus className="size-4" aria-hidden /> Nuevo proyecto
-        </EnlaceBoton>
-      </div>
+      <CabeceraPagina
+        ambito="Cartera"
+        titulo="Proyectos"
+        descripcion={`${proyectos.length === 1 ? "1 proyecto" : `${proyectos.length} proyectos`} en el filtro actual, de ${todos.length} en total.`}
+        acciones={
+          <EnlaceBoton href="/proyectos/nuevo">
+            <Plus className="size-4" aria-hidden /> Nuevo proyecto
+          </EnlaceBoton>
+        }
+      />
 
       <nav
         aria-label="Filtrar por estado"
         className="panel flex flex-wrap gap-2 p-2 shadow-none backdrop-blur-none"
       >
-        <FiltroEstado activo={!estadoFiltro} href="/proyectos" etiqueta="Vigentes" />
+        <FiltroEstado
+          activo={!estadoFiltro}
+          href="/proyectos"
+          etiqueta="Vigentes"
+          conteo={todos.filter((p) => p.estado !== "archivado").length}
+        />
         {ESTADOS_PROYECTO.map((e) => (
           <FiltroEstado
             key={e}
             activo={estadoFiltro === e}
             href={`/proyectos?estado=${e}`}
             etiqueta={ETIQUETA_ESTADO_PROYECTO[e]}
+            conteo={conteos.get(e) ?? 0}
           />
         ))}
       </nav>
@@ -117,23 +138,34 @@ function FiltroEstado({
   activo,
   href,
   etiqueta,
+  conteo,
 }: {
   activo: boolean;
   href: string;
   etiqueta: string;
+  /** Cuántos proyectos hay tras el filtro, para no tener que pulsarlo y ver. */
+  conteo: number;
 }) {
   return (
     <Link
       href={href}
       aria-current={activo ? "page" : undefined}
       className={cn(
-        "rounded-full border px-3.5 py-1.5 text-xs font-medium tracking-[0.08em] uppercase transition-colors",
+        "flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-xs font-medium tracking-[0.08em] uppercase transition-colors",
         activo
           ? "border-neon/40 bg-gradient-to-r from-neon/20 to-neon-2/20 text-foreground"
-          : "border-transparent text-muted-foreground hover:bg-accent/70 hover:text-accent-foreground",
+          : conteo === 0
+            ? // Un filtro que no lleva a nada se apaga, pero sigue pulsable: la
+              // alternativa —esconderlo— hace que la lista de filtros cambie de
+              // longitud según los datos y no se pueda memorizar.
+              "border-transparent text-muted-foreground/50 hover:bg-accent/50"
+            : "border-transparent text-muted-foreground hover:bg-accent/70 hover:text-accent-foreground",
       )}
     >
       {etiqueta}
+      <span className="font-mono text-[0.65rem] tracking-normal tabular-nums opacity-70">
+        {conteo}
+      </span>
     </Link>
   );
 }

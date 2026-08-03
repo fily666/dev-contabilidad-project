@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { contenedorPrivado } from "@/di/container";
+import { CabeceraPagina } from "@/shared/ui/cabeceras";
+import { EnlaceBoton } from "@/shared/ui/enlace-boton";
 import { FormularioProyecto } from "@/modules/proyectos/presentation/components/formulario-proyecto";
 
 export const metadata: Metadata = { title: "Editar proyecto" };
@@ -20,10 +22,15 @@ export default async function PaginaEditarProyecto({ params }: Props) {
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
-      <div>
-        <p className="etiqueta-dato">{proyecto.nombre}</p>
-        <h1 className="mt-1 text-2xl font-semibold tracking-tight">Editar proyecto</h1>
-      </div>
+      <CabeceraPagina
+        ambito={proyecto.nombre}
+        titulo="Editar proyecto"
+        acciones={
+          <EnlaceBoton href={`/proyectos/${proyecto.id}`} variant="ghost" size="sm">
+            Cancelar y volver
+          </EnlaceBoton>
+        }
+      />
       <FormularioProyecto
         hoy={contenedor.reloj.hoy()}
         tipos={tipos.map((t) => ({ id: t.id, nombre: t.nombre, configuracion: t.configuracion }))}

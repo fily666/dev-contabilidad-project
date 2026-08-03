@@ -638,6 +638,129 @@ describe("esquema de base de datos", () => {
   });
 
   /**
+   * §10.2, RF-59. La lectura de un aviso es un eje distinto de su envio, y la base
+   * es la que lo sostiene: sin la restriccion, nada impediria anotar como «leido»
+   * un correo, que se lee en el cliente de correo y de eso aqui no se sabe nada.
+   */
+  describe("bandeja de avisos in-app (§10.2)", () => {
+    async function insertar(canal: string, leidaEn: string | null): Promise<void> {
+      await base.db.query(
+        `insert into notificaciones (canal, asunto, cuerpo, programada_para, leida_en)
+         values ($1, 'Aviso de prueba', 'cuerpo', now(), $2)`,
+        [canal, leidaEn],
+      );
+    }
+
+    it("acepta leida_en en el canal in_app", async () => {
+      await base.db.query(`begin`);
+      try {
+        await expect(insertar("in_app", new Date().toISOString())).resolves.toBeUndefined();
+      } finally {
+        await base.db.query(`rollback`);
+      }
+    });
+
+    it("rechaza leida_en en los canales que no se leen aqui", async () => {
+      await base.db.query(`begin`);
+      try {
+        await expect(insertar("email", new Date().toISOString())).rejects.toThrow(
+          /notificaciones_solo_in_app_se_lee/,
+        );
+      } finally {
+        await base.db.query(`rollback`);
+      }
+    });
+
+    it("un aviso nace sin leer, en cualquier canal", async () => {
+      await base.db.query(`begin`);
+      try {
+        await insertar("email", null);
+        await insertar("in_app", null);
+        // Acotado al asunto de prueba: contar la tabla entera ataria el resultado
+        // al orden de las demas pruebas.
+        const r = await base.db.query<{ n: number }>(
+          `select count(*)::int as n from notificaciones
+            where asunto = 'Aviso de prueba' and leida_en is null`,
+        );
+        expect(r.rows[0]!.n).toBe(2);
+      } finally {
+        await base.db.query(`rollback`);
+      }
+    });
+
+    /**
+     * §10.1. La prueba que faltaba, y que habria ahorrado el defecto: el adaptador
+     * programa con `upsert ... on conflict (ocurrencia_id, canal, programada_para)`,
+     * y el indice unico nacio PARCIAL (`where ocurrencia_id is not null`).
+     * PostgreSQL no infiere un indice parcial sin que la sentencia repita su
+     * predicado, y PostgREST no puede enviarlo: la tarea diaria respondia 42P10 y
+     * no programaba ni un aviso. Se verifica el `on conflict` real, no la
+     * existencia del indice, porque el indice existia y aun asi no servia.
+     */
+    it("la tarea diaria puede programar un aviso de ocurrencia sin repetir el predicado", async () => {
+      await base.db.query(`begin`);
+      try {
+        const ocurrencia = (
+          await base.db.query<{ id: string }>(`select id from ocurrencias_obligacion limit 1`)
+        ).rows[0]!.id;
+
+        const programar = () =>
+          base.db.query<{ id: string }>(
+            `insert into notificaciones (ocurrencia_id, canal, asunto, cuerpo, programada_para)
+             values ($1, 'in_app', 'Aviso de prueba', 'cuerpo', '2026-08-01T12:00:00Z')
+             on conflict (ocurrencia_id, canal, programada_para) do nothing
+             returning id`,
+            [ocurrencia],
+          );
+
+        const primera = await programar();
+        const segunda = await programar();
+
+        // La segunda no inserta: eso es la idempotencia que §10.1 promete.
+        expect(primera.rows).toHaveLength(1);
+        expect(segunda.rows).toHaveLength(0);
+      } finally {
+        await base.db.query(`rollback`);
+      }
+    });
+
+    it("el resumen semanal, que va sin ocurrencia, tambien es idempotente", async () => {
+      // `nulls not distinct`: con nulos distintos, dos ejecuciones del mismo lunes
+      // programaban dos resumenes (§10.3).
+      await base.db.query(`begin`);
+      try {
+        const programar = () =>
+          base.db.query<{ id: string }>(
+            `insert into notificaciones (ocurrencia_id, canal, asunto, cuerpo, programada_para)
+             values (null, 'email', 'Resumen de prueba', 'cuerpo', '2026-08-03T12:00:00Z')
+             on conflict (ocurrencia_id, canal, programada_para) do nothing
+             returning id`,
+          );
+
+        expect((await programar()).rows).toHaveLength(1);
+        expect((await programar()).rows).toHaveLength(0);
+      } finally {
+        await base.db.query(`rollback`);
+      }
+    });
+
+    it("el indice de la campana existe y es el parcial que espera el adaptador", async () => {
+      // Si alguien lo convierte en indice completo o le cambia el predicado, la
+      // consulta de `bandeja()` deja de usarlo y nadie lo nota hasta que la tabla
+      // crece. El predicado se compara por su contenido, no por su texto exacto.
+      const r = await base.db.query<{ definicion: string }>(
+        `select indexdef as definicion from pg_indexes
+          where schemaname = 'public' and indexname = 'notificaciones_bandeja_idx'`,
+      );
+
+      const definicion = r.rows[0]?.definicion ?? "";
+      expect(definicion).toContain("in_app");
+      expect(definicion).toContain("cancelada");
+      expect(definicion).toContain("programada_para DESC");
+    });
+  });
+
+  /**
    * El nucleo de la seguridad del esquema monousuario (RNF-11, §9): la clave
    * publicable de Supabase no debe servir para nada. Si alguna de estas pruebas
    * falla, la base quedo expuesta a cualquiera que conozca la URL del proyecto.

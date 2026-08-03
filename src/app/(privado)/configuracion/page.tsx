@@ -5,6 +5,7 @@ import { Download, Upload } from "lucide-react";
 import { EnlaceBoton } from "@/shared/ui/enlace-boton";
 
 import { contenedorPrivado } from "@/di/container";
+import { CabeceraPagina } from "@/shared/ui/cabeceras";
 import { PestanasEnUrl } from "@/shared/ui/pestanas-url";
 import { Skeleton } from "@/shared/ui/skeleton";
 import { TabsContent, TabsList, TabsTrigger } from "@/shared/ui/tabs";
@@ -38,13 +39,11 @@ export default async function PaginaConfiguracion() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <p className="etiqueta-dato">Ajustes</p>
-        <h1 className="mt-1 text-2xl font-semibold tracking-tight">Configuración</h1>
-        <p className="text-sm text-muted-foreground">
-          Preferencias de la instalación y catálogos que alimentan el registro de movimientos.
-        </p>
-      </div>
+      <CabeceraPagina
+        ambito="Ajustes"
+        titulo="Configuración"
+        descripcion="Preferencias de la instalación y catálogos que alimentan el registro de movimientos."
+      />
 
       <Suspense fallback={<Skeleton className="h-96 w-full" />}>
         <PestanasEnUrl porOmision="categorias" valores={SECCIONES}>

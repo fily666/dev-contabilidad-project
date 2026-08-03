@@ -131,4 +131,53 @@ export function comprometidoDelMes(dias: readonly DiaCalendario[]): number {
   return dias.filter((d) => d.delMes).reduce((suma, d) => suma + d.comprometido, 0);
 }
 
+export type ResumenMes = {
+  /** RF-63: pendiente y vencido del mes, lo que hay que tener disponible. */
+  comprometido: number;
+  /** Eventos del mes, sin contar el relleno de las semanas de los extremos. */
+  eventos: number;
+  /** Cuántos de esos eventos ya pasaron de fecha sin pagarse. */
+  vencidos: number;
+  importeVencido: number;
+  /** Lo ya ejecutado dentro del mes: el contrapeso de lo comprometido. */
+  pagado: number;
+};
+
+/**
+ * Las cifras del mes, definidas en el dominio y no en la página (ADR-11).
+ *
+ * La vista tenía una sola: el comprometido. Lo vencido del mes se pintaba celda a
+ * celda en rojo y no se sumaba en ninguna parte, así que para saber cuánto había
+ * que recorrer la rejilla contando cuadros —y la rejilla es de seis semanas—.
+ * `comprometido` incluye lo vencido a propósito (es dinero que sigue sin salir),
+ * por eso lo vencido se publica aparte en lugar de sumarse dos veces.
+ */
+export function resumirMes(dias: readonly DiaCalendario[]): ResumenMes {
+  const resumen: ResumenMes = {
+    comprometido: 0,
+    eventos: 0,
+    vencidos: 0,
+    importeVencido: 0,
+    pagado: 0,
+  };
+
+  for (const dia of dias) {
+    if (!dia.delMes) continue;
+
+    resumen.comprometido += dia.comprometido;
+    resumen.eventos += dia.eventos.length;
+
+    for (const evento of dia.eventos) {
+      if (evento.estado === "vencido" || evento.estado === "vencida") {
+        resumen.vencidos += 1;
+        resumen.importeVencido += evento.valor;
+      } else if (evento.estado === "pagado" || evento.estado === "pagada") {
+        resumen.pagado += evento.valor;
+      }
+    }
+  }
+
+  return resumen;
+}
+
 export const NOMBRES_DIAS = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"] as const;

@@ -20,6 +20,7 @@ import { Label } from "@/shared/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/ui/table";
 import { Textarea } from "@/shared/ui/textarea";
+import { CabeceraSeccion } from "@/shared/ui/cabeceras";
 import { EstadoVacio } from "@/shared/ui/estado-vacio";
 import { MedidorLineal } from "@/shared/ui/viz/medidor-lineal";
 import type { TonoSemantico } from "@/shared/ui/viz/definiciones";
@@ -220,21 +221,33 @@ export function GestorPresupuestos({
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-end justify-between gap-2">
-        <p className="text-sm text-muted-foreground">
-          Planeado contra real por categoría y periodo. El gasto de las subcategorías cuenta dentro
-          de la categoría presupuestada.
-        </p>
-        <Button onClick={abrirAlta}>
-          <Plus className="size-4" aria-hidden /> Nuevo presupuesto
-        </Button>
-      </div>
+      {/*
+        La sección tenía un párrafo suelto donde el resto del producto pone un
+        título: era el único bloque de datos sin nombre, así que la tabla que sigue
+        no se podía referenciar ni enlazar.
+      */}
+      <CabeceraSeccion
+        titulo="Partidas presupuestales"
+        descripcion="Planeado contra real por categoría y periodo. El gasto de las subcategorías cuenta dentro de la categoría presupuestada."
+        acciones={
+          <Button onClick={abrirAlta}>
+            <Plus className="size-4" aria-hidden /> Nuevo presupuesto
+          </Button>
+        }
+      />
 
       {filas.length === 0 ? (
         <EstadoVacio
           icono={<AlertTriangle className="size-8" />}
           titulo="Sin presupuestos"
           descripcion="Define cuánto esperas gastar en una categoría y el sistema avisa al 80 % y al 100 %."
+          // El estado vacío lleva su propia acción: el botón de arriba queda a 300 px
+          // del texto que dice qué hacer, y con la tabla vacía es el único paso posible.
+          accion={
+            <Button onClick={abrirAlta}>
+              <Plus className="size-4" aria-hidden /> Crear el primer presupuesto
+            </Button>
+          }
         />
       ) : (
         <div className="panel overflow-x-auto">

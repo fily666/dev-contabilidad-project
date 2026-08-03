@@ -40,6 +40,7 @@ const ETIQUETA: Record<string, string> = {
   editar: "Editar",
   obligaciones: "Obligaciones",
   calendario: "Calendario",
+  avisos: "Avisos",
   documentos: "Documentos",
   presupuestos: "Presupuestos",
   patrimonio: "Patrimonio",

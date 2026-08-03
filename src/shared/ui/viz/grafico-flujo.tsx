@@ -16,8 +16,21 @@ type Props = {
   /** Meses visibles: los mas recientes. */
   maximoMeses?: number;
   altura?: number;
+  /**
+   * La grafica ocupa el alto que le deje su panel, en vez de los 240 px fijos.
+   *
+   * Es lo que cierra el hueco de las filas de dos paneles: en una rejilla los dos
+   * miden lo que el mas alto, asi que junto a una agenda de diez vencimientos el
+   * panel de la grafica crecia hasta ~700 px con un trazo de 240 px arriba y
+   * cuatrocientos de nada debajo. Con esto el trazo absorbe la diferencia, sea la
+   * que sea, y la fila queda a ras por los dos lados.
+   */
+  flexible?: boolean;
   className?: string;
 };
+
+/** Piso del trazo en modo flexible: por debajo, dos series no se distinguen. */
+const ALTURA_MINIMA = 200;
 
 const SERIE_INGRESOS: SerieColor = 1;
 const SERIE_EGRESOS: SerieColor = 2;
@@ -29,9 +42,17 @@ const MARGEN = { arriba: 14, derecha: 14, abajo: 26, izquierda: 52 };
  * valores. Lleva capa de interaccion (mira vertical + globo con los dos
  * valores del mes) y vista de tabla equivalente.
  */
-export function GraficoFlujo({ puntos, moneda, maximoMeses = 12, altura = 240, className }: Props) {
+export function GraficoFlujo({
+  puntos,
+  moneda,
+  maximoMeses = 12,
+  altura: alturaFija = 240,
+  flexible,
+  className,
+}: Props) {
   const contenedor = useRef<HTMLDivElement>(null);
   const [ancho, setAncho] = useState(640);
+  const [alto, setAlto] = useState(alturaFija);
   const [activo, setActivo] = useState<number | null>(null);
 
   useEffect(() => {
@@ -39,13 +60,19 @@ export function GraficoFlujo({ puntos, moneda, maximoMeses = 12, altura = 240, c
     if (!nodo) return;
 
     const observador = new ResizeObserver(([entrada]) => {
-      const medida = entrada?.contentRect.width;
-      if (medida && medida > 0) setAncho(medida);
+      const caja = entrada?.contentRect;
+      if (!caja) return;
+      if (caja.width > 0) setAncho(caja.width);
+      // En modo flexible el alto lo fija el contenedor (`flex-1`) y no el SVG,
+      // asi que medirlo no realimenta el layout.
+      if (caja.height > 0) setAlto(Math.max(ALTURA_MINIMA, caja.height));
     });
 
     observador.observe(nodo);
     return () => observador.disconnect();
   }, []);
+
+  const altura = flexible ? alto : alturaFija;
 
   const datos = puntos.slice(-maximoMeses);
   const n = datos.length;
@@ -96,11 +123,11 @@ export function GraficoFlujo({ puntos, moneda, maximoMeses = 12, altura = 240, c
   const punto = activo === null ? null : datos[activo];
 
   return (
-    <div className={cn("space-y-2", className)}>
+    <div className={cn(flexible ? "flex min-h-0 flex-1 flex-col gap-2" : "space-y-2", className)}>
       <div
         ref={contenedor}
-        className="relative w-full touch-none"
-        style={{ height: altura }}
+        className={cn("relative w-full touch-none", flexible && "min-h-0 flex-1")}
+        style={flexible ? undefined : { height: altura }}
         onPointerMove={alMover}
         onPointerLeave={() => setActivo(null)}
       >

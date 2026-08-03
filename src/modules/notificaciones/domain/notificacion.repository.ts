@@ -7,11 +7,17 @@ export type NotificacionListada = {
   ocurrenciaId: string | null;
   canal: CanalNotificacion;
   asunto: string;
+  /**
+   * Texto del aviso. La campana lo muestra tal cual (§10.2); en el canal in-app
+   * la plantilla guarda la versión de texto plano, no el HTML del correo.
+   */
+  cuerpo: string;
   programadaPara: string;
   enviadaEn: string | null;
   estado: EstadoNotificacion;
   intentos: number;
   error: string | null;
+  leidaEn: string | null;
 };
 
 export interface NotificacionRepository {
@@ -22,6 +28,25 @@ export interface NotificacionRepository {
     canal?: CanalNotificacion;
     limite?: number;
   }): Promise<NotificacionListada[]>;
+  buscarPorId(id: string): Promise<Notificacion | null>;
+  /**
+   * Bandeja de la campana (§10.2, RF-59): avisos in-app publicados —instante
+   * cumplido— y no cancelados, del más reciente al más antiguo.
+   */
+  bandeja(
+    ahora: Date,
+    filtro?: { soloNoLeidos?: boolean; limite?: number },
+  ): Promise<NotificacionListada[]>;
+  contarNoLeidos(ahora: Date): Promise<number>;
+  /**
+   * Marca leídos todos los avisos publicados de una vez.
+   *
+   * Es una operación de conjunto y se queda en el puerto en lugar de recorrer
+   * entidades: cargar N avisos para poner la misma marca en todos es ceremonia
+   * sin invariante que proteger. La lectura de UNO sí pasa por la entidad
+   * (`MarcarAvisoLeido`), que es donde vive la regla del canal.
+   */
+  marcarTodosLeidos(ahora: Date): Promise<number>;
   /**
    * Inserta si no existe ya el aviso (ocurrencia + canal + instante). Devuelve
    * `false` cuando ya estaba: es lo que hace idempotente la tarea diaria.

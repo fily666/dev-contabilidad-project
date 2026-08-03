@@ -8,6 +8,12 @@ import type {
   TipoMetodoPago,
   TipoMovimiento,
 } from "@/shared/domain/enumeraciones";
+// Los canales y estados de aviso viven en el dominio de su modulo y no en el
+// vocabulario compartido: solo las pantallas de avisos los nombran (§10.2).
+import type {
+  CanalNotificacion,
+  EstadoNotificacion,
+} from "@/modules/notificaciones/domain/notificacion.entity";
 
 /** Etiquetas de presentacion en es-CO (RNF-13). */
 
@@ -81,6 +87,25 @@ export const ETIQUETA_TIPO_METODO_PAGO: Record<TipoMetodoPago, string> = {
   otro: "Otro",
 };
 
+/** §10.2, RF-59: la campana y el historial de avisos. */
+export const ETIQUETA_CANAL_NOTIFICACION: Record<CanalNotificacion, string> = {
+  email: "Correo",
+  whatsapp: "WhatsApp",
+  in_app: "En la app",
+};
+
+/**
+ * Los cuatro estados describen el ENVÍO, no la lectura. «Programada» se dice
+ * «En cola» porque para quien lee la pantalla lo relevante es que todavía no
+ * salió, no el nombre interno del estado.
+ */
+export const ETIQUETA_ESTADO_NOTIFICACION: Record<EstadoNotificacion, string> = {
+  programada: "En cola",
+  enviada: "Enviada",
+  fallida: "Reintentando",
+  cancelada: "Cancelada",
+};
+
 /** Mensajes de error de dominio traducidos (§8.6). */
 export const MENSAJE_ERROR: Record<string, string> = {
   NO_AUTENTICADO: "Tu sesión expiró. Vuelve a ingresar con el token de acceso.",
@@ -132,6 +157,8 @@ export const MENSAJE_ERROR: Record<string, string> = {
   OCURRENCIA_OMITIDA: "La ocurrencia ya está omitida.",
   INTERVALO_INVALIDO: "Una frecuencia personalizada requiere un intervalo entre 1 y 60 meses.",
   CONCEPTO_INVALIDO: "El concepto debe tener entre 1 y 150 caracteres.",
+  AVISO_NO_ENCONTRADO: "El aviso no existe.",
+  AVISO_NO_LEIBLE: "Solo los avisos in-app se leen dentro de la aplicación.",
   DOCUMENTO_NO_ENCONTRADO: "El soporte no existe o ya fue eliminado.",
   TIPO_ARCHIVO_NO_PERMITIDO: "Solo se admiten PDF, JPG, PNG, WEBP, XLSX y DOCX.",
   ARCHIVO_DEMASIADO_GRANDE: "El archivo supera el máximo de 20 MB.",

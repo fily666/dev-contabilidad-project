@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { BellRing, FolderPlus } from "lucide-react";
 
 import { contenedorPrivado } from "@/di/container";
+import { CabeceraPagina, CabeceraSeccion } from "@/shared/ui/cabeceras";
 import { EnlaceBoton } from "@/shared/ui/enlace-boton";
 import { EstadoVacio } from "@/shared/ui/estado-vacio";
 import { TarjetaIndicador } from "@/shared/ui/tarjeta-indicador";
@@ -55,22 +56,20 @@ export default async function PaginaObligaciones({ searchParams }: Props) {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <p className="etiqueta-dato">Compromisos</p>
-          <h1 className="mt-1 text-2xl font-semibold tracking-tight">Obligaciones</h1>
-          <p className="text-sm text-muted-foreground">
-            Pagos recurrentes y sus vencimientos. Pagar una ocurrencia crea el movimiento.
-          </p>
-        </div>
-        <DialogoObligacion
-          proyectos={opcionesProyecto}
-          categorias={categorias}
-          hoy={hoy}
-          horizonteMeses={ajustes.horizonteProyeccionMeses}
-          formatoFecha={ajustes.formatoFecha}
-        />
-      </div>
+      <CabeceraPagina
+        ambito="Compromisos"
+        titulo="Obligaciones"
+        descripcion="Pagos recurrentes y sus vencimientos. Pagar una ocurrencia crea el movimiento."
+        acciones={
+          <DialogoObligacion
+            proyectos={opcionesProyecto}
+            categorias={categorias}
+            hoy={hoy}
+            horizonteMeses={ajustes.horizonteProyeccionMeses}
+            formatoFecha={ajustes.formatoFecha}
+          />
+        }
+      />
 
       {proyectos.length === 0 ? (
         <EstadoVacio
@@ -116,22 +115,30 @@ export default async function PaginaObligaciones({ searchParams }: Props) {
             />
           </div>
 
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <h2 className="etiqueta-dato">Agenda de vencimientos</h2>
-            <SelectorVentana ventana={ventana} />
-          </div>
-
+          {/*
+            El selector de ventana entra COMO ACCIÓN DEL PANEL y no en una fila
+            propia encima. Antes había un `h2` «Agenda de vencimientos» con el
+            selector al lado y, cuarenta píxeles más abajo, el título del propio
+            panel: «Vencidas y próximas (30 días)». Dos rótulos para el mismo
+            bloque, y el control separado de lo que cambia.
+          */}
           <PanelAgenda
             eventos={agenda}
             metodosPago={metodosPago}
             hoy={hoy}
             formatoFecha={ajustes.formatoFecha}
             moneda={ajustes.moneda}
-            titulo={`Vencidas y próximas (${ventana} días)`}
+            titulo={`Agenda · vencidas y próximas ${ventana} días`}
+            accion={<SelectorVentana ventana={ventana} />}
             vacio={{
               titulo: `Sin vencimientos en ${ventana} días`,
               descripcion: "Las obligaciones activas generan sus ocurrencias automáticamente.",
             }}
+          />
+
+          <CabeceraSeccion
+            titulo="Obligaciones registradas"
+            descripcion="Cada obligación genera sus ocurrencias según su frecuencia."
           />
 
           {obligaciones.length === 0 ? (

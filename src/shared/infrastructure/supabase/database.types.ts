@@ -470,6 +470,9 @@ export type Database = {
           estado: EstadoNotificacion;
           error: string | null;
           intentos: number;
+          // §10.2: lectura en la campana. Null = no leida. La restriccion
+          // `notificaciones_solo_in_app_se_lee` la limita al canal in_app.
+          leida_en: string | null;
         };
         Insert: {
           id?: string;
@@ -485,6 +488,7 @@ export type Database = {
           estado?: EstadoNotificacion;
           error?: string | null;
           intentos?: number;
+          leida_en?: string | null;
         };
         Relationships: [];
       };

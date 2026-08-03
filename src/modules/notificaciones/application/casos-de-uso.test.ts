@@ -8,6 +8,9 @@ import { plantillaAviso, plantillaResumen } from "../domain/plantillas";
 import {
   EnviarNotificaciones,
   ListarNotificaciones,
+  MarcarAvisoLeido,
+  MarcarAvisosLeidos,
+  ObtenerBandejaAvisos,
   ProgramarAvisos,
   type ConfiguracionAvisos,
 } from "./casos-de-uso";
@@ -43,6 +46,9 @@ function montar() {
     programar: new ProgramarAvisos(notificaciones, obligaciones, reloj, nuevoId),
     enviar: new EnviarNotificaciones(notificaciones, email, reloj),
     listar: new ListarNotificaciones(notificaciones),
+    bandeja: new ObtenerBandejaAvisos(notificaciones, reloj),
+    marcarLeido: new MarcarAvisoLeido(notificaciones, reloj),
+    marcarTodos: new MarcarAvisosLeidos(notificaciones, reloj),
   };
 }
 
@@ -290,5 +296,125 @@ describe("EnviarNotificaciones (§10.1)", () => {
 
     expect(resultado.enviadas).toBe(1);
     expect(contexto.email.enviados).toHaveLength(0);
+  });
+});
+
+/**
+ * §10.2 y RF-59: el lado que faltaba del canal in-app. Era el último hueco
+ * abierto de §17 —los avisos se escribían y nadie los leía—, así que estas
+ * pruebas cubren el camino completo: qué muestra la campana, qué cuenta como no
+ * leído y cuándo un aviso deja de aparecer.
+ */
+describe("Bandeja de avisos in-app (§10.2, RF-59)", () => {
+  const SOLO_IN_APP: ConfiguracionAvisos = { ...CONFIGURACION, canales: ["in_app"] };
+
+  it("muestra el aviso cuyo instante ya llegó y deja fuera el que aún no toca", async () => {
+    const contexto = montar();
+    // Vence en cinco días con avisos a 5 y 1: el de 5 cae hoy, el de 1 el día 3.
+    await conObligacion(contexto, "2026-08-04", [5, 1]);
+    const programados = await contexto.programar.ejecutar({ configuracion: SOLO_IN_APP });
+
+    const bandeja = await contexto.bandeja.ejecutar();
+
+    expect(programados.programados).toBe(2);
+    expect(bandeja.avisos).toHaveLength(1);
+    expect(bandeja.noLeidos).toBe(1);
+    expect(bandeja.avisos[0]?.asunto).toContain("Cuota del crédito");
+    // La campana muestra el texto, no el HTML del correo.
+    expect(bandeja.avisos[0]?.cuerpo).not.toContain("<");
+  });
+
+  it("el aviso aparece sin esperar a la tarea horaria de envío", async () => {
+    const contexto = montar();
+    await conObligacion(contexto, "2026-08-04", [5]);
+    await contexto.programar.ejecutar({ configuracion: SOLO_IN_APP });
+
+    // Sin pasar por `enviar`: sigue en `programada` y ya debe verse. Esperar a la
+    // tarea lo retrasaría hasta una hora, que en un aviso es el defecto entero.
+    const bandeja = await contexto.bandeja.ejecutar();
+
+    expect(bandeja.avisos[0]?.estado).toBe("programada");
+    expect(bandeja.noLeidos).toBe(1);
+  });
+
+  it("marcar leído baja el contador pero no borra el aviso", async () => {
+    const contexto = montar();
+    await conObligacion(contexto, "2026-08-04", [5]);
+    await contexto.programar.ejecutar({ configuracion: SOLO_IN_APP });
+    const [aviso] = (await contexto.bandeja.ejecutar()).avisos;
+
+    await contexto.marcarLeido.ejecutar({ id: aviso!.id });
+    const despues = await contexto.bandeja.ejecutar();
+
+    expect(despues.noLeidos).toBe(0);
+    expect(despues.avisos).toHaveLength(1);
+    expect(despues.avisos[0]?.leidaEn).not.toBeNull();
+    expect((await contexto.bandeja.ejecutar({ soloNoLeidos: true })).avisos).toHaveLength(0);
+  });
+
+  it("volver a leer el mismo aviso no mueve el instante de lectura", async () => {
+    const contexto = montar();
+    await conObligacion(contexto, "2026-08-04", [5]);
+    await contexto.programar.ejecutar({ configuracion: SOLO_IN_APP });
+    const [aviso] = (await contexto.bandeja.ejecutar()).avisos;
+
+    await contexto.marcarLeido.ejecutar({ id: aviso!.id });
+    const primera = (await contexto.bandeja.ejecutar()).avisos[0]?.leidaEn;
+    contexto.reloj.viajarA("2026-08-01");
+    await contexto.marcarLeido.ejecutar({ id: aviso!.id });
+
+    expect((await contexto.bandeja.ejecutar()).avisos[0]?.leidaEn).toBe(primera);
+  });
+
+  it("marcar todo como leído deja el contador en cero y no repite trabajo", async () => {
+    const contexto = montar();
+    await conObligacion(contexto, "2026-08-04", [5, 1]);
+    await contexto.programar.ejecutar({ configuracion: SOLO_IN_APP });
+
+    const primera = await contexto.marcarTodos.ejecutar();
+    const segunda = await contexto.marcarTodos.ejecutar();
+
+    // Solo uno estaba publicado: el aviso futuro no se puede leer antes de existir.
+    expect(primera.leidos).toBe(1);
+    expect(segunda.leidos).toBe(0);
+    expect((await contexto.bandeja.ejecutar()).noLeidos).toBe(0);
+  });
+
+  it("el correo no entra en la bandeja ni admite marcarse leído", async () => {
+    const contexto = montar();
+    await conObligacion(contexto, "2026-07-31", [1]);
+    await contexto.programar.ejecutar({
+      configuracion: { ...CONFIGURACION, canales: ["email"] },
+    });
+    const [correo] = await contexto.listar.ejecutar({});
+
+    const bandeja = await contexto.bandeja.ejecutar();
+
+    expect(bandeja.avisos).toHaveLength(0);
+    expect(bandeja.noLeidos).toBe(0);
+    await expect(contexto.marcarLeido.ejecutar({ id: correo!.id })).rejects.toMatchObject({
+      codigo: "AVISO_NO_LEIBLE",
+    });
+  });
+
+  it("cancelar los avisos de una ocurrencia los retira de la campana", async () => {
+    const contexto = montar();
+    await conObligacion(contexto, "2026-08-04", [5]);
+    await contexto.programar.ejecutar({ configuracion: SOLO_IN_APP });
+    const [aviso] = (await contexto.bandeja.ejecutar()).avisos;
+
+    // Es lo que ocurre al pagar u omitir la ocurrencia (§10): el aviso deja de
+    // tener sentido, y la campana se limpia sin código propio.
+    await contexto.notificaciones.cancelarDeOcurrencia(aviso!.ocurrenciaId!);
+
+    expect((await contexto.bandeja.ejecutar()).avisos).toHaveLength(0);
+  });
+
+  it("un aviso que no existe se rechaza con su código", async () => {
+    const contexto = montar();
+
+    await expect(
+      contexto.marcarLeido.ejecutar({ id: "0a000000-0000-4000-8000-000000000999" }),
+    ).rejects.toMatchObject({ codigo: "AVISO_NO_ENCONTRADO" });
   });
 });

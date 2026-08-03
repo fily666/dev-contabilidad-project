@@ -16,28 +16,31 @@ La especificación funcional y técnica completa está en **[Contexto.md](Contex
 | 1    | Acceso por token, ajustes, proyectos, catálogos, movimientos, resumen financiero   | ✅ completa |
 | 2    | Documentos y obligaciones con recurrencia, tareas programadas                      | ✅ completa |
 | 3    | Dashboard sobre las vistas, calendario, reportes con Excel y PDF                   | ✅ completa |
-| 4    | Pasivos, valoraciones, presupuestos, patrimonio, notificaciones por correo         | ✅ completa |
+| 4    | Pasivos, valoraciones, presupuestos, patrimonio, avisos por correo y en la app     | ✅ completa |
 | 5    | Importación CSV, exportación JSON, tipos de proyecto nuevos                        | ✅ completa |
 
 «Completa» significa aquí que el módulo existe con sus cuatro capas y sus pruebas en
-verde. Con una salvedad que conviene leer antes de dar algo por cerrado: **cinco
-requerimientos tienen dominio, caso de uso y pruebas, pero ninguna pantalla los invoca
-todavía** —renombrar una categoría (RF-31), corregir un pasivo (RF-17), corregir un
-presupuesto (RF-80), el semáforo de estado financiero (§5.5) y los avisos in-app (§10.2)—.
-Están en la tabla de [Contexto.md §17](Contexto.md), con lo que existe y lo que falta en
-cada uno.
+verde. Durante dos revisiones esa medida escondió una deuda que conviene recordar:
+**cinco requerimientos tenían dominio, caso de uso y pruebas sin que ninguna pantalla los
+invocara**. Los cinco ya están cableados —renombrar una categoría (RF-31), corregir un
+pasivo (RF-17), corregir un presupuesto (RF-80), el semáforo de estado financiero (§5.5) y,
+el último, los avisos in-app (RF-59, §10.2)—. La tabla se conserva en
+[Contexto.md §17](Contexto.md) por el patrón, no por la lista: medir «implementado» por
+módulo y no por camino completo es lo que produce ese tipo de hueco.
 
 Falta además, y no es alcance: decidir el proveedor de WhatsApp (§17), habilitar los
 backups diarios de Supabase (RNF-15) y correr la auditoría de accesibilidad y de
 Lighthouse (RNF-04, RNF-05), que se miden fuera del repositorio.
 
 Las tablas, funciones y vistas de **todas** las fases existen en la base de datos: son
-**ocho migraciones**, cinco de ellas el esquema inicial (tablas, funciones y triggers,
-vistas, blindaje, Storage) y tres posteriores —las tildes que faltaban en el catálogo, las
+**diez migraciones**, cinco de ellas el esquema inicial (tablas, funciones y triggers,
+vistas, blindaje, Storage) y cinco posteriores —las tildes que faltaban en el catálogo; las
 tres últimas vistas de agregación (`v_movimientos_mensual`, `v_gastos_mensual_categoria`,
 `v_presupuesto_ejecucion`) para que el rango de fechas del panel y el comparativo de
-presupuestos se calculen en SQL una sola vez (ADR-11), y la subida del límite por soporte
-de 10 a 20 MB. El detalle está en [Contexto.md §6.8](Contexto.md).
+presupuestos se calculen en SQL una sola vez (ADR-11); la subida del límite por soporte de
+10 a 20 MB; `fecha_de_negocio()`, que retira `current_date` de la base para que los
+vencimientos usen la zona horaria de `ajustes` (§8.5); y `notificaciones.leida_en` con el
+índice de la campana (§10.2)—. El detalle está en [Contexto.md §6.8](Contexto.md).
 
 ---
 
@@ -80,6 +83,14 @@ npm run dev
 Abre <http://localhost:3000>, escribe el token y ya estás dentro. No hay que crear nada: la semilla deja los 8 tipos de proyecto, las 109 categorías, los 4 métodos de pago y la fila de ajustes.
 
 `npm run db:demo` es aparte, y es lo que conviene para desarrollar: siembra 5 proyectos —un inmueble arrendado con hipoteca, un vehículo financiado, un negocio en operación, una construcción en curso y un portafolio de cripto— con dos años de movimientos, obligaciones con vencimientos próximos y uno vencido, pasivos, valoraciones y presupuestos. Las fechas son relativas al día en que se ejecuta, así que los indicadores de los últimos 12 meses y el flujo proyectado siempre tienen cifras. **Borra toda la información propia de la base**, y si ya hay alguna se niega hasta que se lo pidan con `npm run db:demo -- --force`.
+
+La demo **no siembra avisos**, a propósito: los produce la misma tarea que en producción. Para llenar la campana y `/avisos` (RF-59), dispara la tarea de [§10.1](Contexto.md) con el `CRON_SECRET` de tu `.env`:
+
+```bash
+curl -H "Authorization: Bearer <CRON_SECRET>" http://localhost:3000/api/cron/notificaciones
+```
+
+Con eso basta para verla: la campana muestra el aviso desde que su instante se cumple, sin esperar a la pasada de envío (`?enviar=1`). El motivo está en [Contexto.md §10.2](Contexto.md).
 
 ### Sobre el token
 

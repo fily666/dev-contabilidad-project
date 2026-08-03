@@ -7,6 +7,23 @@ import type {
 
 /** Dobles en memoria de los puertos de notificaciones (Contexto.md §8.8). */
 
+function aListada(notificacion: Notificacion): NotificacionListada {
+  const d = notificacion.aDatos();
+  return {
+    id: d.id,
+    ocurrenciaId: d.ocurrenciaId,
+    canal: d.canal,
+    asunto: d.asunto,
+    cuerpo: d.cuerpo,
+    programadaPara: d.programadaPara,
+    enviadaEn: d.enviadaEn,
+    estado: d.estado,
+    intentos: d.intentos,
+    error: d.error,
+    leidaEn: d.leidaEn,
+  };
+}
+
 export class NotificacionRepositoryEnMemoria implements NotificacionRepository {
   readonly filas = new Map<string, Notificacion>();
   /** Claves ya programadas: reproduce el indice unico de §6.3. */
@@ -23,22 +40,41 @@ export class NotificacionRepositoryEnMemoria implements NotificacionRepository {
     filtro: { estados?: NotificacionListada["estado"][]; limite?: number } = {},
   ): Promise<NotificacionListada[]> {
     return [...this.filas.values()]
-      .map((n) => {
-        const d = n.aDatos();
-        return {
-          id: d.id,
-          ocurrenciaId: d.ocurrenciaId,
-          canal: d.canal,
-          asunto: d.asunto,
-          programadaPara: d.programadaPara,
-          enviadaEn: d.enviadaEn,
-          estado: d.estado,
-          intentos: d.intentos,
-          error: d.error,
-        };
-      })
+      .map(aListada)
       .filter((n) => !filtro.estados?.length || filtro.estados.includes(n.estado))
       .slice(0, filtro.limite ?? 20);
+  }
+
+  async buscarPorId(id: string): Promise<Notificacion | null> {
+    return this.filas.get(id) ?? null;
+  }
+
+  /** Reproduce el indice parcial de §6.3: in-app, no cancelada, ya publicada. */
+  async bandeja(
+    ahora: Date,
+    filtro: { soloNoLeidos?: boolean; limite?: number } = {},
+  ): Promise<NotificacionListada[]> {
+    return [...this.filas.values()]
+      .filter((n) => n.publicada(ahora))
+      .filter((n) => !filtro.soloNoLeidos || n.leidaEn === null)
+      .sort((a, b) => b.programadaPara.localeCompare(a.programadaPara))
+      .map(aListada)
+      .slice(0, filtro.limite ?? 20);
+  }
+
+  async contarNoLeidos(ahora: Date): Promise<number> {
+    return [...this.filas.values()].filter((n) => n.publicada(ahora) && n.leidaEn === null).length;
+  }
+
+  async marcarTodosLeidos(ahora: Date): Promise<number> {
+    let leidos = 0;
+    for (const notificacion of this.filas.values()) {
+      if (notificacion.publicada(ahora) && notificacion.leidaEn === null) {
+        notificacion.marcarLeida(ahora);
+        leidos += 1;
+      }
+    }
+    return leidos;
   }
 
   async programarSiFalta(notificacion: Notificacion): Promise<boolean> {

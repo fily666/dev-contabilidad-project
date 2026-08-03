@@ -83,6 +83,9 @@ import { SupabaseNotificacionRepository } from "@/modules/notificaciones/infrast
 import {
   EnviarNotificaciones,
   ListarNotificaciones,
+  MarcarAvisoLeido,
+  MarcarAvisosLeidos,
+  ObtenerBandejaAvisos,
   ProgramarAvisos,
 } from "@/modules/notificaciones/application/casos-de-uso";
 import { ResendNotificador } from "@/shared/infrastructure/email/resend";
@@ -307,6 +310,11 @@ export function crearContenedor(zonaHoraria = AJUSTES_POR_OMISION.zonaHoraria) {
       listar: new ListarNotificaciones(notificaciones),
       programar: new ProgramarAvisos(notificaciones, obligaciones, reloj, nuevoId),
       enviar: new EnviarNotificaciones(notificaciones, new ResendNotificador(), reloj),
+      // RF-59: el lado que lee. La bandeja necesita el reloj porque «publicado»
+      // es una comparación contra ahora, no un estado guardado (§10.2).
+      bandeja: new ObtenerBandejaAvisos(notificaciones, reloj),
+      marcarLeido: new MarcarAvisoLeido(notificaciones, reloj),
+      marcarTodosLeidos: new MarcarAvisosLeidos(notificaciones, reloj),
     },
 
     documentos: {

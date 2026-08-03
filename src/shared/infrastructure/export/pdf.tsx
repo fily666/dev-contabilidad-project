@@ -140,9 +140,14 @@ function DocumentoReporte({ reporte }: { reporte: Reporte }) {
           {reporte.totales.map((total) => (
             <View key={total.etiqueta} style={estilos.totalFila}>
               <Text>{total.etiqueta}</Text>
+              {/*
+                El tipo lo declara el total (§11). Antes se formateaba como dinero
+                todo lo que fuera numérico, así que «Movimientos: 1.200» —un
+                conteo de filas— salía impreso como «$ 1.200» en el pie del PDF.
+              */}
               <Text>
                 {Number.isFinite(Number(total.valor))
-                  ? formatearNumero(Number(total.valor), reporte.moneda, "dinero")
+                  ? formatearNumero(Number(total.valor), reporte.moneda, total.tipo)
                   : total.valor}
               </Text>
             </View>

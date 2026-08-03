@@ -7,6 +7,7 @@ import {
   mesAnterior,
   mesSiguiente,
   primerDiaDelMes,
+  resumirMes,
   ultimoDiaDelMes,
   type EventoCalendario,
 } from "./mes";
@@ -111,5 +112,43 @@ describe("construirMes", () => {
 
     expect(comprometidoDelMes(dias)).toBe(0);
     expect(dias.find((d) => d.fecha === "2026-06-29")?.eventos).toHaveLength(1);
+  });
+});
+
+describe("resumirMes", () => {
+  const dias = construirMes({
+    mes: "2026-07",
+    hoy: "2026-07-30",
+    eventos: [
+      evento({ fecha: "2026-07-05", estado: "pendiente", valor: 100 }),
+      evento({ fecha: "2026-07-06", estado: "vencida", valor: 200, concepto: "Vencida" }),
+      evento({ fecha: "2026-07-07", estado: "vencido", valor: 50, concepto: "Vencido mov" }),
+      evento({ fecha: "2026-07-08", estado: "pagada", valor: 400, concepto: "Pagada" }),
+      evento({ fecha: "2026-07-09", estado: "omitida", valor: 800, concepto: "Omitida" }),
+      // Relleno de la primera semana: no es del mes y no debe contarse en nada.
+      evento({ fecha: "2026-06-29", valor: 999_999, concepto: "Del mes anterior" }),
+    ],
+  });
+
+  it("lo vencido va aparte del comprometido, no restado ni duplicado", () => {
+    const resumen = resumirMes(dias);
+
+    // Pendiente 100 + vencida 200 + vencido 50: lo vencido sigue sin salir de caja.
+    expect(resumen.comprometido).toBe(350);
+    // Y ademas se publica solo, que es lo que la vista no podia responder.
+    expect(resumen.vencidos).toBe(2);
+    expect(resumen.importeVencido).toBe(250);
+  });
+
+  it("cuenta lo ejecutado y los eventos del mes sin el relleno", () => {
+    const resumen = resumirMes(dias);
+
+    expect(resumen.pagado).toBe(400);
+    // Cinco del mes; el del 29 de junio queda fuera aunque este en la rejilla.
+    expect(resumen.eventos).toBe(5);
+  });
+
+  it("no contradice a comprometidoDelMes, que es la misma cifra", () => {
+    expect(resumirMes(dias).comprometido).toBe(comprometidoDelMes(dias));
   });
 });

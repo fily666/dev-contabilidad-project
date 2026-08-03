@@ -77,6 +77,31 @@ export function formatearMesCorto(fechaIso: string): string {
   return format(parseISO(fechaIso), "MMM yy", { locale: es });
 }
 
+/**
+ * Instante con hora en la zona de la instalación: `30 jul, 07:00` (§8.5, §10.2).
+ *
+ * `programada_para` es un `timestamptz`, no una fecha de negocio, así que no puede
+ * pasar por `formatearFecha`: esa función parte el texto como fecha local y un
+ * aviso programado a las 07:00 de Bogotá —mediodía UTC— se mostraría como del
+ * mediodía. La zona se recibe como argumento por lo mismo que el patrón: es de la
+ * instalación, no de un contexto global (ADR-14).
+ */
+export function formatearInstante(instanteIso: string, zonaHoraria = "America/Bogota"): string {
+  const fecha = new Date(instanteIso);
+  if (Number.isNaN(fecha.getTime())) return "";
+
+  return new Intl.DateTimeFormat("es-CO", {
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+    timeZone: zonaHoraria,
+  })
+    .format(fecha)
+    .replace(",", " ·");
+}
+
 /** Tamaño legible: los bytes crudos no le dicen nada a nadie. */
 export function formatearTamano(bytes: number): string {
   if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;

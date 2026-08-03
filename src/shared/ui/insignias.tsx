@@ -8,10 +8,12 @@ import type {
 } from "@/shared/domain/enumeraciones";
 import {
   ETIQUETA_ESTADO_MOVIMIENTO,
+  ETIQUETA_ESTADO_NOTIFICACION,
   ETIQUETA_ESTADO_OCURRENCIA,
   ETIQUETA_ESTADO_PROYECTO,
   ETIQUETA_NATURALEZA,
 } from "@/shared/utils/etiquetas";
+import type { EstadoNotificacion } from "@/modules/notificaciones/domain/notificacion.entity";
 import type { EstadoFinanciero } from "@/modules/proyectos/domain/indicadores";
 
 const CLASES_ESTADO_MOVIMIENTO: Record<EstadoMovimiento, string> = {
@@ -71,6 +73,37 @@ export function InsigniaNaturaleza({ naturaleza }: { naturaleza: Naturaleza }) {
   return (
     <Badge variant="outline" className={cn("font-medium", CLASES_NATURALEZA[naturaleza])}>
       {ETIQUETA_NATURALEZA[naturaleza]}
+    </Badge>
+  );
+}
+
+/**
+ * §10.2, RF-59. `fallida` en ámbar y no en rojo: la fila se va a reintentar, y
+ * pintar de rojo lo que todavía puede salir bien enseña a ignorar el color.
+ * `cancelada` es la que de verdad se perdió, pero como en el resto de la
+ * aplicación lo agotado va en gris, se distingue por la etiqueta.
+ */
+const CLASES_ESTADO_NOTIFICACION: Record<EstadoNotificacion, string> = {
+  programada: "bg-info-soft text-foreground border-info/30",
+  enviada: "bg-success-soft text-success-foreground border-success/30",
+  fallida: "bg-warning-soft text-warning-foreground border-warning/30",
+  cancelada: "bg-muted text-muted-foreground border-border",
+};
+
+export function InsigniaEstadoNotificacion({
+  estado,
+  intentos,
+}: {
+  estado: EstadoNotificacion;
+  intentos?: number;
+}) {
+  return (
+    <Badge
+      variant="outline"
+      title={intentos ? `${intentos} intento(s) de envío` : undefined}
+      className={cn("font-medium", CLASES_ESTADO_NOTIFICACION[estado])}
+    >
+      {ETIQUETA_ESTADO_NOTIFICACION[estado]}
     </Badge>
   );
 }

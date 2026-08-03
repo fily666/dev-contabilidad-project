@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { AlertTriangle, PiggyBank, Receipt, Scale } from "lucide-react";
 
 import { contenedorPrivado } from "@/di/container";
+import { CabeceraPagina } from "@/shared/ui/cabeceras";
 import { TarjetaIndicador } from "@/shared/ui/tarjeta-indicador";
 import { PanelGrafica } from "@/shared/ui/viz/panel-grafica";
 import { BarrasComparativas } from "@/shared/ui/viz/barras-comparativas";
@@ -58,14 +59,12 @@ export default async function PaginaPresupuestos({ searchParams }: Props) {
     : null;
 
   return (
-    <div className="space-y-8">
-      <div>
-        <p className="etiqueta-dato">Planeación</p>
-        <h1 className="mt-1 text-2xl font-semibold tracking-tight">Presupuestos</h1>
-        <p className="text-sm text-muted-foreground">
-          Cuánto se planeó gastar frente a cuánto se gastó, con alerta al 80 % y al 100 %.
-        </p>
-      </div>
+    <div className="space-y-6">
+      <CabeceraPagina
+        ambito="Planeación"
+        titulo="Presupuestos"
+        descripcion="Cuánto se planeó gastar frente a cuánto se gastó, con alerta al 80 % y al 100 %."
+      />
 
       {/*
         La ejecución pasa a ser el valor PRINCIPAL de la primera tarjeta: es el
@@ -79,77 +78,90 @@ export default async function PaginaPresupuestos({ searchParams }: Props) {
 
         Y «Desviación» se retiró: es `ejecutado − planeado`, visible ya en las dos
         tarjetas contiguas y en cada barra de la tabla. Su hueco lo ocupa el ritmo.
-      */}
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <TarjetaIndicador
-          etiqueta="Ejecución"
-          valor={formatearPorcentaje(resumen.ejecucion, 0)}
-          tono={
-            resumen.ejecucion === null
-              ? "neutro"
-              : resumen.ejecucion > 1
-                ? "negativo"
-                : resumen.ejecucion >= 0.8
-                  ? "advertencia"
-                  : "positivo"
-          }
-          detalle={textoRitmo(ritmo)}
-          icono={<Receipt className="size-4" />}
-        />
-        <TarjetaIndicador
-          etiqueta="Planeado"
-          valor={formatearDineroCompacto(resumen.planeado, moneda)}
-          detalle={`${filas.length} partida(s)`}
-          icono={<PiggyBank className="size-4" />}
-        />
-        <TarjetaIndicador
-          etiqueta="Ejecutado"
-          valor={formatearDineroCompacto(resumen.real, moneda)}
-          detalle={`Desviación ${formatearDineroCompacto(resumen.desviacion, moneda)}`}
-          tono={resumen.desviacion > 0 ? "negativo" : "positivo"}
-          icono={<Scale className="size-4" />}
-        />
-        <TarjetaIndicador
-          etiqueta="Excedidos"
-          valor={String(resumen.excedidos)}
-          detalle={`${resumen.enAviso} sobre el 80 %`}
-          tono={
-            resumen.excedidos > 0 ? "negativo" : resumen.enAviso > 0 ? "advertencia" : "positivo"
-          }
-          icono={<AlertTriangle className="size-4" />}
-        />
-      </div>
 
-      <PanelGrafica
-        titulo="Planeado contra real del periodo vigente"
-        descripcion="Solo los presupuestos cuyo periodo incluye hoy."
-        leyenda={[
-          { etiqueta: "Planeado", serie: 1 },
-          { etiqueta: "Real", serie: 2 },
-        ]}
-      >
-        {vigentes.length === 0 ? (
-          <EstadoVacio
-            denso
-            titulo="Sin presupuestos vigentes"
-            descripcion="Crea uno para el mes o el año en curso y aquí verás la comparación."
-          />
-        ) : (
-          <BarrasComparativas
-            categorias={vigentes.map((f) => ({
-              clave: f.presupuestoId,
-              etiqueta: f.categoria,
-              valores: [f.valorPlaneado, f.valorReal],
-            }))}
-            series={[
+        Sin ninguna partida definida, esta fila y la gráfica de debajo no se pintan:
+        eran cuatro tarjetas en «—» y «$ 0» y un panel con su estado vacío, unos
+        400 px de armazón para decir cuatro veces que no hay nada. Con la tabla
+        vacía, el estado vacío del gestor —que sí lleva la acción— es la vista.
+      */}
+      {filas.length === 0 ? null : (
+        <>
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <TarjetaIndicador
+              etiqueta="Ejecución"
+              valor={formatearPorcentaje(resumen.ejecucion, 0)}
+              tono={
+                resumen.ejecucion === null
+                  ? "neutro"
+                  : resumen.ejecucion > 1
+                    ? "negativo"
+                    : resumen.ejecucion >= 0.8
+                      ? "advertencia"
+                      : "positivo"
+              }
+              detalle={textoRitmo(ritmo)}
+              icono={<Receipt className="size-4" />}
+            />
+            <TarjetaIndicador
+              etiqueta="Planeado"
+              valor={formatearDineroCompacto(resumen.planeado, moneda)}
+              detalle={`${filas.length} partida(s)`}
+              icono={<PiggyBank className="size-4" />}
+            />
+            <TarjetaIndicador
+              etiqueta="Ejecutado"
+              valor={formatearDineroCompacto(resumen.real, moneda)}
+              detalle={`Desviación ${formatearDineroCompacto(resumen.desviacion, moneda)}`}
+              tono={resumen.desviacion > 0 ? "negativo" : "positivo"}
+              icono={<Scale className="size-4" />}
+            />
+            <TarjetaIndicador
+              etiqueta="Excedidos"
+              valor={String(resumen.excedidos)}
+              detalle={`${resumen.enAviso} sobre el 80 %`}
+              tono={
+                resumen.excedidos > 0
+                  ? "negativo"
+                  : resumen.enAviso > 0
+                    ? "advertencia"
+                    : "positivo"
+              }
+              icono={<AlertTriangle className="size-4" />}
+            />
+          </div>
+
+          <PanelGrafica
+            titulo="Planeado contra real del periodo vigente"
+            descripcion="Solo los presupuestos cuyo periodo incluye hoy."
+            leyenda={[
               { etiqueta: "Planeado", serie: 1 },
               { etiqueta: "Real", serie: 2 },
             ]}
-            moneda={moneda}
-            tituloTabla="Planeado contra real por categoría"
-          />
-        )}
-      </PanelGrafica>
+          >
+            {vigentes.length === 0 ? (
+              <EstadoVacio
+                denso
+                titulo="Sin presupuestos vigentes"
+                descripcion="Crea uno para el mes o el año en curso y aquí verás la comparación."
+              />
+            ) : (
+              <BarrasComparativas
+                categorias={vigentes.map((f) => ({
+                  clave: f.presupuestoId,
+                  etiqueta: f.categoria,
+                  valores: [f.valorPlaneado, f.valorReal],
+                }))}
+                series={[
+                  { etiqueta: "Planeado", serie: 1 },
+                  { etiqueta: "Real", serie: 2 },
+                ]}
+                moneda={moneda}
+                tituloTabla="Planeado contra real por categoría"
+              />
+            )}
+          </PanelGrafica>
+        </>
+      )}
 
       <GestorPresupuestos
         filas={filas}
