@@ -155,8 +155,8 @@ export default async function PaginaDashboard({ searchParams }: Props) {
       ) : (
         <>
           {/*
-            RF-79: un solo filtro para todo el panel, y pegajoso. Antes había que
-            subir hasta arriba para cambiar el rango y volver a bajar a la gráfica
+            RF-79: un solo filtro para todo el panel, y pegajoso, para que cambiar
+            el rango no obligue a subir hasta arriba y volver a bajar a la gráfica
             que se estaba mirando.
           */}
           <div className="sticky top-14 z-20 -mx-4 bg-background/80 px-4 py-2 backdrop-blur-xl md:-mx-8 md:px-8">

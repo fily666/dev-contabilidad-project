@@ -57,10 +57,10 @@ const ETIQUETA_ALERTA: Record<NivelAlerta, string> = {
 /**
  * RF-82 en la escala SEMÁNTICA, no en la categórica.
  *
- * Antes esto mapeaba a las ranuras 1/3/2 de la paleta de series, así que un
- * presupuesto excedido se pintaba con el azul de los egresos mientras su insignia
- * —dos celdas a la derecha, en la misma fila— se pintaba en rojo. Los dos leen
- * ahora de los mismos tokens del tema.
+ * El nivel de alerta es estado, y el estado NO se pinta con la paleta de series:
+ * mapearlo a las ranuras 1/3/2 pintaría un presupuesto excedido con el azul de los
+ * egresos mientras su insignia, en la misma fila, lo pinta en rojo. Medidor e
+ * insignia leen de los mismos tokens del tema.
  */
 const TONO_ALERTA: Record<NivelAlerta, TonoSemantico> = {
   ok: "ok",

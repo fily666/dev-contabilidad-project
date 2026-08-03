@@ -17,16 +17,11 @@ type Props = {
  * Marco único de los paneles de datos: gráficas, agenda y cualquier bloque con
  * título propio.
  *
- * Antes había dos marcos compitiendo en la misma fila del panel general:
- * `PanelGrafica` (superficie `panel panel-acento`, título en versalitas mono de
- * 0,7 rem) y `Card` de shadcn (misma superficie, sin la línea de acento, título en
- * `font-heading` de 1 rem con capitalización normal). «Flujo de caja ejecutado» y
- * «Requiere atención» quedaban lado a lado con dos tipografías, dos tamaños y dos
- * paddings —20 px contra 20 px verticales pero repartidos distinto—, y el borde
- * superior luminoso aparecía en uno y no en el otro.
- *
+ * **Es el único marco, y el `Card` de shadcn no se usa para esto.** Dos marcos con
+ * la misma superficie y distinta tipografía de título dejan a dos paneles vecinos
+ * de la misma fila con dos tamaños, dos paddings y la línea de acento en uno solo.
  * Con un marco solo, añadir un panel nuevo no obliga a elegir entre dos estilos ni
- * a acertar con el que la vecina usó.
+ * a acertar con el que usó la vecina.
  */
 export function PanelDatos({
   titulo,

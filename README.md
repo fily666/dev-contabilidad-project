@@ -10,37 +10,52 @@ La especificación funcional y técnica completa está en **[Contexto.md](Contex
 
 ## Estado actual
 
-| Fase | Alcance                                                                            | Estado      |
-| ---- | ---------------------------------------------------------------------------------- | ----------- |
-| 0    | Andamiaje, tooling, esquema de base de datos, blindaje, contenedor de dependencias | ✅ completa |
-| 1    | Acceso por token, ajustes, proyectos, catálogos, movimientos, resumen financiero   | ✅ completa |
-| 2    | Documentos y obligaciones con recurrencia, tareas programadas                      | ✅ completa |
-| 3    | Dashboard sobre las vistas, calendario, reportes con Excel y PDF                   | ✅ completa |
-| 4    | Pasivos, valoraciones, presupuestos, patrimonio, avisos por correo y en la app     | ✅ completa |
-| 5    | Importación CSV, exportación JSON, tipos de proyecto nuevos                        | ✅ completa |
+Las seis fases del alcance están implementadas y cableadas en la interfaz: cada módulo
+existe con sus cuatro capas, sus pruebas en verde y una pantalla que lo invoca.
 
-«Completa» significa aquí que el módulo existe con sus cuatro capas y sus pruebas en
-verde. Durante dos revisiones esa medida escondió una deuda que conviene recordar:
-**cinco requerimientos tenían dominio, caso de uso y pruebas sin que ninguna pantalla los
-invocara**. Los cinco ya están cableados —renombrar una categoría (RF-31), corregir un
-pasivo (RF-17), corregir un presupuesto (RF-80), el semáforo de estado financiero (§5.5) y,
-el último, los avisos in-app (RF-59, §10.2)—. La tabla se conserva en
-[Contexto.md §17](Contexto.md) por el patrón, no por la lista: medir «implementado» por
-módulo y no por camino completo es lo que produce ese tipo de hueco.
+| Fase | Alcance                                                                            |
+| ---- | ---------------------------------------------------------------------------------- |
+| 0    | Andamiaje, tooling, esquema de base de datos, blindaje, contenedor de dependencias |
+| 1    | Acceso por token, ajustes, proyectos, catálogos, movimientos, resumen financiero   |
+| 2    | Documentos y obligaciones con recurrencia, tareas programadas                      |
+| 3    | Panel sobre las vistas, calendario, reportes con Excel y PDF                       |
+| 4    | Pasivos, valoraciones, presupuestos, patrimonio, avisos por correo y en la app     |
+| 5    | Importación CSV, exportación JSON, tipos de proyecto nuevos                        |
 
-Falta además, y no es alcance: decidir el proveedor de WhatsApp (§17), habilitar los
-backups diarios de Supabase (RNF-15) y correr la auditoría de accesibilidad y de
-Lighthouse (RNF-04, RNF-05), que se miden fuera del repositorio.
+El detalle por requerimiento está en [Contexto.md §14](Contexto.md).
 
-Las tablas, funciones y vistas de **todas** las fases existen en la base de datos: son
-**diez migraciones**, cinco de ellas el esquema inicial (tablas, funciones y triggers,
-vistas, blindaje, Storage) y cinco posteriores —las tildes que faltaban en el catálogo; las
-tres últimas vistas de agregación (`v_movimientos_mensual`, `v_gastos_mensual_categoria`,
-`v_presupuesto_ejecucion`) para que el rango de fechas del panel y el comparativo de
-presupuestos se calculen en SQL una sola vez (ADR-11); la subida del límite por soporte de
-10 a 20 MB; `fecha_de_negocio()`, que retira `current_date` de la base para que los
-vencimientos usen la zona horaria de `ajustes` (§8.5); y `notificaciones.leida_en` con el
-índice de la campana (§10.2)—. El detalle está en [Contexto.md §6.8](Contexto.md).
+### Lo que queda pendiente
+
+Nada de esto bloquea el uso de la aplicación, y ninguno es trabajo a medias: son decisiones
+sin tomar y verificaciones que no se pueden hacer desde el repositorio. La lista completa,
+con lo que cuesta cada una, está en [Contexto.md §17](Contexto.md).
+
+| Pendiente                                                                   | Tipo         |
+| --------------------------------------------------------------------------- | ------------ |
+| Decidir si se descarta definitivamente compartir proyectos con otra persona | Decisión     |
+| Decidir si se registra el detalle de la tabla de amortización del crédito   | Decisión     |
+| Elegir proveedor de WhatsApp (falta solo el adaptador; el puerto ya existe) | Decisión     |
+| Decidir si el ≥ 90 % de cobertura pasa a ser umbral bloqueante de CI        | Decisión     |
+| Habilitar los backups diarios de Supabase y probar una restauración         | Verificación |
+| Correr la auditoría de accesibilidad con axe (RNF-04)                       | Verificación |
+| Medir Lighthouse contra el despliegue de producción (RNF-05)                | Verificación |
+
+Un requerimiento no se da por cerrado porque su dominio, su caso de uso y sus pruebas
+existan: se cierra cuando una pantalla lo invoca y el camino se recorre completo. Medirlo
+por módulo es lo que produce deuda invisible con las pruebas en verde.
+
+### Base de datos
+
+Las tablas, funciones y vistas de **todas** las fases existen: son **once migraciones**,
+cinco de ellas el esquema inicial (tablas, funciones y triggers, vistas, blindaje, Storage)
+y seis posteriores —las tildes del catálogo; las tres últimas vistas de agregación
+(`v_movimientos_mensual`, `v_gastos_mensual_categoria`, `v_presupuesto_ejecucion`), para que
+el rango de fechas del panel y el comparativo de presupuestos se calculen en SQL una sola
+vez (ADR-11); la subida del límite por soporte de 10 a 20 MB; `fecha_de_negocio()`, que
+retira `current_date` de la base para que los vencimientos usen la zona horaria de `ajustes`
+(§8.5); `notificaciones.leida_en` con el índice de la campana (§10.2); y el índice único de
+notificaciones sin predicado parcial, sin el cual la tarea de avisos no puede inferir su
+`on conflict`—. El detalle está en [Contexto.md §6.8](Contexto.md).
 
 ---
 
@@ -151,7 +166,7 @@ La contrapartida, dicha sin adornos: la barrera real es el token, no la base de 
 | `npm run db:inspect`               | Tablas, RLS, vistas, triggers, semillas y blindaje de permisos                         |
 | `npm run db:verify-types`          | Contrasta `database.types.ts` con el esquema real (falla si difieren)                  |
 | `npm run db:smoke`                 | Prueba de humo end-to-end contra la base remota; se niega a correr si hay datos        |
-| `npm run test:e2e` / `test:e2e:ui` | Playwright: los dos escenarios de referencia de punta a punta                          |
+| `npm run test:e2e` / `test:e2e:ui` | Playwright: escenarios de referencia, acceso, avisos y RNF-01 de punta a punta         |
 
 Los scripts de base leen `SUPABASE_DB_URL` desde `.env` con `node --env-file`, así que la contraseña no aparece en `package.json` ni en el historial del shell.
 
@@ -163,19 +178,19 @@ Los scripts de base leen `SUPABASE_DB_URL` desde `.env` con `node --env-file`, a
 npm test
 ```
 
-Tres niveles, **412 pruebas en 31 archivos**, unos seis segundos en total:
+Tres niveles, **488 pruebas en 35 archivos**, unos ocho segundos en total:
 
 - **Dominio y aplicación** (`src/**/*.test.ts`): aritmética de `Dinero`, fórmulas de indicadores de §5 con sus guardas contra división por cero, invariantes de `Movimiento` y `Proyecto`, atributos dinámicos por tipo, firma y verificación de la sesión, y el freno a la fuerza bruta.
 - **Componentes** (`src/**/*.test.tsx`): cuatro archivos que declaran `// @vitest-environment jsdom` en su cabecera. Cubren lo que solo se rompe al montar: el `Select` de Base UI —que no es un `<select>` nativo—, el selector de categoría, los adjuntos de un movimiento y una gráfica.
-- **Esquema** (`tests/db/esquema.test.ts`): 48 pruebas que ejecutan las migraciones y el seed **reales** contra PostgreSQL embebido ([PGlite](https://pglite.dev)) y verifican restricciones, triggers, vistas de agregación, recurrencias, la protección del catálogo del sistema y —lo más importante— que los roles públicos no tengan acceso a nada (RNF-11).
+- **Esquema** (`tests/db/esquema.test.ts`): 59 pruebas que ejecutan las migraciones y el seed **reales** contra PostgreSQL embebido ([PGlite](https://pglite.dev)) y verifican restricciones, triggers, vistas de agregación, recurrencias, la protección del catálogo del sistema y —lo más importante— que los roles públicos no tengan acceso a nada (RNF-11).
 
 Ese último nivel es la alternativa a `supabase start` dado que Docker está descartado: no necesita contenedores ni credenciales, y corre en algo más de un segundo.
 
-Aparte va **Playwright** (`npm run test:e2e`), que no entra en `npm test` porque necesita navegador y una base con datos: corre los dos escenarios de referencia de punta a punta contra el Supabase de desarrollo, creando sus propios proyectos con el prefijo `[e2e]` y borrándolos al terminar. Su sitio es CI, no un gancho de git.
+Aparte va **Playwright** (`npm run test:e2e`), que no entra en `npm test` porque necesita navegador y una base con datos: corre **23 pruebas en 6 archivos** —los escenarios de referencia, el acceso, los avisos y RNF-01 a 375 px, sobre dos proyectos de navegador— contra el Supabase de desarrollo, creando sus propios proyectos con el prefijo `[e2e]` y borrándolos al terminar. Su sitio es CI, no un gancho de git.
 
 Dos pruebas que parecen rebuscadas y no lo son:
 
-- **«un objeto nuevo en public tampoco queda al alcance de anon»** comprueba que `alter default privileges` funcionó. Sin eso, la próxima tabla o función que se agregue nace concedida a los roles públicos y el blindaje se erosiona migración a migración sin que nadie lo note. Hizo falta para descubrir que `alter default privileges ... in schema public revoke execute on functions from public` **no hace nada**: el `EXECUTE` a `PUBLIC` es un valor por omisión global y solo la variante sin `in schema` lo revoca.
+- **«un objeto nuevo en public tampoco queda al alcance de anon»** comprueba que `alter default privileges` surtió efecto. Sin eso, la próxima tabla o función que se agregue nace concedida a los roles públicos y el blindaje se erosiona migración a migración sin que nadie lo note. Ojo con una trampa de Postgres: `alter default privileges ... in schema public revoke execute on functions from public` **no hace nada**, porque el `EXECUTE` a `PUBLIC` es un valor por omisión global y solo la variante sin `in schema` lo revoca.
 - **«cambiar el token invalida la sesión en curso»** comprueba que rotar `TOKEN_ACCESO` cierra lo que ya estaba abierto. Si no, quien tuviera una cookie viva seguiría dentro después del cambio, que es justo lo contrario de lo que uno espera al rotar una credencial.
 
 A eso se suma `npm run db:smoke`, que repite las comprobaciones críticas contra el Supabase real (semillas, cifras, invariantes, protección del catálogo, blindaje) y limpia lo que crea. Vale la pena porque PGlite no puede cubrir lo que vive fuera del esquema `public`: los triggers de `storage`, el historial de migraciones de la CLI, el pooler.
@@ -259,18 +274,18 @@ Dos reglas que conviene no romper:
 - **Las cifras van en Inter, nunca en el corte de titulares.** Un número grande en una tipografía de display se lee como decoración; en la sans de la interfaz se lee como dato. Por eso `.cifra` y `.cifra-heroe` fijan `font-sans` explícitamente.
 - **`tabular-nums` solo en columnas** (filas de tabla, marcas de eje). En una cifra grande y aislada, los dígitos de ancho fijo se ven flojos: ahí van proporcionales.
 
-En el tema anterior, `@theme inline { --font-sans: var(--font-sans) }` era autorreferencial, así que la variable quedaba inválida en `:root` y la tipografía no llegaba a aplicarse nunca. Los nombres del tema (`--font-*`) y los de `next/font` (`--fuente-*`) se mantienen separados justamente para eso.
+Los nombres del tema (`--font-*`) y los de `next/font` (`--fuente-*`) se mantienen **separados a propósito**: si coinciden, `@theme inline { --font-sans: var(--font-sans) }` queda autorreferencial, la variable se invalida en `:root` y la tipografía no se aplica en ninguna parte sin que nada falle.
 
 ### Gráficas
 
 `src/shared/ui/viz` contiene las gráficas, todas en SVG y CSS —sin dependencias nuevas— y renderizadas en el servidor salvo `GraficoFlujo`, que necesita la capa de interacción:
 
-- `MedidorAnillo` y `AnillosConcentricos`: una magnitud acotada y el reparto de un total.
+- `MedidorAnillo`: una magnitud acotada sobre un anillo.
 - `MedidorLineal`: proporción sobre una pista del mismo tono.
 - `BarrasComparativas`: columnas agrupadas, un solo eje de valores.
 - `BarrasRanking`: barras horizontales ordenadas, con el valor en la punta.
 - `GraficoFlujo`: ingresos y egresos mensuales con mira vertical y globo.
-- `PanelGrafica` y `TablaDeDatos`: marco común (título y leyenda) y la tabla equivalente que acompaña a cada gráfica.
+- `PanelGrafica` y `TablaDeDatos`: el marco con leyenda —especialización de `PanelDatos`, en `src/shared/ui`— y la tabla equivalente que acompaña a cada gráfica.
 
 `DefinicionesGraficas` monta una vez por documento los degradados que usan las marcas; va en el layout privado.
 
@@ -283,7 +298,7 @@ En el tema anterior, `@theme inline { --font-sans: var(--font-sans) }` era autor
 | **Categórica** | `SerieColor` 1–5 | ¿cuál de varias cosas es? | `--chart-1` … `--chart-5`                   |
 | **Semántica**  | `TonoSemantico`  | ¿qué tan bien va?         | `--success` / `--warning` / `--destructive` |
 
-La regla es corta: **la categórica nunca codifica estado.** El caso que lo demostró vivía en los presupuestos, que pintaban «excedido» con la ranura 2 —el azul de los egresos— y «sobre el 80 %» con la 3 —el ámbar de la inversión—, mientras la insignia del mismo presupuesto, dos celdas a la derecha en la misma fila, se pintaba en rojo. Cuando el color dice dos cosas deja de decir ninguna.
+La regla es corta: **la categórica nunca codifica estado.** Un «excedido» pintado con la ranura 2 —el azul de los egresos— junto a su propia insignia en rojo, en la misma fila, hace que el color deje de decir nada.
 
 `MedidorLineal` acepta `serie` o `tono`, y `tono` manda: un medidor que representa un estado no debería llevar además un color de identidad. `DefinicionesGraficas` monta los degradados de las dos escalas (`deg-<1..5>-v|h` y `deg-tono-<ok|aviso|critico>-v|h`), de modo que la primera gráfica en SVG que quiera pintar un estado no tenga que volver a la categórica.
 

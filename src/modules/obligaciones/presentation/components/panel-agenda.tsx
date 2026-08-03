@@ -56,14 +56,10 @@ const TONO_GRUPO: Record<ClaveGrupoAgenda, string> = {
  * RF-58, RF-73: vencidas y próximas a vencer, con pago en un clic.
  *
  * Los eventos van agrupados por urgencia y **cada grupo lleva su propio
- * subtotal**. Antes había un total único en la cabecera que sumaba todo —vencidas
- * incluidas— mientras la tarjeta «Comprometido a 30 días» de la misma pantalla
- * sumaba solo lo futuro: dos cifras de aspecto idéntico, a cuarenta píxeles una
- * de otra, que nunca coincidían si había algo vencido.
- *
- * Un subtotal por grupo no puede contradecir a la tarjeta que resume ese mismo
- * grupo, y además responde algo que el total único no respondía: cuánto de lo
- * comprometido es urgente.
+ * subtotal**, no un total único en la cabecera. Un subtotal por grupo no puede
+ * contradecir a la tarjeta que resume ese mismo grupo —un total que incluya lo
+ * vencido nunca coincide con un «Comprometido a 30 días» que no lo incluye— y
+ * además responde cuánto de lo comprometido es urgente.
  */
 export function PanelAgenda({
   eventos,

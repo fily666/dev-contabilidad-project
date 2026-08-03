@@ -2,238 +2,18 @@
 
 > **Documento fuente de verdad del proyecto.** Toda decisión de implementación debe poder rastrearse a una sección de este archivo. Si algo no está aquí, se define aquí antes de codificarse.
 
-**Versión:** 1.5 · **Fecha:** 2026-08-03 · **Estado:** fases 0 a 5 implementadas y los cinco huecos de [§17](#17-supuestos-y-pendientes-por-definir) cerrados; ver [§14](#14-roadmap-por-fases)
+**Versión:** 1.6 · **Fecha:** 2026-08-03
 
-> **Cambios de la 1.5** (auditoría de experiencia de usuario, segunda vuelta). La primera
-> —la 1.3— corrigió las cifras y retiró la duplicación de contenido. Esta va detrás de lo
-> que quedaba: **el armazón compartido, el vocabulario y los huecos que se pintan cuando
-> no hay datos.** Ningún dato nuevo y ninguna regla de negocio tocada.
->
-> 1. **Tres primitivos de composición y una sola gramática por nivel**
->    ([§7.2](#72-estructura-de-carpetas)): `CabeceraPagina`, `CabeceraSeccion` y
->    `PanelDatos`. La cabecera de página estaba copiada a mano en las quince páginas
->    —cuatro sin acotar el ancho de la descripción, que en pantalla ancha llegaba a los
->    1.400 px de renglón—, los `h2` se repartían entre dos estilos y **el marco de panel
->    entre dos componentes**: `PanelGrafica` y el `Card` de shadcn, con dos tipografías de
->    título, y ambos lado a lado en la misma fila del panel general. `PanelGrafica` es
->    ahora `PanelDatos` más la leyenda; la agenda usa el mismo marco.
-> 2. **Una vista, un nombre.** El panel se llamaba «Dashboard» en el menú, «Panel» en la
->    miga de pan, «Panel general» en la línea de ámbito y «Resumen» en el `h1`: cuatro
->    nombres para una pantalla, ninguno igual al que el usuario acababa de pulsar. Es
->    «Panel» en los cuatro sitios.
-> 3. **La navegación se agrupa por la pregunta que responde cada módulo** —Análisis,
->    Registro, Compromisos, Sistema—. Eran once entradas planas bajo un rótulo «Módulos»
->    y ordenadas por fase de implementación, que es historia del proyecto y no una
->    categoría del producto. Avisos sube junto a lo que lo origina.
-> 4. **Se dejan de pintar los armazones vacíos.** El panel de agenda usaba el estado vacío
->    de página dentro de una tarjeta: unos 320 px para decir «nada pendiente» en el sitio
->    donde lo normal es no tener nada vencido. Y Presupuestos sin ninguna partida mostraba
->    cuatro tarjetas en «—» y una gráfica vacía —unos 400 px para decir cuatro veces que no
->    hay nada— antes del estado vacío que sí lleva la acción.
-> 5. **Texto de interfaz que era documentación interna.** Patrimonio publicaba un párrafo
->    que le contaba al usuario qué panel se había retirado en la revisión anterior
->    («aquí estaba también…»), y dos vistas citaban secciones de este documento —«(§10.1)»,
->    «(§5.3)»— que el usuario no tiene delante.
-> 6. **Cifras que había que contar a mano.** `resumirMes` ([§5.2](#52-flujo-de-caja))
->    publica lo vencido y lo ejecutado del mes, que se pintaban celda a celda en la rejilla
->    y no se sumaban en ninguna parte; el calendario pasa de una cifra suelta con
->    tipografía propia a las tres tarjetas del resto del producto. La cartera del panel
->    resume su semáforo («2 en riesgo») en lugar de obligar a recorrer la columna. Y las
->    pastillas de estado de Proyectos llevan su recuento, con **una** consulta en vez de
->    dos: antes había que pulsarlas para descubrir que no llevaban a nada.
-> 7. **La leyenda del calendario se dibuja con los colores que usa** y va antes de la
->    rejilla. Era un párrafo al pie que **nombraba los colores por escrito** —«azul
->    pendiente, rojo vencido»—, debajo de la rejilla que explicaba y visible incluso con el
->    mes vacío. El mapa de estilos vive en `presentation/estilos-evento.ts` y lo comparten
->    el chip y la leyenda, así que no pueden discrepar. El diálogo de un evento pinta la
->    insignia del producto en lugar del valor crudo del enum capitalizado.
-> 8. **Los totales de un reporte declaran su tipo** ([§11](#11-reportes-y-exportación)).
->    Los tres consumidores lo adivinaban con reglas distintas y dos estaban mal: un conteo
->    de 1.200 movimientos se imprimía como `$ 1.200` en el PDF y en la pantalla. En
->    pantalla, además, los totales suben por encima de la tabla.
-> 9. **El medidor de la tarjeta de proyecto cambia de pregunta según el tipo.** Era siempre
->    «Cobertura de egresos» = ingresos / egresos, y en un vehículo —que por definición no
->    genera ingresos— marcaba 0 % en todas las tarjetas, siempre: [§5.4](#54-visibilidad-de-indicadores-por-tipo)
->    saca el yield y el ROI de esos tipos por este motivo y este medidor se había quedado
->    fuera de la regla. Sin ingresos mide qué parte del gasto capitaliza.
-> 10. **Tres controles vuelven al bloque que modifican:** el selector de ventana de RF-58
->     entra en la cabecera del panel de agenda —tenía un `h2` propio encima y el título del
->     panel cuarenta píxeles debajo, dos rótulos para el mismo bloque—, y `/documentos`
->     cambia «entra al proyecto correspondiente» por el botón que lleva allí cuando hay un
->     proyecto filtrado.
-> 11. **El hueco bajo la gráfica del panel general.** En una rejilla los dos paneles de
->     una fila miden lo que el más alto, así que la agenda con diez vencimientos llegaba a
->     693 px y estiraba al panel del flujo, que dibujaba su trazo de 240 px fijos arriba y
->     dejaba **más de 400 px en blanco debajo**. Se corrige por los dos lados, porque
->     arreglar uno solo deja el mismo hueco en el caso contrario —dos vencimientos y una
->     gráfica más alta que ellos—: `GraficoFlujo` gana modo `flexible` (el trazo ocupa el
->     alto que le deje el panel, con un piso de 200 px) y `PanelAgenda` gana `maximo`, que
->     lista los tres vencimientos más urgentes y enlaza el resto en `/obligaciones`. Medido
->     a 1440 px: la fila pasa de 693 px con 240 de trazo a 530 px con 403.
->
->     **El tope recorta filas, no cifras.** Los tres grupos por urgencia siguen mostrando
->     su conteo y su subtotal de la ventana completa, y la línea de un grupo se pinta
->     aunque no le toque ninguna fila: son unos 30 px, y sin ella los subtotales a la vista
->     no suman el total de la cabecera —una resta que el lector hace y no le cuadra—.
->     Agrupar la lista ya recortada habría vuelto a partir en dos una cifra que el dominio
->     define una sola vez ([ADR-11](#16-decisiones-técnicas-adr)).
->
-> 12. **Dos idas y vueltas menos por navegación:** el calendario pedía la lista de
->     proyectos y los métodos de pago **después** de resolver el mes, sin necesitarlo, y el
->     layout de las secciones de proyecto pedía el semáforo después de sus otras tres
->     lecturas. Las dos son ahora un solo `Promise.all`.
->
-> **Cambios de la 1.4** (cierre del último hueco de [§17](#17-supuestos-y-pendientes-por-definir)):
-> los avisos in-app ya tienen quien los lea.
->
-> 1. **Campana en la barra superior y pantalla `/avisos`** (RF-59, nuevo). El canal
->    `in_app` estaba completo por el lado de la escritura desde la Fase 4 —la tarea diaria
->    programaba las filas y la horaria las marcaba enviadas— y **ninguna pantalla
->    consultaba la tabla**. Era el quinto hueco de §17, y el único que quedaba: el patrón
->    que esa lista describe, «implementado medido por módulo y no por camino completo»,
->    en su forma más pura.
-> 2. **`notificaciones.leida_en`, columna nueva** ([§6.3](#63-esquema), décima migración
->    en [§6.8](#68-migraciones)). Los cuatro valores de `estado` describen el **envío**
->    (`programada`, `enviada`, `fallida`, `cancelada`), no la lectura: reutilizarlo para
->    marcar lo visto habría hecho un aviso leído indistinguible de uno que nunca salió.
->    Son dos ejes y llevan dos columnas. Una restricción limita `leida_en` al canal
->    in-app, porque un correo se lee en el cliente de correo y de eso la base no puede
->    saber nada.
-> 3. **La campana muestra el aviso desde que su instante se cumple**, sin esperar a que la
->    tarea horaria lo pase a `enviada`. Un aviso in-app no tiene proveedor al que esperar,
->    y esperar a la tarea lo retrasaría hasta una hora: un aviso que llega tarde a quien
->    debe reaccionar es justo el defecto que el canal existe para evitar. El efecto
->    secundario es gratis y útil: como las canceladas quedan fuera y pagar una ocurrencia
->    ya cancela sus avisos, **la campana se limpia sola** al pagar la obligación.
-> 4. **`Popover` nuevo en `shared/ui`** ([§7.2](#72-estructura-de-carpetas)). No se resolvió
->    con `DropdownMenu` porque un menú cierra al activar cualquier elemento, y marcar un
->    aviso como leído cerraba el panel y obligaba a reabrirlo por cada aviso.
-> 5. **Y el hallazgo que importa más que la función:** cablear el lector obligó a ejecutar
->    la tarea que escribe, y **la tarea nunca había funcionado.**
->    `notificaciones_unicas_idx` era un índice **parcial**, y un índice parcial no sirve
->    para inferir el `on conflict (columnas)` del adaptador si la sentencia no repite su
->    predicado —cosa que PostgREST no puede enviar—. `/api/cron/notificaciones` respondía
->    **500 con `42P10`** y programaba cero avisos: la base tenía 121 ocurrencias y ninguna
->    notificación. La undécima migración lo corrige con `nulls not distinct`, que además da
->    al resumen semanal de [§10.3](#103-plantillas-de-correo) la idempotencia que el código
->    ya daba por hecha.
->
->    **Lo tapaba una asimetría entre el doble y el esquema**: el repositorio en memoria
->    construye la clave con un centinela (`ocurrencia_id ?? "sin-ocurrencia"`), tratando los
->    nulos como iguales, así que sus siete pruebas pasaban en verde describiendo una regla
->    que la base no tenía. Es el mismo patrón de [§17](#17-supuestos-y-pendientes-por-definir)
->    visto desde el otro lado: allí el módulo existía y nadie lo llamaba; aquí el módulo se
->    llamaba y la base lo rechazaba. **Las dos veces la prueba estaba verde.** Por eso la
->    prueba de regresión verifica el `on conflict` real contra el esquema y no la existencia
->    del índice: el índice existía.
->
-> **Cambios de la 1.3** (auditoría de experiencia de usuario, primera tanda: la verdad
-> de las cifras). Cuatro correcciones y ninguna de alcance:
->
-> 1. **La base ya no usa `current_date`.** [§8.5](#85-fechas) exigía que todo cálculo de
->    vencimientos usara la zona horaria de `ajustes`, y el dominio lo cumplía mientras
->    cuatro sitios de la base —dos vistas y las dos funciones de [§10.1](#101-tareas-vercel-cron)—
->    seguían en UTC. Entre las 19:00 y la medianoche de Bogotá, `dias_restantes` iba
->    adelantado y `marcar_vencidos()` podía marcar como vencido lo que aún no lo estaba.
->    La novena migración introduce `fecha_de_negocio()` y la aplica en los cuatro
->    ([§6.8](#68-migraciones)).
-> 2. **Todas las cifras del dashboard son del rango de RF-79.** Las tarjetas de RF-77 y la
->    tabla de RF-74 se alimentaban de `v_resumen_proyecto` —histórico completo— junto a
->    unos totales que sí respetaban el rango, y con las mismas etiquetas. `DashboardRepository`
->    gana `totalesPorProyecto` ([§7.3](#73-puertos-definidos)) y el resumen histórico queda
->    reservado a `/proyectos`, donde no hay rango que aplicar.
-> 3. **El selector de rango del panel es mensual**, que es la granularidad real de las
->    vistas de [§6.4](#64-vistas-de-agregación): el adaptador lleva cualquier fecha al día 1,
->    así que dos campos de día prometían una precisión inexistente.
-> 4. **Las cifras de la agenda se definen una sola vez**, en `obligaciones/domain/agenda.ts`.
->    La pantalla de obligaciones derivaba tres por su cuenta y una de ellas contradecía al
->    panel que tenía debajo: la tarjeta sumaba solo lo pendiente y el panel sumaba también
->    lo vencido, con etiquetas indistinguibles (ADR-11).
->
-> Y cuatro de la segunda tanda, el vocabulario visual:
->
-> 5. **Dos escalas de color separadas y que no se cruzan**: la categórica de cinco ranuras
->    (identidad de serie) y una semántica nueva de tres tonos (estado). Los presupuestos
->    pintaban «excedido» con el azul de los egresos mientras su propia insignia lo pintaba
->    en rojo, en la misma fila de la tabla.
-> 6. **`EstadoVacio` tiene variante densa** para usarse dentro de un panel. La de página
->    reservaba unos 320 px para decir «sin datos», más alto que la gráfica que sustituía.
-> 7. **Un solo formato de importe por vista**, y `formatearDineroCompacto` pierde el sufijo
->    `MM`: en es-CO se lee como _millones_, así que `$ 1.200 M` y `$ 1,2 MM` —la misma
->    cifra— se contradecían.
-> 8. **Miga de pan en la barra superior**, en el sitio que ocupaba la pastilla «Datos en
->    vivo» —decorativa y además inexacta, [§7.6](#76-estrategia-de-renderizado) retiró el
->    refresco en vivo—. En las ocho rutas anidadas de `/proyectos/[id]/…` no había nada
->    que dijera dónde estaba el usuario.
->
-> Y cinco de la tercera tanda, la navegación:
->
-> 9. **Grupo de rutas `(secciones)` con `layout.tsx` en `proyectos/[id]`**
->    ([§7.2](#72-estructura-de-carpetas)). La cabecera del proyecto y sus acciones se
->    escriben una vez y no cinco, y las pestañas son persistentes: pasar de Movimientos a
->    Obligaciones del mismo proyecto costaba **dos** clics porque la navegación entre
->    secciones solo existía en el detalle y desaparecía al usarla.
-> 10. **Las cinco subvistas pierden su cabecera triplicada**: cada una abría con un botón
->     «← nombre», repetía el nombre como etiqueta de dato y luego el `h1` de la sección.
-> 11. **Una sola ventana de agenda**, seleccionable entre 7, 30 y 90 días y en la URL
->     (RF-58 completo). Había tres ventanas fijas y distintas para la misma pregunta: 30
->     en `/obligaciones`, 30 en el detalle del proyecto y 90 en sus obligaciones.
-> 12. **«Reportes» del panel se lleva el filtro** en lugar de duplicar un enlace del menú, y
->     «Nuevo proyecto» sale de la cabecera del dashboard, que es una vista de lectura.
-> 13. **Quinta pestaña «Datos» en Configuración**, con la exportación de RF-103 —que vivía
->     dentro de «Preferencias»— y la importación de RF-27, que no estaba en ningún menú. La
->     pestaña activa viaja en `?seccion=` y sobrevive a una recarga.
->
-> Y la cuarta y quinta tanda, que cierran los cinco huecos de [§17](#17-supuestos-y-pendientes-por-definir)
-> y retiran la duplicación de las vistas:
->
-> 14. **El semáforo de [§5.5](#55-estado-financiero-del-proyecto) llega a la interfaz.**
->     `calcularEstadoFinanciero` estaba escrita y probada desde la fase 1 sin un solo
->     consumidor, siendo indicador exigido por [§3](#3-escenarios-de-referencia). El caso de
->     uso `ObtenerSemaforos` reúne las tres señales **para toda la cartera con tres lecturas
->     agregadas**, y la insignia aparece en el dashboard, en el listado de proyectos y en la
->     cabecera del detalle.
-> 15. **Las tres `actualizar*` sin consumidor ya tienen pantalla** (RF-31, RF-17, RF-80):
->     renombrar una categoría en línea, y editar un pasivo y un presupuesto reutilizando su
->     propio diálogo de alta. Antes corregir cualquiera de los tres exigía eliminar y volver
->     a crear —y eliminar un pasivo perdía su historial de abonos—.
-> 16. **RF-23 y RF-24 completos.** Los filtros de categoría, método de pago y naturaleza, y
->     el orden por fecha, valor, categoría y estado, estaban implementados en `leer-filtros`
->     y en el repositorio sin ningún control en la interfaz.
-> 17. **Seis medidas nuevas, ningún dato nuevo:** variación contra el periodo anterior
->     («¿qué cambió?», que no se respondía en ninguna parte), acumulado del rango,
->     plusvalía y LTV por proyecto ([§5.3](#53-rentabilidad)), y ritmo de ejecución
->     presupuestal —un 60 % es sano en octubre y una alarma en marzo, y la vista mostraba el
->     60 % sin más—. El ROI se separó de su filtro: el cálculo sirve a todos los proyectos y
->     el filtro de [§5.4](#54-visibilidad-de-indicadores-por-tipo) se aplica solo en el
->     ranking de RF-74.
-> 18. **Duplicación retirada de las vistas.** La sección héroe del dashboard repetía cinco
->     indicadores de la fila de tarjetas; los anillos concéntricos de Movimientos repetían
->     sus tres tarjetas con una forma que además mentía sobre la relación; el detalle de
->     proyecto pintaba ROI y balance dos veces; y Patrimonio tenía una gráfica que era
->     subconjunto de la tabla de veinte píxeles más abajo. RF-74 y RF-77 se fusionan en una
->     tabla de cartera.
->
-> **Cambios de la 1.2** (auditoría de coherencia documento ↔ código). La 1.1 declaraba
-> «Fase 1 implementada» mientras [§14](#14-roadmap-por-fases) daba las cinco por cerradas:
-> ese desfase es lo que esta revisión corrige, y con él todo lo que el documento describía
-> de memoria. [§6.4](#64-vistas-de-agregación) pasa de siete vistas a las diez que existen;
-> [§6.8](#68-migraciones) lista las ocho migraciones aplicadas; [§7.2](#72-estructura-de-carpetas)
-> y [§7.3](#73-puertos-definidos) se corrigen contra el árbol real (desaparece el puerto
-> `ServicioAuditoria`, que nunca se escribió, y aparecen los cuatro que faltaban);
-> [§7.5](#75-flujo-de-una-operación-de-escritura) deja de invalidar una caché de TanStack
-> Query que [§7.6](#76-estrategia-de-renderizado) ya había retirado; RF-43 y [§11](#11-reportes-y-exportación)
-> dejan de nombrar a un usuario que [ADR-14](#16-decisiones-técnicas-adr) eliminó;
-> [§15.3](#153-scripts) documenta `db:demo`; y [§17](#17-supuestos-y-pendientes-por-definir)
-> gana la lista de **código implementado y probado que ninguna pantalla invoca todavía**,
-> que es la deuda real que quedaba escondida detrás de «las cinco fases están implementadas».
->
-> **Cambios de la 1.1** (auditoría de integridad del sistema): [§8.1](#81-stack) refleja
-> el stack real (Base UI en lugar de Radix, capa propia de gráficas en lugar de Recharts);
-> RNF-08 deja de exigir un actor que [§6.3](#63-esquema) había eliminado; RF-101 documenta
-> dónde vive cada preferencia; [§8.8](#88-pruebas) incorpora el nivel E2E con Playwright;
-> [§15.3](#153-scripts) documenta los ganchos de git y la ausencia deliberada de `db:types`;
-> [§6.8](#68-migraciones) explica por qué corregir un texto sembrado exige migración.
+**Estado:** las seis fases de [§14](#14-alcance-implementado) están implementadas y cableadas
+en la interfaz. `npm run verify` pasa en limpio: 488 pruebas en 35 archivos, con las once
+migraciones de [§6.8](#68-migraciones) aplicadas. Lo que queda abierto —cuatro decisiones
+de alcance y tres verificaciones que no se pueden hacer desde el repositorio— está en
+[§17](#17-supuestos-y-pendientes-por-definir), y solo ahí.
+
+> **Este documento describe el sistema tal como está, no cómo llegó hasta aquí.** El
+> registro de las auditorías anteriores —qué se corrigió en cada revisión y por qué— vive
+> en el historial de git, que es donde se puede fechar y atribuir. Aquí solo queda la
+> regla que sobrevivió al hallazgo, nunca el relato de lo que estaba mal antes.
 
 ---
 
@@ -252,7 +32,7 @@
 11. [Reportes y exportación](#11-reportes-y-exportación)
 12. [Requerimientos no funcionales](#12-requerimientos-no-funcionales)
 13. [Extensibilidad: agregar un tipo de proyecto](#13-extensibilidad-agregar-un-tipo-de-proyecto)
-14. [Roadmap por fases](#14-roadmap-por-fases)
+14. [Alcance implementado](#14-alcance-implementado)
 15. [Entorno y configuración](#15-entorno-y-configuración)
 16. [Decisiones técnicas (ADR)](#16-decisiones-técnicas-adr)
 17. [Supuestos y pendientes por definir](#17-supuestos-y-pendientes-por-definir)
@@ -366,7 +146,7 @@ Estos dos escenarios son la prueba de aceptación funcional del sistema. Deben p
 
 ## 4. Requerimientos funcionales
 
-Cada requerimiento tiene ID estable (`RF-xx`), módulo y criterios de aceptación verificables. La columna **Fase** remite a [§14](#14-roadmap-por-fases).
+Cada requerimiento tiene ID estable (`RF-xx`), módulo y criterios de aceptación verificables. La columna **Fase** remite a [§14](#14-alcance-implementado).
 
 ### 4.1 Módulo: Acceso y ajustes
 
@@ -693,8 +473,8 @@ create table tipos_proyecto (
   -- { "atributos": [{ "clave":"placa","etiqueta":"Placa","tipo":"text","requerido":true }],
   --   "indicadores": ["total_invertido","tco","costo_mensual"] }
   configuracion jsonb not null default '{}'::jsonb,
-  -- Antes esta distinción era "propietario_id is null"; ahora es explícita y la
-  -- protege un trigger (§6.6).
+  -- Distinción explícita entre fila del sistema y fila propia, protegida
+  -- por un trigger (§6.6).
   es_sistema    boolean not null default false,
   activo        boolean not null default true,
   creado_en     timestamptz not null default now()
@@ -998,9 +778,8 @@ que se descubra dentro de un año. Nació para RF-76, pero agrega sobre toda la 
 admite el rango de RF-79; `v_gastos_mensual_categoria` la sustituyó en `…140000` y la
 original se quedó sin llamador. Se conserva por ahora porque retirarla cuesta una migración
 y no estorba, pero **no es una definición mantenida**: si RF-76 cambia de fórmula, cambia en
-`v_gastos_mensual_categoria`. Lo mismo, en menor grado, con `v_flujo_caja_mensual`: el panel
-dejó de usarla al aparecer `v_movimientos_mensual` y hoy solo la lee el resumen de un
-proyecto.
+`v_gastos_mensual_categoria`. Lo mismo, en menor grado, con `v_flujo_caja_mensual`: su único
+consumidor es el resumen de un proyecto; el panel se alimenta de `v_movimientos_mensual`.
 
 **Todas las cifras del panel salen de `v_movimientos_mensual`, también las de cada
 proyecto.** Es lo que permite que el rango de RF-79 se aplique de verdad a la pantalla
@@ -1046,7 +825,7 @@ Lo que hay que vigilar tras cada migración es que no aparezcan permisos nuevos:
 
 - `actualizar_timestamp()`: mantiene `actualizado_en` en cada `update`.
 - `registrar_auditoria()`: inserta en `registro_auditoria` en `insert/update/delete` de `proyectos`, `movimientos`, `obligaciones`, `documentos`, `pasivos`. Opera sobre `to_jsonb(new)` en lugar de `new.<campo>` para servir a tablas con y sin columna `estado`.
-- `proteger_filas_de_sistema()`: rechaza `update` y `delete` sobre las filas sembradas de `tipos_proyecto` y `categorias`, y también impide promover una fila propia a fila del sistema (RF-34). **Antes esto era una política RLS, y dejó de servir al desaparecer RLS efectivo:** convertirlo en trigger lo hace más fuerte, porque tampoco puede saltárselo un script conectado como `postgres`. La única excepción es el sembrado, que se declara con `set app.sembrando = 'on'` en `seed.sql`.
+- `proteger_filas_de_sistema()`: rechaza `update` y `delete` sobre las filas sembradas de `tipos_proyecto` y `categorias`, y también impide promover una fila propia a fila del sistema (RF-34). **Es un trigger y no una política RLS a propósito:** sin RLS efectivo una política no protegería nada, y el trigger es además más fuerte, porque tampoco puede saltárselo un script conectado como `postgres`. La única excepción es el sembrado, que se declara con `set app.sembrando = 'on'` en `seed.sql`.
 - `validar_movimiento()`: valida moneda, estado del proyecto y compatibilidad de la categoría (§5.7).
 - Ninguna función es `security definer`: en un sistema monousuario no hay privilegios que elevar, y así se evita una superficie de escalada innecesaria.
 
@@ -1197,10 +976,10 @@ src/
 - Los métodos de pago viven en su propio módulo (`metodos-pago/`) aunque comparten pantalla de configuración con las categorías: son dos catálogos con ciclos de vida distintos.
 - Las reglas de frontera de §7.1 están codificadas como reglas `no-restricted-imports` en `eslint.config.mjs`: violarlas rompe el lint, no solo la convención.
 - Los componentes de `shared/ui` provienen de shadcn/ui sobre **Base UI**, que compone con la prop `render` en lugar de `asChild`. Para enlaces con apariencia de botón se usa el helper `EnlaceBoton`.
-- **Tres primitivos de composición, y ninguna vista escribe su propio armazón:** `CabeceraPagina` (el `h1` con ámbito, descripción y acciones), `CabeceraSeccion` (el `h2` en versalitas) y `PanelDatos` (el marco de todo bloque con título propio, del que `PanelGrafica` es la especialización con leyenda). Estaban escritos a mano en quince páginas y seis componentes, y cada nivel había desarrollado **dos** gramáticas: `h2` en versalitas mono en unas vistas y en `text-lg` en otras, y el marco de panel repartido entre `PanelGrafica` y el `Card` de shadcn —mismo fondo, distinta tipografía de título y sin la línea de acento—, ambos en la misma fila del panel general. La raíz de toda página es `space-y-6`; Patrimonio y Presupuestos usaban `space-y-8` y su ritmo vertical no coincidía con el del resto al navegar.
+- **Tres primitivos de composición, y ninguna vista escribe su propio armazón:** `CabeceraPagina` (el `h1` con ámbito, descripción y acciones), `CabeceraSeccion` (el `h2` en versalitas) y `PanelDatos` (el marco de todo bloque con título propio, del que `PanelGrafica` es la especialización con leyenda). **Una sola gramática por nivel:** ninguna vista escribe su propio `h1`, su propio `h2` ni su propio marco de panel, y el `Card` de shadcn no se usa como marco de panel de datos. La raíz de toda página es `space-y-6`, sin excepciones, para que el ritmo vertical no cambie al navegar.
 - **`metodos-pago/` tiene las cuatro capas, aunque comparta pantalla con las categorías.** Nació con solo `domain/` e `infrastructure/`, y la consecuencia fue que las Server Actions llamaban al repositorio y la regla «no eliminar un método en uso» vivía en la acción, justo donde §7.4 dice que no debe estar. Es el ejemplo de por qué la frontera se codifica en el lint y no en la costumbre.
 - **El contenedor expone casos de uso, nunca repositorios ni el cliente de Supabase.** Alcanzar `contenedor.<modulo>.repositorio` desde una página salta la capa de aplicación sin que ningún `import` lo delate; por eso hay además una regla `no-restricted-syntax` que lo prohíbe.
-- Hay un solo cliente de Supabase (`cliente-servidor.ts`) y usa `service_role`. Lleva `import "server-only"`, así que si un componente con `"use client"` lo importara, **la compilación falla** en vez de enviar la clave al navegador. Ya no existen `cliente-navegador.ts` ni `admin.ts`: sin clave anónima no hay cliente de navegador, y el administrativo dejó de ser un caso especial.
+- Hay un solo cliente de Supabase (`cliente-servidor.ts`) y usa `service_role`. Lleva `import "server-only"`, así que si un componente con `"use client"` lo importara, **la compilación falla** en vez de enviar la clave al navegador. No hay `cliente-navegador.ts` ni `admin.ts`: sin clave anónima no hay cliente de navegador que escribir, y sin RLS el acceso administrativo no es un caso especial.
 - `acceso/domain/sesion-firmada.ts` **no importa nada**, a propósito: solo usa Web Crypto y globales de codificación. Así el middleware —que corre en Edge y no puede cargar `node:crypto`— reutiliza exactamente la misma verificación que el servidor, sin riesgo de que dos implementaciones divergan.
 
 ### 7.3 Puertos definidos
@@ -1334,7 +1113,7 @@ genuinamente interactiva (zoom, tooltip con cruz, pincel de rango), se reevalúa
 - **Prohibido Docker.** Desarrollo local contra Supabase en la nube o Supabase CLI sin contenedores.
 - **Prohibido Prisma.** Acceso a datos exclusivamente con `@supabase/supabase-js` y SQL en migraciones.
 - Sin ORMs adicionales ni librerías de estado global (Redux, Zustand) ni caché de cliente (TanStack Query) mientras los Server Components y los parámetros de URL sean suficientes: hoy lo son ([§7.6](#76-estrategia-de-renderizado)).
-- **Sin Supabase Auth.** El sistema es monousuario y entra por token ([ADR-14](#16-decisiones-técnicas-adr)); `@supabase/ssr` dejó de ser necesario y se retiró.
+- **Sin Supabase Auth ni `@supabase/ssr`.** El sistema es monousuario y entra por token ([ADR-14](#16-decisiones-técnicas-adr)): no hay sesión de Supabase que refrescar.
 
 ### 8.3 Nomenclatura
 
@@ -1405,18 +1184,20 @@ Cuando un módulo tiene varios casos de uso pequeños que se leen juntos —`cat
 | Humo remoto      | Las comprobaciones críticas contra el Supabase real (`npm run db:smoke`)                                                                     | cifras, invariantes, blindaje |
 | E2E (Playwright) | Los dos escenarios de [§3](#3-escenarios-de-referencia) de punta a punta, el acceso y el RNF-01 a 375 px                                     | flujos críticos               |
 
-`npm run test` cubre los tres primeros niveles: **471 pruebas en 35 archivos**, en unos seis segundos.
-`npm run test:e2e` corre aparte: **20 pruebas** en minuto y medio, porque necesita navegador y
-el Supabase de desarrollo.
+`npm run test` cubre los tres primeros niveles: **488 pruebas en 35 archivos**, en unos ocho
+segundos. `npm run test:e2e` corre aparte: **23 pruebas en 6 archivos** —los dos proyectos de
+navegador— en minuto y medio, porque necesita navegador y el Supabase de desarrollo.
 
 **El ≥ 90 % es un objetivo, no una puerta.** `vitest.config.ts` declara el reporte de
 cobertura y qué mide (`modules/*/domain`, `modules/*/application`, `shared/domain`), pero
 no hay umbral configurado, ni script `test:coverage`, ni la dependencia `@vitest/coverage-v8`
 instalada: hoy esa cifra no se mide en cada corrida. Lo bloqueante es RNF-14 —tipos y
-lint— en CI. Convertir el 90 % en umbral es una decisión abierta, y decirlo así es mejor
-que dejar una columna que parece verificada y no lo está.
+lint— en CI. Convertir el 90 % en umbral es un pendiente abierto (P-4 en
+[§17.2](#172-decisiones-de-alcance-pendientes)); mientras no se cierre, la columna de la
+tabla es una intención y no un dato verificado.
 
-**Pruebas de seguridad obligatorias**, en lugar de las de aislamiento entre usuarios que ya no aplican:
+**Pruebas de seguridad obligatorias.** Sin usuarios no hay aislamiento entre ellos que probar,
+así que lo que se verifica es el cierre:
 
 - `anon` y `authenticated` no pueden leer ni escribir ninguna tabla, ni consultar las vistas, ni invocar las funciones.
 - **Un objeto creado después de las migraciones tampoco queda a su alcance.** Esta es la que importa a largo plazo: verifica que `alter default privileges` surtió efecto y que el blindaje no se erosiona con la próxima migración.
@@ -1427,7 +1208,7 @@ que dejar una columna que parece verificada y no lo está.
 
 El harness **concede a los roles públicos los permisos que Supabase les da por omisión** antes de aplicar las migraciones. Sin eso, las pruebas de blindaje pasarían por ausencia de permisos en lugar de por haberlos quitado, que no es lo mismo.
 
-**Lo que PGlite no cubre:** todo lo que vive fuera del esquema `public` en el Supabase real — los triggers de `storage`, el historial de migraciones de la CLI, el pooler. Por eso existe `npm run db:smoke`. La experiencia manda: el bug del borrado en cascada del esquema anterior solo apareció allí.
+**Lo que PGlite no cubre:** todo lo que vive fuera del esquema `public` en el Supabase real — los triggers de `storage`, el historial de migraciones de la CLI, el pooler. Por eso existe `npm run db:smoke`, y por eso una migración no se da por buena hasta haberlo corrido: hay defectos de esa clase que solo aparecen ahí.
 
 **Nivel E2E (`tests/e2e/`):** Playwright contra el proyecto Supabase de desarrollo
 ([§15.4](#154-entornos)), porque sin Docker no hay base local. De ahí tres decisiones:
@@ -1446,12 +1227,6 @@ las opciones se montan en un `listbox` flotante fuera del contenedor. Los helper
 `tests/e2e/utils/acciones.ts` encapsulan eso y el hecho de que los campos
 obligatorios llevan un asterisco dentro del `<label>`, así que el nombre accesible es
 «Valor \*» y no «Valor».
-
-**Lo que estos E2E ya encontraron**, para que conste por qué valen su coste: el
-formulario de movimientos guardaba `estado` fuera de React Hook Form, de modo que el
-resolver validaba siempre «pagado» y era **imposible registrar un movimiento
-pendiente**; la tarjeta de proyecto estiraba la página a lo ancho con nombres largos
-(RNF-01); y el catálogo del sistema estaba sembrado sin tildes (RNF-13).
 
 ### 8.9 Git
 
@@ -1495,7 +1270,7 @@ El shell privado (`(privado)/layout.tsx`) vuelve a comprobar antes de renderizar
 
 ### 9.4 Modelo de amenaza, dicho sin adornos
 
-El token es **la única barrera** entre internet y todo el historial financiero. Antes había dos (contraseña de usuario + RLS por propietario); ahora hay una, y esa es la contrapartida honesta de la simplicidad que se ganó ([ADR-15](#16-decisiones-técnicas-adr)).
+El token es **la única barrera** entre internet y todo el historial financiero: una sola, sin contraseña ni RLS por propietario detrás. Es la contrapartida honesta del sistema monousuario, y hay que tenerla presente al elegir el token y al decidir dónde se despliega ([ADR-15](#16-decisiones-técnicas-adr)).
 
 De ahí se siguen tres consecuencias prácticas:
 
@@ -1636,92 +1411,28 @@ Si un tipo requiere un cálculo genuinamente nuevo (por ejemplo TIR para fondos 
 
 ---
 
-## 14. Roadmap por fases
+## 14. Alcance implementado
 
-Cada fase termina desplegada en Vercel y usable. No se inicia una fase sin cerrar la anterior.
+Las seis fases están cerradas: cada módulo existe con sus cuatro capas
+([§7.1](#71-principios)), sus pruebas en verde y una pantalla que lo invoca. Queda como
+registro del alcance acordado, no como plan por ejecutar; lo que sigue abierto está en
+[§17](#17-supuestos-y-pendientes-por-definir).
 
-**Estado a 31 de julio de 2026: las cinco fases están implementadas, con cinco
-requerimientos a medias.** Todos los módulos existen con sus cuatro capas, y
-`npm run verify` pasa en limpio (471 pruebas en 35 archivos). Lo que falta se agrupa en
-tres cosas distintas, y conviene no confundirlas:
+| Fase | Alcance                                                                                                                                | Requerimientos                                                                         |
+| ---- | -------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| 0    | Andamiaje Next.js, tooling, esquema y blindaje de la base, contenedor de dependencias, CI bloqueante y despliegue                      | RNF-14                                                                                 |
+| 1    | Acceso por token, ajustes, proyectos con atributos dinámicos, catálogos, movimientos con filtros y resumen financiero por proyecto     | RF-01 a RF-04, RF-10 a RF-15, RF-18, RF-20 a RF-24, RF-26, RF-30 a RF-34, RF-101       |
+| 2    | Soportes documentales con descarga firmada, obligaciones con recurrencia, ocurrencias materializadas y pago que crea el movimiento     | RF-25, RF-40 a RF-46, RF-50 a RF-58                                                    |
+| 3    | Panel sobre las vistas de agregación, calendario financiero mensual, reportes filtrables con Excel y PDF, configuración de catálogos   | RF-28, RF-47, RF-60 a RF-64, RF-70, RF-71, RF-73 a RF-77, RF-79, RF-90 a RF-95, RF-100 |
+| 4    | Pasivos y valoraciones, flujo proyectado a 12 meses, presupuestos con comparativo, patrimonio neto, avisos por correo y bandeja in-app | RF-16, RF-17, RF-29, RF-53, RF-59, RF-72, RF-78, RF-80 a RF-83, RF-102                 |
+| 5    | Importación CSV con previsualización, exportación total en JSON y tipos de proyecto nuevos (construcción, inversiones, cripto, viajes) | RF-27, RF-103                                                                          |
 
-1. **Cinco requerimientos con dominio y caso de uso escritos y probados, pero sin
-   pantalla que los invoque** ([§17](#17-supuestos-y-pendientes-por-definir)). No es
-   alcance por diseñar: es cableado que falta, y hasta la revisión 1.2 estaba oculto
-   porque «implementado» se estaba midiendo por módulo y no por camino completo.
-2. **Las decisiones abiertas** de [§17](#17-supuestos-y-pendientes-por-definir) (proveedor
-   de WhatsApp, detalle de la tabla de amortización).
-3. **Las verificaciones que solo se pueden hacer fuera del repositorio:** backups de
-   Supabase (RNF-15), auditoría axe (RNF-04) y medición de Lighthouse (RNF-05). Ninguna
-   la puede dar por buena una prueba del repositorio, así que ninguna está dada por buena.
-
-El detalle de cada fase queda abajo como registro de lo acordado, no como plan por ejecutar.
-
-### Fase 0 — Fundación
-
-- Proyecto Next.js 15 con TypeScript strict, Tailwind y shadcn/ui.
-- ESLint, Prettier, Husky, lint-staged, Vitest, Playwright.
-- Proyecto Supabase, Supabase CLI, primera migración y `seed.sql`.
-- Estructura de carpetas de [§7.2](#72-estructura-de-carpetas), cliente Supabase y contenedor de dependencias vacío.
-- Despliegue en Vercel con variables de entorno y pipeline de CI.
-
-**Entregable:** aplicación vacía desplegada, con CI verde y migraciones aplicadas.
-
-**Verificación del cierre de Fase 0**, porque «tener las herramientas» y «tenerlas
-puestas» no es lo mismo y aquí se dieron por cerradas antes de estarlo:
-
-| Entregable             | Cómo se comprueba                                                                                  |
-| ---------------------- | -------------------------------------------------------------------------------------------------- |
-| Ganchos de git         | `.husky/pre-commit` y `.husky/pre-push` existen y `lint-staged` está configurado en `package.json` |
-| Playwright             | `playwright.config.ts` y `tests/e2e/`; `npm run test:e2e` pasa                                     |
-| CI bloqueante (RNF-14) | `.github/workflows/ci.yml` corre typecheck, lint, `format:check`, pruebas y build en cada PR       |
-| Migraciones aplicadas  | `npm run db:inspect` y `npm run db:verify-types`                                                   |
-
-### Fase 1 — Núcleo transaccional (MVP)
-
-RF-01 a RF-04, RF-10 a RF-15, RF-18, RF-20 a RF-24, RF-26, RF-30 a RF-34, RF-101.
-
-- Acceso por token, ajustes y shell privado con tema claro/oscuro.
-- CRUD de proyectos con atributos dinámicos por tipo.
-- CRUD de movimientos con categorías, naturaleza, métodos de pago y filtros.
-- Resumen financiero por proyecto ([§5.1](#51-agregados-base-por-proyecto)).
-- Blindaje de la base y pruebas de permisos ([§6.5](#65-blindaje-de-acceso-a-la-base)).
-
-**Criterio de cierre:** los escenarios de [§3](#3-escenarios-de-referencia) se registran completos y sus totales son correctos.
-
-### Fase 2 — Documentos y obligaciones
-
-RF-25, RF-40 a RF-46, RF-50 a RF-58.
-
-- Subida, previsualización, descarga firmada y borrado de soportes.
-- Obligaciones con recurrencia y generación de ocurrencias.
-- Pago de ocurrencia que crea el movimiento asociado.
-- Vistas de vencidas y próximas a vencer; cron de generación y estados.
-
-### Fase 3 — Visibilidad: dashboard, calendario y reportes
-
-RF-28, RF-47, RF-60 a RF-64, RF-70, RF-71, RF-73 a RF-77, RF-79, RF-90 a RF-95, RF-100.
-
-- Dashboard con tarjetas, flujo de caja ejecutado y gráficas de gastos.
-- Calendario financiero mensual.
-- Reportes filtrables con exportación a Excel y PDF.
-- Configuración de catálogos.
-
-### Fase 4 — Planeación y patrimonio
-
-RF-16, RF-17, RF-29, RF-53, RF-59, RF-72, RF-78, RF-80 a RF-83, RF-102.
-
-- Pasivos y valoraciones.
-- Flujo de caja proyectado a 12 meses.
-- Presupuestos con comparativo y alertas.
-- Dashboard de patrimonio (activos, pasivos, patrimonio neto, retorno).
-- Notificaciones por correo, y campana e historial de avisos in-app ([§10.2](#102-canales)).
-
-### Fase 5 — Ampliaciones
-
-RF-27, RF-103, notificaciones por WhatsApp, nuevos tipos de proyecto (construcción, inversiones, cripto, viajes), exportación total de datos, importación CSV.
-
----
+**«Implementado» se mide por camino completo, no por módulo.** Un requerimiento no está
+cerrado porque su dominio, su caso de uso y sus pruebas existan: lo está cuando una
+pantalla lo invoca y el camino se recorre de punta a punta. Medirlo por módulo produjo una
+deuda que sobrevivió dos revisiones con las pruebas en verde, y es la razón por la que
+`npm run test:e2e` recorre los escenarios de [§3](#3-escenarios-de-referencia) contra la
+base real ([§8.8](#88-pruebas)).
 
 ## 15. Entorno y configuración
 
@@ -1835,53 +1546,35 @@ Los E2E no van en un gancho: necesitan navegador y base con datos, y su sitio es
 
 ## 17. Supuestos y pendientes por definir
 
-### Supuestos vigentes (se implementa así salvo indicación contraria)
+### 17.1 Supuestos vigentes (se implementa así salvo indicación contraria)
 
-- **Instalación de un solo dueño.** No hay cuentas, ni proyectos compartidos, ni roles. A diferencia del diseño anterior, el esquema **ya no deja la puerta abierta** a la colaboración: volver al multiusuario exige una migración que reintroduzca `propietario_id` en todas las tablas ([ADR-14](#16-decisiones-técnicas-adr)). Es la contrapartida asumida de la simplificación.
-- **Moneda única COP** por usuario y proyecto. El campo `moneda` existe para habilitar multimoneda después, sin conversión automática en v1.
+- **Instalación de un solo dueño.** No hay cuentas, ni proyectos compartidos, ni roles. El esquema **no deja la puerta abierta** a la colaboración: volver al multiusuario exige una migración que reintroduzca `propietario_id` en todas las tablas ([ADR-14](#16-decisiones-técnicas-adr)). Es la contrapartida asumida de la simplificación.
+- **Moneda única COP** por proyecto. El campo `moneda` existe para habilitar multimoneda después, sin conversión automática en v1.
 - **Sin manejo fiscal explícito** (IVA, retenciones). El valor registrado es el total pagado; si se requiere desglose se agrega en `metadatos`.
 - **Combustible y consumos opcionales** se registran como OPEX normales; no hay módulo de consumo por kilómetro.
 - **Horizonte de proyección por defecto: 12 meses**, configurable en los ajustes entre 1 y 60 (RF-101).
-- **Zona horaria por defecto: `America/Bogota`.**
+- **Zona horaria por defecto: `America/Bogota`.** Todo cálculo de vencimientos la usa, también en la base ([§8.5](#85-fechas)).
 - **Depreciación no automática:** el valor del vehículo baja registrando valoraciones manuales.
 
-### Implementado y probado, pero sin cableado en la interfaz
+### 17.2 Decisiones de alcance pendientes
 
-Esta lista salió de contrastar el documento contra el árbol de código en la revisión 1.2:
-cada entrada tenía su dominio escrito, su caso de uso y sus pruebas en verde, y **ninguna
-pantalla la llamaba**. Es la deuda más fácil de perder de vista, porque el módulo existe, la
-prueba pasa y el requerimiento parece cerrado.
+Ninguna bloquea lo implementado; cada una abre trabajo nuevo si se resuelve por la
+afirmativa.
 
-La revisión 1.3 cerró cuatro de las cinco y la 1.4 la que faltaba. **La lista queda sin
-huecos abiertos, y aun así se conserva**, porque el patrón vale más que la lista:
-**«implementado» medido por módulo y no por camino completo esconde exactamente este tipo
-de deuda**, y conviene recordar cuánto tiempo pasó inadvertida. El de los avisos in-app
-duró dos revisiones enteras con el módulo escrito, las pruebas en verde y el requerimiento
-dado por cerrado.
+| #   | Decisión pendiente                                                                                        | Qué cuesta si se resuelve                                                                                                                                                                                      |
+| --- | --------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| P-1 | ¿Se descarta de forma definitiva compartir proyectos con otra persona (pareja, socio)?                    | La vuelta al multiusuario cuesta una migración de las catorce tablas y repoblarlas, no un ajuste ([ADR-14](#16-decisiones-técnicas-adr)). Conviene cerrarla antes de que haya volumen de datos reales          |
+| P-2 | ¿Se registra el detalle de la tabla de amortización del crédito hipotecario, o basta el saldo y la cuota? | Hoy `pasivos` guarda saldo y cuota. El detalle exige tabla nueva, pantalla de carga y decidir qué manda cuando el banco recalcula                                                                              |
+| P-3 | ¿Qué proveedor de WhatsApp: Twilio, API oficial de Meta, o basta el correo en v1?                         | Solo falta el adaptador. El puerto `NotificadorWhatsApp` existe y el caso de uso trata el canal como opcional: sin adaptador, esas notificaciones quedan **programadas** y no fallidas ([§10.2](#102-canales)) |
+| P-4 | ¿Se convierte el ≥ 90 % de cobertura de [§8.8](#88-pruebas) en umbral bloqueante de CI?                   | Instalar `@vitest/coverage-v8`, añadir el script y el umbral, y aceptar que un PR pueda fallar por cobertura. Hoy la cifra no se mide en cada corrida, así que la columna de cobertura es una intención        |
 
-| Hueco                                                                 | Estado                                                                                               |
-| --------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| **RF-31, renombrar una categoría**                                    | **Cerrado.** Edición en línea en el gestor de categorías; las filas del sistema no la ofrecen (§6.6) |
-| **RF-17, corregir un pasivo**                                         | **Cerrado.** El diálogo de alta sirve también para editar                                            |
-| **RF-80, corregir un presupuesto**                                    | **Cerrado.** Igual, reconstruyendo la periodicidad desde el rango guardado                           |
-| **[§5.5](#55-estado-financiero-del-proyecto), semáforo del proyecto** | **Cerrado.** `ObtenerSemaforos` en dashboard, listado y detalle                                      |
-| **[§10.2](#102-canales), avisos in-app**                              | **Cerrado.** Campana en la barra superior e historial en `/avisos` (RF-59)                           |
+### 17.3 Verificaciones que no se pueden hacer desde el repositorio
 
-Los cinco huecos están cerrados. El último —los avisos in-app— se cableó en lugar de
-retirar el requerimiento, y eso obligó a lo que la decisión escondía: la tabla no tenía
-dónde anotar la lectura, porque `estado` describe el envío. La columna `leida_en` y su
-restricción de canal son el costo real que la opción «cablearlo» tenía sin decirlo
-([§10.2](#102-canales), [§6.3](#63-esquema)).
+Ninguna prueba del repositorio puede darlas por buenas, así que **ninguna está dada por
+buena.** Son la única deuda técnica abierta.
 
-La necesidad de fondo —ver qué vence y qué está vencido— la sigue resolviendo el panel de
-agenda de RF-58, que agrupa por urgencia y da subtotales. La campana no la reemplaza: avisa,
-y enlaza a la agenda, que es donde se actúa.
-
-### Pendientes por confirmar
-
-1. ¿Se descarta de forma definitiva compartir proyectos con otra persona (pareja, socio)? Si aparece esa necesidad, la vuelta al multiusuario cuesta una migración de las catorce tablas, no un ajuste ([ADR-14](#16-decisiones-técnicas-adr)).
-2. ~~¿Se cambia `TOKEN_ACCESO` por una cadena aleatoria larga?~~ **Resuelto.** El token es ahora una cadena aleatoria de 48 caracteres generada con `randomBytes(36).toString("base64url")`, sin forma de contraseña ni relación con el dueño. Sigue siendo la **única** barrera entre internet y todo el historial financiero ([§9.4](#94-modelo-de-amenaza-dicho-sin-adornos)), pero ya con la entropía que esa responsabilidad exige. Rotarlo sigue siendo gratis —cambiar la variable de entorno y volver a entrar— y cierra las sesiones abiertas por diseño ([§9.1](#91-cómo-se-entra)).
-3. ¿Notificaciones por WhatsApp con proveedor propio (Twilio, API oficial de Meta) o basta el correo en v1? **El puerto `NotificadorWhatsApp` ya existe y el caso de uso lo trata como canal opcional**: mientras no haya adaptador, esas notificaciones quedan programadas sin enviarse en lugar de marcarse fallidas. Decidir el proveedor es lo único que falta.
-4. ¿Se necesita registrar el detalle de la tabla de amortización del crédito hipotecario, o basta el saldo y la cuota?
-5. ~~¿Los presupuestos son mensuales, anuales o ambos desde el inicio?~~ **Resuelto: ambos.** El periodo se guarda como rango de fechas (`periodo_inicio`, `periodo_fin`), así que mensual y anual son el mismo registro con distinto rango y no hicieron falta ni una columna de tipo ni una segunda tabla ([RF-80](#49-módulo-presupuestos)).
-6. ~~¿Existe histórico previo que se deba importar (Excel)?~~ **La importación ya está disponible** (`/movimientos/importar`, RF-27): valida fila por fila, previsualiza y solo escribe lo válido. Si el histórico existe, ya hay por dónde entrarlo.
+| #   | Verificación                                                                                        | Cómo se cierra                                                                                              |
+| --- | --------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| V-1 | **RNF-15, backups diarios de Supabase** con retención de siete días y una restauración de prueba    | En el panel de Supabase, y anotando aquí la fecha de la restauración de prueba                              |
+| V-2 | **RNF-04, auditoría de accesibilidad** con axe sobre las rutas privadas                             | Pasada de axe sobre la aplicación desplegada; los hallazgos entran como requerimientos, no como notas       |
+| V-3 | **RNF-05, medición de Lighthouse** contra los objetivos de [§12](#12-requerimientos-no-funcionales) | Lighthouse sobre el despliegue de producción, no sobre `npm run dev`, que no representa el rendimiento real |

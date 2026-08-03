@@ -9,10 +9,9 @@ import { cn } from "@/shared/utils/cn";
 /**
  * Secciones de un proyecto (Contexto.md §7.2), persistentes.
  *
- * Antes esto eran cuatro botones secundarios en el detalle del proyecto, y **la
- * navegación desaparecía al usarla**: al entrar en Movimientos ya no había forma
- * de saltar a Obligaciones del mismo proyecto sin volver primero al detalle. Dos
- * clics en el recorrido más frecuente del producto, donde debería haber uno.
+ * **Persistentes es el requisito, no un detalle de estilo:** una navegación que
+ * desaparece al usarla convierte el salto entre dos secciones del mismo proyecto
+ * en dos clics —pasando por el detalle— donde debe haber uno.
  *
  * Viven en el `layout.tsx` del grupo de secciones, así que se pintan una vez y no
  * cinco, y la cabecera del proyecto se escribe también una sola vez.

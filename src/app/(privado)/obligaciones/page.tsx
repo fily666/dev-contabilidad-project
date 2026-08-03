@@ -117,10 +117,8 @@ export default async function PaginaObligaciones({ searchParams }: Props) {
 
           {/*
             El selector de ventana entra COMO ACCIÓN DEL PANEL y no en una fila
-            propia encima. Antes había un `h2` «Agenda de vencimientos» con el
-            selector al lado y, cuarenta píxeles más abajo, el título del propio
-            panel: «Vencidas y próximas (30 días)». Dos rótulos para el mismo
-            bloque, y el control separado de lo que cambia.
+            propia encima: un control va en la cabecera del bloque que modifica, y
+            el bloque lleva un solo rótulo.
           */}
           <PanelAgenda
             eventos={agenda}

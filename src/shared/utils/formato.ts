@@ -13,17 +13,15 @@ export function formatearDinero(valor: number, moneda = "COP"): string {
 /**
  * Version compacta para tarjetas de indicadores e importes en tabla: `$ 60,5 M`.
  *
- * **Solo dos sufijos, `K` y `M`, y `M` no tiene techo.** Antes había un tercero,
- * `MM` para miles de millones, y en es-CO «MM» se lee habitualmente como
- * *millones*: `$ 1.200 M` y `$ 1,2 MM` son la misma cifra escrita de dos formas
- * que se contradicen para un lector local. Con un solo sufijo por encima del
- * millón, mil doscientos millones se escriben `$ 1.200 M` y no hay ambigüedad que
- * resolver.
+ * **Solo dos sufijos, `K` y `M`, y `M` no tiene techo.** No añadir `MM` para miles
+ * de millones: en es-CO «MM» se lee habitualmente como *millones*, así que
+ * `$ 1.200 M` y `$ 1,2 MM` serían la misma cifra escrita de dos formas que se
+ * contradicen para un lector local. Con un solo sufijo por encima del millón, mil
+ * doscientos millones se escriben `$ 1.200 M` y no hay ambigüedad que resolver.
  *
  * Se usa en **todos** los importes de una misma vista, tarjetas y tablas
- * incluidas. Mezclarlo con `formatearDinero` dentro de una pantalla obliga a
- * traducir mentalmente entre `$ 320,0 M` y `$ 320.000.000`, que es lo que hacía
- * Patrimonio: compacto en las tarjetas de arriba y completo en la tabla de abajo.
+ * incluidas. Mezclarlo con `formatearDinero` dentro de una pantalla obliga al
+ * lector a traducir entre `$ 320,0 M` y `$ 320.000.000`.
  * `formatearDinero` queda para donde el importe exacto es el dato —el detalle de
  * un movimiento, un reporte que se exporta, el valor de una obligación—.
  */

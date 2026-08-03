@@ -94,18 +94,13 @@ export default async function PaginaMovimientos({ searchParams }: Props) {
       ) : (
         <>
           {/*
-            Cuatro cifras en línea, y el neto entre ellas.
+            Cuatro cifras en línea, y el neto entre ellas, que es la que el usuario
+            tendría que calcular por su cuenta.
 
-            Aquí vivía además un `PanelGrafica` con `AnillosConcentricos` que
-            mostraba EXACTAMENTE estas mismas cifras con el mismo formato, a la
-            derecha de las tarjetas: el caso más literal de «el mismo valor
-            expresado de dos formas». Y su forma engañaba: los tres anillos se
-            dibujaban como si repartieran un total, pero ingresos + egresos = flujo,
-            así que los dos primeros sumaban el 100 % y el tercero —la inversión—
-            se solapaba sobre el segundo por ser un subconjunto de los egresos.
-
-            El neto es nuevo: estaban ingresos y egresos, y restarlos era trabajo
-            del usuario.
+            Estas cifras NO se acompañan de una gráfica de reparto: no reparten un
+            total. Ingresos + egresos = flujo, y la inversión es un subconjunto de
+            los egresos, así que cualquier forma que las dibuje como porciones de
+            un mismo entero miente sobre la relación.
           */}
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <TarjetaIndicador
