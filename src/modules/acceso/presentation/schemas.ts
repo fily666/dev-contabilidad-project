@@ -74,6 +74,15 @@ export const esquemaAjustes = z.object({
       (v) => v === null || /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v),
       "Escribe un correo válido o déjalo vacío.",
     ),
+
+  /** RF-102, §17 P-3: número de WhatsApp destino en formato E.164. */
+  whatsappDestino: z
+    .union([z.string(), z.null(), z.undefined()])
+    .transform((v) => (v === undefined || v === null || v.trim() === "" ? null : v.trim()))
+    .refine(
+      (v) => v === null || /^\+[1-9]\d{7,14}$/.test(v),
+      "Escribe el número en formato internacional, por ejemplo +573001234567, o déjalo vacío.",
+    ),
 });
 
 export type DatosAcceso = z.input<typeof esquemaAcceso>;

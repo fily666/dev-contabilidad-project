@@ -23,6 +23,8 @@ export type ConfiguracionAvisos = {
   diasAviso: number[];
   /** Destinatario del correo; sin él, el canal email no se programa. */
   emailDestino: string | null;
+  /** RF-102, §17 P-3: destinatario de WhatsApp; sin él, el canal no se programa. */
+  whatsappDestino: string | null;
   urlBase: string;
 };
 
@@ -47,9 +49,11 @@ export class ProgramarAvisos {
     dentroDeDias?: number;
   }): Promise<{ programados: number; omitidos: number }> {
     const { configuracion } = entrada;
-    const canales = configuracion.canales.filter(
-      (canal) => canal !== "email" || configuracion.emailDestino !== null,
-    );
+    const canales = configuracion.canales.filter((canal) => {
+      if (canal === "email") return configuracion.emailDestino !== null;
+      if (canal === "whatsapp") return configuracion.whatsappDestino !== null;
+      return true;
+    });
 
     if (canales.length === 0) return { programados: 0, omitidos: 0 };
 
@@ -161,6 +165,7 @@ export class EnviarNotificaciones {
 
   async ejecutar(entrada: {
     emailDestino: string | null;
+    whatsappDestino?: string | null;
     limite?: number;
   }): Promise<{ enviadas: number; fallidas: number; omitidas: number }> {
     const pendientes = await this.notificaciones.pendientesDeEnvio(
@@ -186,14 +191,17 @@ export class EnviarNotificaciones {
             texto: notificacion.cuerpo.replace(/<[^>]+>/g, " "),
           });
         } else if (notificacion.canal === "whatsapp") {
-          if (!this.whatsapp) {
-            // Fase 5: el puerto existe, el adaptador no. Se deja programada en
-            // lugar de marcarla fallida: el mensaje no se ha perdido, todavia no
-            // hay por donde enviarlo (§10.2).
+          if (!this.whatsapp || !entrada.whatsappDestino) {
+            // Sin adaptador configurado, o sin numero de destino en ajustes, se
+            // deja programada en lugar de marcarla fallida: el mensaje no se ha
+            // perdido, todavia no hay por donde enviarlo (§10.2).
             omitidas += 1;
             continue;
           }
-          await this.whatsapp.enviar({ para: "", texto: notificacion.cuerpo });
+          await this.whatsapp.enviar({
+            para: entrada.whatsappDestino,
+            texto: notificacion.cuerpo,
+          });
         } else {
           // in_app: la campana la lee de la tabla; publicarla es marcarla enviada.
         }

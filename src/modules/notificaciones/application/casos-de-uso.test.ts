@@ -14,7 +14,11 @@ import {
   ProgramarAvisos,
   type ConfiguracionAvisos,
 } from "./casos-de-uso";
-import { NotificacionRepositoryEnMemoria, NotificadorEmailEnMemoria } from "./dobles";
+import {
+  NotificacionRepositoryEnMemoria,
+  NotificadorEmailEnMemoria,
+  NotificadorWhatsAppEnMemoria,
+} from "./dobles";
 
 /** Contexto.md §8.8: notificaciones (§10, RF-53, RF-102). */
 
@@ -26,14 +30,21 @@ const CONFIGURACION: ConfiguracionAvisos = {
   canales: ["email", "in_app"],
   diasAviso: [5, 1],
   emailDestino: "dueno@ejemplo.com",
+  whatsappDestino: null,
   urlBase: "https://app.ejemplo.com",
 };
 
-function montar() {
+/**
+ * `conWhatsApp` simula el adaptador de Meta configurado en el entorno (§17
+ * P-3): por omisión queda `undefined`, igual que hoy cuando no hay Meta
+ * configurado en el contenedor de dependencias.
+ */
+function montar(opciones: { conWhatsApp?: boolean } = {}) {
   const notificaciones = new NotificacionRepositoryEnMemoria();
   const obligaciones = new ObligacionRepositoryEnMemoria();
   obligaciones.hoy = HOY;
   const email = new NotificadorEmailEnMemoria();
+  const whatsapp = new NotificadorWhatsAppEnMemoria();
   const reloj = new RelojFijo(HOY);
   let contador = 0;
   const nuevoId = () => `0a000000-0000-4000-8000-${String(++contador).padStart(12, "0")}`;
@@ -42,9 +53,15 @@ function montar() {
     notificaciones,
     obligaciones,
     email,
+    whatsapp,
     reloj,
     programar: new ProgramarAvisos(notificaciones, obligaciones, reloj, nuevoId),
-    enviar: new EnviarNotificaciones(notificaciones, email, reloj),
+    enviar: new EnviarNotificaciones(
+      notificaciones,
+      email,
+      reloj,
+      opciones.conWhatsApp ? whatsapp : undefined,
+    ),
     listar: new ListarNotificaciones(notificaciones),
     bandeja: new ObtenerBandejaAvisos(notificaciones, reloj),
     marcarLeido: new MarcarAvisoLeido(notificaciones, reloj),
@@ -296,6 +313,52 @@ describe("EnviarNotificaciones (§10.1)", () => {
 
     expect(resultado.enviadas).toBe(1);
     expect(contexto.email.enviados).toHaveLength(0);
+  });
+
+  it("sin adaptador de WhatsApp las del canal quedan en la cola, no fallidas", async () => {
+    const contexto = montar(); // sin conWhatsApp: como hoy, sin Meta configurado.
+    await conObligacion(contexto, "2026-07-31", [1]);
+    await contexto.programar.ejecutar({
+      configuracion: { ...CONFIGURACION, canales: ["whatsapp"], whatsappDestino: "+573001234567" },
+    });
+
+    const resultado = await contexto.enviar.ejecutar({
+      emailDestino: null,
+      whatsappDestino: "+573001234567",
+    });
+
+    expect(resultado).toMatchObject({ enviadas: 0, fallidas: 0, omitidas: 1 });
+    expect((await contexto.listar.ejecutar({}))[0]?.estado).toBe("programada");
+  });
+
+  it("con el adaptador configurado envía por WhatsApp al número de ajustes", async () => {
+    const contexto = montar({ conWhatsApp: true });
+    await conObligacion(contexto, "2026-07-31", [1]);
+    await contexto.programar.ejecutar({
+      configuracion: { ...CONFIGURACION, canales: ["whatsapp"], whatsappDestino: "+573001234567" },
+    });
+
+    const resultado = await contexto.enviar.ejecutar({
+      emailDestino: null,
+      whatsappDestino: "+573001234567",
+    });
+
+    expect(resultado.enviadas).toBe(1);
+    expect(contexto.whatsapp.enviados[0]?.para).toBe("+573001234567");
+    expect((await contexto.listar.ejecutar({}))[0]?.estado).toBe("enviada");
+  });
+
+  it("con adaptador pero sin número de destino queda en la cola, no fallida", async () => {
+    const contexto = montar({ conWhatsApp: true });
+    await conObligacion(contexto, "2026-07-31", [1]);
+    await contexto.programar.ejecutar({
+      configuracion: { ...CONFIGURACION, canales: ["whatsapp"], whatsappDestino: "+573001234567" },
+    });
+
+    const resultado = await contexto.enviar.ejecutar({ emailDestino: null, whatsappDestino: null });
+
+    expect(resultado).toMatchObject({ enviadas: 0, fallidas: 0, omitidas: 1 });
+    expect(contexto.whatsapp.enviados).toHaveLength(0);
   });
 });
 

@@ -55,7 +55,14 @@ const CAMPOS = [
   "canalesNotificacion",
   "diasAvisoPorOmision",
   "emailDestino",
+  "whatsappDestino",
 ] as const;
+
+const NOMBRES_CANAL: Record<CanalAviso, string> = {
+  email: "Correo",
+  whatsapp: "WhatsApp",
+  in_app: "En la aplicación",
+};
 
 export function FormularioAjustes({ ajustes }: { ajustes: Ajustes }) {
   const formulario = useForm<DatosAjustes, unknown, DatosAjustes>({
@@ -68,6 +75,7 @@ export function FormularioAjustes({ ajustes }: { ajustes: Ajustes }) {
       canalesNotificacion: ajustes.canalesNotificacion,
       diasAvisoPorOmision: ajustes.diasAvisoPorOmision.join(", "),
       emailDestino: ajustes.emailDestino ?? "",
+      whatsappDestino: ajustes.whatsappDestino ?? "",
     },
   });
 
@@ -194,8 +202,9 @@ export function FormularioAjustes({ ajustes }: { ajustes: Ajustes }) {
             <div>
               <Label>Canales de notificación</Label>
               <p className="text-xs text-muted-foreground">
-                «En la aplicación» siempre funciona. El correo necesita además un destinatario y las
-                credenciales de envío configuradas en el entorno.
+                «En la aplicación» siempre funciona. El correo y el WhatsApp necesitan además un
+                destinatario y las credenciales de envío configuradas en el entorno; sin ellas, el
+                aviso queda programado y no se marca como fallido (§10.2).
               </p>
             </div>
             <div className="flex flex-wrap gap-4">
@@ -215,7 +224,7 @@ export function FormularioAjustes({ ajustes }: { ajustes: Ajustes }) {
                         )
                       }
                     />
-                    {canal === "email" ? "Correo" : "En la aplicación"}
+                    {NOMBRES_CANAL[canal]}
                   </label>
                 );
               })}
@@ -255,6 +264,25 @@ export function FormularioAjustes({ ajustes }: { ajustes: Ajustes }) {
             {formulario.formState.errors.emailDestino ? (
               <p className="text-sm text-destructive">
                 {formulario.formState.errors.emailDestino.message}
+              </p>
+            ) : null}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="whatsappDestino">WhatsApp para avisos</Label>
+            <Input
+              id="whatsappDestino"
+              type="tel"
+              placeholder="+573001234567"
+              aria-invalid={!!formulario.formState.errors.whatsappDestino}
+              {...formulario.register("whatsappDestino")}
+            />
+            <p className="text-xs text-muted-foreground">
+              Formato internacional. Vacío desactiva el canal aunque esté marcado.
+            </p>
+            {formulario.formState.errors.whatsappDestino ? (
+              <p className="text-sm text-destructive">
+                {formulario.formState.errors.whatsappDestino.message}
               </p>
             ) : null}
           </div>

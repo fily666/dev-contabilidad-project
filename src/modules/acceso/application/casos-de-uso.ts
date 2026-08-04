@@ -141,6 +141,19 @@ export class ActualizarAjustes {
       );
     }
 
+    // RF-102, §17 P-3: mismo tratamiento que el correo, en formato E.164.
+    if (
+      datos.whatsappDestino !== undefined &&
+      datos.whatsappDestino !== null &&
+      !/^\+[1-9]\d{7,14}$/.test(datos.whatsappDestino)
+    ) {
+      throw new ErrorDeDominio(
+        "WHATSAPP_INVALIDO",
+        "El número de WhatsApp debe estar en formato internacional, por ejemplo +573001234567.",
+        "whatsappDestino",
+      );
+    }
+
     const horizonte = datos.horizonteProyeccionMeses;
     if (
       horizonte !== undefined &&

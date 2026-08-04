@@ -21,6 +21,7 @@ type Preferencias = {
   canales_notificacion?: unknown;
   dias_aviso_por_omision?: unknown;
   email_destino?: unknown;
+  whatsapp_destino?: unknown;
 };
 
 type PreferenciasLeidas = Pick<
@@ -30,6 +31,7 @@ type PreferenciasLeidas = Pick<
   | "canalesNotificacion"
   | "diasAvisoPorOmision"
   | "emailDestino"
+  | "whatsappDestino"
 >;
 
 /**
@@ -53,6 +55,8 @@ function leerPreferencias(crudo: unknown): PreferenciasLeidas {
       )
     : [];
   const email = typeof objeto.email_destino === "string" ? objeto.email_destino.trim() : "";
+  const whatsapp =
+    typeof objeto.whatsapp_destino === "string" ? objeto.whatsapp_destino.trim() : "";
 
   return {
     formatoFecha: FORMATOS_FECHA.includes(formato as FormatoFecha)
@@ -65,6 +69,7 @@ function leerPreferencias(crudo: unknown): PreferenciasLeidas {
     canalesNotificacion: canales.length > 0 ? canales : AJUSTES_POR_OMISION.canalesNotificacion,
     diasAvisoPorOmision: dias.length > 0 ? dias : AJUSTES_POR_OMISION.diasAvisoPorOmision,
     emailDestino: email.includes("@") ? email : null,
+    whatsappDestino: /^\+[1-9]\d{7,14}$/.test(whatsapp) ? whatsapp : null,
   };
 }
 
@@ -110,6 +115,8 @@ export class SupabaseAjustesRepository implements AjustesRepository {
           dias_aviso_por_omision: datos.diasAvisoPorOmision ?? actuales.diasAvisoPorOmision,
           email_destino:
             datos.emailDestino === undefined ? actuales.emailDestino : datos.emailDestino,
+          whatsapp_destino:
+            datos.whatsappDestino === undefined ? actuales.whatsappDestino : datos.whatsappDestino,
         },
       })
       .select("moneda, zona_horaria, preferencias")

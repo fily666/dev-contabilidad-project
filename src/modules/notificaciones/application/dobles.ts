@@ -3,6 +3,7 @@ import type {
   NotificacionListada,
   NotificacionRepository,
   NotificadorEmail,
+  NotificadorWhatsApp,
 } from "../domain/notificacion.repository";
 
 /** Dobles en memoria de los puertos de notificaciones (Contexto.md §8.8). */
@@ -122,5 +123,18 @@ export class NotificadorEmailEnMemoria implements NotificadorEmail {
     if (this.falla) throw new Error("proveedor no disponible");
     this.enviados.push({ para: mensaje.para, asunto: mensaje.asunto });
     return { id: `correo-${this.enviados.length}` };
+  }
+}
+
+/** §17 P-3: doble del adaptador de Meta, mismo patron que el de correo. */
+export class NotificadorWhatsAppEnMemoria implements NotificadorWhatsApp {
+  enviados: Array<{ para: string; texto: string }> = [];
+  /** Cuando es true, cada envio falla: sirve para probar los reintentos. */
+  falla = false;
+
+  async enviar(mensaje: { para: string; texto: string }): Promise<{ id: string }> {
+    if (this.falla) throw new Error("proveedor no disponible");
+    this.enviados.push(mensaje);
+    return { id: `whatsapp-${this.enviados.length}` };
   }
 }

@@ -205,6 +205,7 @@ describe("ActualizarAjustes (RF-03, RF-101)", () => {
       canalesNotificacion: ["in_app"],
       diasAvisoPorOmision: [5, 1],
       emailDestino: null,
+      whatsappDestino: null,
     });
   });
 

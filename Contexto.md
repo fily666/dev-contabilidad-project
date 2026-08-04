@@ -985,28 +985,28 @@ src/
 
 ### 7.3 Puertos definidos
 
-| Puerto                                      | Responsabilidad                                                 | Adaptador v1                                                      |
-| ------------------------------------------- | --------------------------------------------------------------- | ----------------------------------------------------------------- |
-| `ProyectoRepository`                        | Persistencia de proyectos y sus cifras agregadas                | Supabase (PostgREST)                                              |
-| `TipoProyectoRepository`                    | Catálogo de tipos de proyecto (RF-100, RNF-10)                  | Supabase                                                          |
-| `MovimientoRepository`                      | Persistencia y consulta filtrada de movimientos                 | Supabase                                                          |
-| `CategoriaRepository`                       | Catálogo de categorías                                          | Supabase                                                          |
-| `MetodoPagoRepository`                      | Catálogo de métodos de pago (RF-33)                             | Supabase                                                          |
-| `ObligacionRepository`                      | Obligaciones y ocurrencias                                      | Supabase                                                          |
-| `DocumentoRepository`                       | Metadatos de soportes                                           | Supabase                                                          |
-| `PresupuestoRepository`                     | Presupuestos por período                                        | Supabase                                                          |
-| `PasivoRepository` / `ValoracionRepository` | Patrimonio                                                      | Supabase                                                          |
-| `DashboardRepository`                       | Lecturas agregadas del panel ([§6.4](#64-vistas-de-agregación)) | Supabase (vistas)                                                 |
-| `NotificacionRepository`                    | Cola de avisos programados y enviados                           | Supabase                                                          |
-| `AlmacenamientoArchivos`                    | Subir, firmar URL, eliminar                                     | Supabase Storage                                                  |
-| `NotificadorEmail`                          | Envío de correo                                                 | Resend (API REST, sin SDK)                                        |
-| `NotificadorWhatsApp`                       | Envío de WhatsApp                                               | **sin adaptador** ([§17](#17-supuestos-y-pendientes-por-definir)) |
-| `GeneradorExcel`                            | Exportación .xlsx                                               | ExcelJS                                                           |
-| `GeneradorPdf`                              | Exportación .pdf                                                | @react-pdf/renderer                                               |
-| `Reloj`                                     | Fecha/hora actual (testeable)                                   | sistema · `reloj-fijo` en pruebas                                 |
-| `CredencialAcceso`                          | Token y secreto de sesión configurados                          | variables de entorno                                              |
-| `AlmacenSesion`                             | Leer, escribir y borrar la sesión del navegador                 | cookie `httpOnly` de Next                                         |
-| `AjustesRepository`                         | Preferencias de la instalación (fila única `ajustes`)           | Supabase                                                          |
+| Puerto                                      | Responsabilidad                                                 | Adaptador v1                                                                    |
+| ------------------------------------------- | --------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| `ProyectoRepository`                        | Persistencia de proyectos y sus cifras agregadas                | Supabase (PostgREST)                                                            |
+| `TipoProyectoRepository`                    | Catálogo de tipos de proyecto (RF-100, RNF-10)                  | Supabase                                                                        |
+| `MovimientoRepository`                      | Persistencia y consulta filtrada de movimientos                 | Supabase                                                                        |
+| `CategoriaRepository`                       | Catálogo de categorías                                          | Supabase                                                                        |
+| `MetodoPagoRepository`                      | Catálogo de métodos de pago (RF-33)                             | Supabase                                                                        |
+| `ObligacionRepository`                      | Obligaciones y ocurrencias                                      | Supabase                                                                        |
+| `DocumentoRepository`                       | Metadatos de soportes                                           | Supabase                                                                        |
+| `PresupuestoRepository`                     | Presupuestos por período                                        | Supabase                                                                        |
+| `PasivoRepository` / `ValoracionRepository` | Patrimonio                                                      | Supabase                                                                        |
+| `DashboardRepository`                       | Lecturas agregadas del panel ([§6.4](#64-vistas-de-agregación)) | Supabase (vistas)                                                               |
+| `NotificacionRepository`                    | Cola de avisos programados y enviados                           | Supabase                                                                        |
+| `AlmacenamientoArchivos`                    | Subir, firmar URL, eliminar                                     | Supabase Storage                                                                |
+| `NotificadorEmail`                          | Envío de correo                                                 | Resend (API REST, sin SDK)                                                      |
+| `NotificadorWhatsApp`                       | Envío de WhatsApp                                               | API oficial de WhatsApp Business de Meta (Graph API, sin SDK; §17 P-3, cerrada) |
+| `GeneradorExcel`                            | Exportación .xlsx                                               | ExcelJS                                                                         |
+| `GeneradorPdf`                              | Exportación .pdf                                                | @react-pdf/renderer                                                             |
+| `Reloj`                                     | Fecha/hora actual (testeable)                                   | sistema · `reloj-fijo` en pruebas                                               |
+| `CredencialAcceso`                          | Token y secreto de sesión configurados                          | variables de entorno                                                            |
+| `AlmacenSesion`                             | Leer, escribir y borrar la sesión del navegador                 | cookie `httpOnly` de Next                                                       |
+| `AjustesRepository`                         | Preferencias de la instalación (fila única `ajustes`)           | Supabase                                                                        |
 
 **No hay puerto `ServicioAuditoria`, y es deliberado.** La auditoría de RNF-08 la
 escribe por completo el trigger `registrar_auditoria()` ([§6.6](#66-triggers)): una
@@ -1347,7 +1347,7 @@ disparador manual alcanzable sin credencial es igual de disparable por cualquier
 
   La necesidad de fondo —ver qué vence y qué está vencido— la sigue resolviendo el panel de agenda de RF-58: la campana avisa, la agenda es donde se actúa, y por eso el panel enlaza a `/obligaciones`.
 
-- **WhatsApp**: el puerto `NotificadorWhatsApp` existe y el caso de uso lo trata como canal opcional; **falta el adaptador**, así que esos avisos quedan programados sin enviarse en lugar de fallar. Decidir el proveedor es lo único pendiente ([§17](#17-supuestos-y-pendientes-por-definir)).
+- **WhatsApp (API oficial de Meta)**: adaptador `MetaWhatsAppNotificador` sobre la Graph API, mismo patrón que Resend —una sola petición POST, sin SDK—. Meta exige una **plantilla pre-aprobada** para todo mensaje que la aplicación inicia fuera de la ventana de servicio de 24h abierta por el destinatario, que es el caso de un aviso de vencimiento; por eso el adaptador manda `type: "template"` con una única variable de cuerpo (el texto del aviso) en lugar de texto libre. El nombre y el idioma de la plantilla se configuran por entorno (`WHATSAPP_PLANTILLA_AVISO`, `WHATSAPP_PLANTILLA_IDIOMA`; [§15.1](#151-variables-de-entorno)) y se crean una vez en Meta Business Manager. El destinatario es un ajuste (`whatsappDestino`, formato E.164), igual que `emailDestino`. Sin `WHATSAPP_TOKEN_ACCESO` ni `WHATSAPP_ID_NUMERO` configuradas, o sin `whatsappDestino`, el canal queda `programada` en lugar de `fallida`, igual que el correo sin configurar. Decisión cerrada en [§17](#17-supuestos-y-pendientes-por-definir) (P-3, 2026-08-04).
 
 ### 10.3 Plantillas de correo
 
@@ -1376,8 +1376,8 @@ Resumen semanal (lunes), aviso individual N días antes, y aviso de obligación 
 | RNF-01 | Diseño responsive en escritorio, tablet y móvil.                                              | Sin scroll horizontal a 375 px; tablas colapsan a tarjetas.                                                                                                                                                          |
 | RNF-02 | Interfaz moderna e intuitiva, consistente con shadcn/ui.                                      | Un usuario nuevo registra un movimiento sin instrucciones.                                                                                                                                                           |
 | RNF-03 | Modo claro y oscuro con preferencia persistida.                                               | Ambos temas legibles en todas las vistas y gráficas.                                                                                                                                                                 |
-| RNF-04 | Accesibilidad: navegación por teclado, foco visible, contraste AA, etiquetas en formularios.  | Auditoría axe sin errores críticos.                                                                                                                                                                                  |
-| RNF-05 | Rendimiento: LCP < 2,5 s y TTI < 3 s en 4G.                                                   | Lighthouse ≥ 90 en rendimiento.                                                                                                                                                                                      |
+| RNF-04 | Accesibilidad: navegación por teclado, foco visible, contraste AA, etiquetas en formularios.  | Auditoría axe sin errores críticos. **No verificado, riesgo aceptado** ([§17.3](#173-verificaciones-descartadas-riesgo-aceptado-por-decisión-del-propietario)).                                                      |
+| RNF-05 | Rendimiento: LCP < 2,5 s y TTI < 3 s en 4G.                                                   | Lighthouse ≥ 90 en rendimiento. **No verificado, riesgo aceptado** ([§17.3](#173-verificaciones-descartadas-riesgo-aceptado-por-decisión-del-propietario)).                                                          |
 | RNF-06 | Listados de 5.000 movimientos con filtros en menos de 1 s.                                    | Paginación en servidor e índices de [§6.3](#63-esquema).                                                                                                                                                             |
 | RNF-07 | Validación en cliente y servidor con esquema único.                                           | Deshabilitar JavaScript no permite datos inválidos.                                                                                                                                                                  |
 | RNF-08 | Auditoría de creación y modificación de todos los registros.                                  | `registro_auditoria` con entidad, acción y diferencias. **Sin actor:** hay un solo operador, así que la pregunta que responde es «qué cambió y cuándo» ([§6.3](#63-esquema), [ADR-14](#16-decisiones-técnicas-adr)). |
@@ -1387,7 +1387,7 @@ Resumen semanal (lunes), aviso individual N días antes, y aviso de obligación 
 | RNF-12 | Estados vacíos, de carga y de error en cada vista.                                            | Skeletons y mensajes con acción sugerida.                                                                                                                                                                            |
 | RNF-13 | Idioma español (es-CO) en toda la interfaz, incluidos errores y exportaciones.                | Sin cadenas en inglés visibles.                                                                                                                                                                                      |
 | RNF-14 | Cero errores de tipos y de lint en `main`.                                                    | CI bloqueante.                                                                                                                                                                                                       |
-| RNF-15 | Respaldo diario de la base y recuperación puntual.                                            | Backups de Supabase habilitados.                                                                                                                                                                                     |
+| RNF-15 | Respaldo diario de la base y recuperación puntual.                                            | Backups de Supabase habilitados. **No verificado, riesgo aceptado** ([§17.3](#173-verificaciones-descartadas-riesgo-aceptado-por-decisión-del-propietario)).                                                         |
 
 ---
 
@@ -1482,6 +1482,16 @@ CRON_SECRET=                      # protege /api/cron/*; mínimo 16 caracteres
 # notificaciones se quedan programadas en lugar de fallar (§10.2).
 RESEND_API_KEY=
 EMAIL_REMITENTE=
+
+# WhatsApp (§17 P-3). Sin las dos primeras, el canal queda desactivado igual
+# que el correo sin configurar. Token permanente y Phone Number ID desde
+# Meta for Developers → la app de WhatsApp Business → API Setup.
+WHATSAPP_TOKEN_ACCESO=
+WHATSAPP_ID_NUMERO=
+# Plantilla aprobada en Meta Business Manager con una variable de cuerpo.
+# Vacío usa "aviso_generico" / "es".
+WHATSAPP_PLANTILLA_AVISO=
+WHATSAPP_PLANTILLA_IDIOMA=
 ```
 
 No hay `NEXT_PUBLIC_SUPABASE_ANON_KEY`: sin usuarios de Supabase Auth no hay sesión que representar, y los roles públicos quedaron sin permisos a propósito ([§6.5](#65-blindaje-de-acceso-a-la-base)).
@@ -1574,7 +1584,7 @@ Los E2E no van en un gancho: necesitan navegador y base con datos, y su sitio es
 
 ### 17.1 Supuestos vigentes (se implementa así salvo indicación contraria)
 
-- **Instalación de un solo dueño.** No hay cuentas, ni proyectos compartidos, ni roles. El esquema **no deja la puerta abierta** a la colaboración: volver al multiusuario exige una migración que reintroduzca `propietario_id` en todas las tablas ([ADR-14](#16-decisiones-técnicas-adr)). Es la contrapartida asumida de la simplificación.
+- **Instalación de un solo dueño, de forma definitiva (§17.2, P-1 cerrada el 2026-08-04).** No hay cuentas, ni proyectos compartidos, ni roles. El esquema **no deja la puerta abierta** a la colaboración: volver al multiusuario exige una migración que reintroduzca `propietario_id` en todas las tablas ([ADR-14](#16-decisiones-técnicas-adr)). Es la contrapartida asumida de la simplificación, y ya no es una decisión abierta: no se revisita salvo instrucción explícita en contrario.
 - **Moneda única COP** por proyecto. El campo `moneda` existe para habilitar multimoneda después, sin conversión automática en v1.
 - **Sin manejo fiscal explícito** (IVA, retenciones). El valor registrado es el total pagado; si se requiere desglose se agrega en `metadatos`.
 - **Combustible y consumos opcionales** se registran como OPEX normales; no hay módulo de consumo por kilómetro.
@@ -1582,25 +1592,33 @@ Los E2E no van en un gancho: necesitan navegador y base con datos, y su sitio es
 - **Zona horaria por defecto: `America/Bogota`.** Todo cálculo de vencimientos la usa, también en la base ([§8.5](#85-fechas)).
 - **Depreciación no automática:** el valor del vehículo baja registrando valoraciones manuales.
 
-### 17.2 Decisiones de alcance pendientes
+### 17.2 Decisiones de alcance (cerradas el 2026-08-04)
 
-Ninguna bloquea lo implementado; cada una abre trabajo nuevo si se resuelve por la
-afirmativa.
+Las cuatro decisiones que este documento dejaba abiertas ya se resolvieron. Ninguna
+bloqueaba lo implementado; se registran aquí, con su resolución, para que no se
+reabran sin motivo.
 
-| #   | Decisión pendiente                                                                                        | Qué cuesta si se resuelve                                                                                                                                                                                      |
-| --- | --------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| P-1 | ¿Se descarta de forma definitiva compartir proyectos con otra persona (pareja, socio)?                    | La vuelta al multiusuario cuesta una migración de las catorce tablas y repoblarlas, no un ajuste ([ADR-14](#16-decisiones-técnicas-adr)). Conviene cerrarla antes de que haya volumen de datos reales          |
-| P-2 | ¿Se registra el detalle de la tabla de amortización del crédito hipotecario, o basta el saldo y la cuota? | Hoy `pasivos` guarda saldo y cuota. El detalle exige tabla nueva, pantalla de carga y decidir qué manda cuando el banco recalcula                                                                              |
-| P-3 | ¿Qué proveedor de WhatsApp: Twilio, API oficial de Meta, o basta el correo en v1?                         | Solo falta el adaptador. El puerto `NotificadorWhatsApp` existe y el caso de uso trata el canal como opcional: sin adaptador, esas notificaciones quedan **programadas** y no fallidas ([§10.2](#102-canales)) |
-| P-4 | ¿Se convierte el ≥ 90 % de cobertura de [§8.8](#88-pruebas) en umbral bloqueante de CI?                   | Instalar `@vitest/coverage-v8`, añadir el script y el umbral, y aceptar que un PR pueda fallar por cobertura. Hoy la cifra no se mide en cada corrida, así que la columna de cobertura es una intención        |
+| #   | Decisión                                                                                                  | Resolución                                                                                                                                                                                                                                                                                                                   |
+| --- | --------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| P-1 | ¿Se descarta de forma definitiva compartir proyectos con otra persona (pareja, socio)?                    | **Sí, de forma definitiva.** El esquema de un solo dueño queda confirmado; ver [§17.1](#171-supuestos-vigentes-se-implementa-así-salvo-indicación-contraria) y [ADR-14](#16-decisiones-técnicas-adr). Volver al multiusuario seguiría costando una migración de las catorce tablas, no un ajuste, si alguna vez se revisita. |
+| P-2 | ¿Se registra el detalle de la tabla de amortización del crédito hipotecario, o basta el saldo y la cuota? | **Basta el saldo y la cuota.** `pasivos` se queda como está; no se abre tabla nueva ni pantalla de carga.                                                                                                                                                                                                                    |
+| P-3 | ¿Qué proveedor de WhatsApp: Twilio, API oficial de Meta, o basta el correo en v1?                         | **API oficial de Meta.** Implementado: adaptador `MetaWhatsAppNotificador` (Graph API), ajuste `whatsappDestino`, canal `whatsapp` habilitable en Preferencias y variables `WHATSAPP_*` en el entorno ([§7.3](#73-puertos-definidos), [§10.2](#102-canales), [§15.1](#151-variables-de-entorno)).                            |
+| P-4 | ¿Se convierte el ≥ 90 % de cobertura de [§8.8](#88-pruebas) en umbral bloqueante de CI?                   | **No, se deja informativo.** La cifra sigue siendo una intención y no una puerta de CI; no se instala `@vitest/coverage-v8` por ahora.                                                                                                                                                                                       |
 
-### 17.3 Verificaciones que no se pueden hacer desde el repositorio
+### 17.3 Verificaciones descartadas (riesgo aceptado por decisión del propietario)
 
-Ninguna prueba del repositorio puede darlas por buenas, así que **ninguna está dada por
-buena.** Son la única deuda técnica abierta.
+Estas tres verificaciones no se pueden hacer desde el repositorio —exigen el panel de
+Supabase o un despliegue de producción real, no `npm run dev`— y el propietario decidió,
+el 2026-08-04, **no atenderlas.** No es que quedaran resueltas: es una decisión explícita
+de no verificarlas, y el riesgo correspondiente queda aceptado a partir de esa fecha, no
+oculto. RNF-04, RNF-05 y RNF-15 ([§12](#12-requerimientos-no-funcionales)) se quedan sin
+verificación de aceptación; el resto de los no funcionales sigue exigible.
 
-| #   | Verificación                                                                                        | Cómo se cierra                                                                                              |
-| --- | --------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
-| V-1 | **RNF-15, backups diarios de Supabase** con retención de siete días y una restauración de prueba    | En el panel de Supabase, y anotando aquí la fecha de la restauración de prueba                              |
-| V-2 | **RNF-04, auditoría de accesibilidad** con axe sobre las rutas privadas                             | Pasada de axe sobre la aplicación desplegada; los hallazgos entran como requerimientos, no como notas       |
-| V-3 | **RNF-05, medición de Lighthouse** contra los objetivos de [§12](#12-requerimientos-no-funcionales) | Lighthouse sobre el despliegue de producción, no sobre `npm run dev`, que no representa el rendimiento real |
+| #   | Verificación descartada                                                                          | Qué queda sin comprobar                                                                                   |
+| --- | ------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------- |
+| V-1 | **RNF-15**, backups diarios de Supabase con retención de siete días y una restauración de prueba | Si Supabase falla o hay un error de operación, no hay garantía probada de poder recuperar la base.        |
+| V-2 | **RNF-04**, auditoría de accesibilidad con axe sobre las rutas privadas                          | Puede haber barreras de teclado, foco o contraste sin detectar; ningún hallazgo entró como requerimiento. |
+| V-3 | **RNF-05**, medición de Lighthouse contra el despliegue de producción                            | No hay evidencia de que LCP y TTI cumplan el objetivo bajo condiciones reales (4G, build de producción).  |
+
+Si en el futuro se quiere revertir esta decisión, no hace falta código nuevo: son las
+mismas tres acciones descritas arriba, sin trabajo de desarrollo pendiente detrás.

@@ -89,6 +89,7 @@ import {
   ProgramarAvisos,
 } from "@/modules/notificaciones/application/casos-de-uso";
 import { ResendNotificador } from "@/shared/infrastructure/email/resend";
+import { MetaWhatsAppNotificador } from "@/shared/infrastructure/whatsapp/meta";
 import { ExcelJsGenerador } from "@/shared/infrastructure/export/excel";
 import { ReactPdfGenerador } from "@/shared/infrastructure/export/pdf";
 import { ExportarDatos } from "@/modules/reportes/application/exportar-datos.use-case";
@@ -163,6 +164,9 @@ export function crearContenedor(zonaHoraria = AJUSTES_POR_OMISION.zonaHoraria) {
   const valoraciones = new SupabaseValoracionRepository(supabase);
   const presupuestos = new SupabasePresupuestoRepository(supabase);
   const notificaciones = new SupabaseNotificacionRepository(supabase);
+  // §17 P-3: solo se inyecta si Meta esta configurado en el entorno; sin eso,
+  // el canal whatsapp se trata como si el adaptador no existiera (§10.2).
+  const metaWhatsApp = new MetaWhatsAppNotificador();
 
   // Se instancia una vez y se comparte: `PagarOcurrencia` reutiliza el mismo caso
   // de uso que el formulario de movimientos, para que las invariantes de §5.7 se
@@ -305,11 +309,15 @@ export function crearContenedor(zonaHoraria = AJUSTES_POR_OMISION.zonaHoraria) {
     },
 
     notificaciones: {
-      // §10, RF-53, RF-102. El notificador de WhatsApp no se inyecta: el puerto
-      // existe y el adaptador es de Fase 5 (§10.2).
+      // §10, RF-53, RF-102.
       listar: new ListarNotificaciones(notificaciones),
       programar: new ProgramarAvisos(notificaciones, obligaciones, reloj, nuevoId),
-      enviar: new EnviarNotificaciones(notificaciones, new ResendNotificador(), reloj),
+      enviar: new EnviarNotificaciones(
+        notificaciones,
+        new ResendNotificador(),
+        reloj,
+        metaWhatsApp.disponible() ? metaWhatsApp : undefined,
+      ),
       // RF-59: el lado que lee. La bandeja necesita el reloj porque «publicado»
       // es una comparación contra ahora, no un estado guardado (§10.2).
       bandeja: new ObtenerBandejaAvisos(notificaciones, reloj),

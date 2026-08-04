@@ -68,10 +68,12 @@ export interface NotificadorEmail {
 }
 
 /**
- * PUERTO `NotificadorWhatsApp` (§7.3, Fase 5).
+ * PUERTO `NotificadorWhatsApp` (§7.3, Fase 5). Adaptador v1: API oficial de
+ * WhatsApp Business de Meta (§17 P-3, decisión cerrada).
  *
- * Existe ya, sin adaptador real, por lo que dice §10.2: el canal se decide
- * después (pendiente 3 de §17) y el dominio no debe enterarse de cuál se eligió.
+ * El dominio no se entera de cuál proveedor se eligió: solo conoce `para`
+ * (E.164) y `texto`. Sin adaptador configurado en el entorno, el caso de uso
+ * deja el aviso `programada` en vez de `fallida` (§10.2).
  */
 export interface NotificadorWhatsApp {
   enviar(mensaje: { para: string; texto: string }): Promise<{ id: string }>;

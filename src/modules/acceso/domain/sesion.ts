@@ -19,7 +19,7 @@ export const HORIZONTE_PROYECCION_MINIMO = 1;
 export const HORIZONTE_PROYECCION_MAXIMO = 60;
 
 /** RF-102: canales por los que se avisa. `in_app` no necesita configuracion. */
-export const CANALES_DISPONIBLES = ["email", "in_app"] as const;
+export const CANALES_DISPONIBLES = ["email", "whatsapp", "in_app"] as const;
 export type CanalAviso = (typeof CANALES_DISPONIBLES)[number];
 
 /** Dias de anticipacion por omision cuando la obligacion no los declara (RF-53). */
@@ -43,6 +43,13 @@ export type Ajustes = {
    * hay a quien preguntarselo: se escribe una vez y se olvida.
    */
   emailDestino: string | null;
+  /**
+   * RF-102, §17 P-3: numero de WhatsApp destino en formato E.164 (+573001234567).
+   * Mismo razonamiento que `emailDestino`: es un ajuste, no una variable de
+   * entorno. Sin adaptador de Meta configurado en el entorno, el canal queda
+   * `programada` aunque este numero exista (§10.2).
+   */
+  whatsappDestino: string | null;
 };
 
 export const AJUSTES_POR_OMISION: Ajustes = {
@@ -53,6 +60,7 @@ export const AJUSTES_POR_OMISION: Ajustes = {
   canalesNotificacion: ["in_app"],
   diasAvisoPorOmision: DIAS_AVISO_POR_OMISION,
   emailDestino: null,
+  whatsappDestino: null,
 };
 
 /** PUERTO: la credencial configurada en el entorno. */

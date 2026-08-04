@@ -24,21 +24,18 @@ existe con sus cuatro capas, sus pruebas en verde y una pantalla que lo invoca.
 
 El detalle por requerimiento está en [Contexto.md §14](Contexto.md).
 
-### Lo que queda pendiente
+### Pendientes cerrados
 
-Nada de esto bloquea el uso de la aplicación, y ninguno es trabajo a medias: son decisiones
-sin tomar y verificaciones que no se pueden hacer desde el repositorio. La lista completa,
-con lo que cuesta cada una, está en [Contexto.md §17](Contexto.md).
+No quedan pendientes abiertos. Las cuatro decisiones de alcance que este README listaba
+(multiusuario, detalle de amortización, proveedor de WhatsApp, umbral de cobertura en CI)
+ya se resolvieron —el detalle y la fecha están en [Contexto.md §17.2](Contexto.md). La de
+WhatsApp implicó trabajo nuevo: el adaptador de la API oficial de Meta ya existe (§7.3,
+§10.2).
 
-| Pendiente                                                                   | Tipo         |
-| --------------------------------------------------------------------------- | ------------ |
-| Decidir si se descarta definitivamente compartir proyectos con otra persona | Decisión     |
-| Decidir si se registra el detalle de la tabla de amortización del crédito   | Decisión     |
-| Elegir proveedor de WhatsApp (falta solo el adaptador; el puerto ya existe) | Decisión     |
-| Decidir si el ≥ 90 % de cobertura pasa a ser umbral bloqueante de CI        | Decisión     |
-| Habilitar los backups diarios de Supabase y probar una restauración         | Verificación |
-| Correr la auditoría de accesibilidad con axe (RNF-04)                       | Verificación |
-| Medir Lighthouse contra el despliegue de producción (RNF-05)                | Verificación |
+Las tres verificaciones que quedaban (backups de Supabase, auditoría de accesibilidad con
+axe, Lighthouse contra producción) **se descartaron por decisión del propietario** el
+2026-08-04: no se van a atender, y el riesgo correspondiente (RNF-04, RNF-05, RNF-15)
+queda aceptado, no oculto. El detalle está en [Contexto.md §17.3](Contexto.md).
 
 Un requerimiento no se da por cerrado porque su dominio, su caso de uso y sus pruebas
 existan: se cierra cuando una pantalla lo invoca y el camino se recorre completo. Medirlo

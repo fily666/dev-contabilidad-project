@@ -35,6 +35,7 @@ export async function GET(peticion: Request): Promise<Response> {
   if (enviar) {
     const resultado = await contenedor.notificaciones.enviar.ejecutar({
       emailDestino: ajustes.emailDestino,
+      whatsappDestino: ajustes.whatsappDestino,
     });
     return Response.json({ tarea: "enviar-notificaciones", ...resultado });
   }
@@ -43,6 +44,7 @@ export async function GET(peticion: Request): Promise<Response> {
     canales: ajustes.canalesNotificacion,
     diasAviso: ajustes.diasAvisoPorOmision,
     emailDestino: ajustes.emailDestino,
+    whatsappDestino: ajustes.whatsappDestino,
     urlBase: process.env.NEXT_PUBLIC_APP_URL ?? "",
   };
 
